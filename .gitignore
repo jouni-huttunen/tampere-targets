@@ -1,0 +1,22 @@
+# Dependencies and builds
+node_modules/
+web/dist/
+dist/
+
+# Local data (personal use only, never shared)
+data/
+reports/
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+oikotie-*.json
+
+# Machine-local Claude Code settings
+.claude/settings.local.json
+
+# Logs and OS noise
+*.log
+.DS_Store
+Thumbs.db
+.env
