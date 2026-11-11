@@ -2,8 +2,44 @@
 
 _Last updated 2026-11-11. Read this first, then `PLAN.md` (the approved spec). Where they differ, this file wins on the **current state** and `PLAN.md` wins on the **target design**. The formal spec is `docs/01–03`; `docs/03-design.md` wins over `PLAN.md` where they differ (its §13 lists why)._
 
-## 0. Start here: the next task is the web UI (step 7)
-**Status 2026-11-11:** steps 1–6 are done and committed. Data retrieval works end to end on real data, and the UI spec is complete. The UI has **not been started**: there is no `server/`, no `web/`, no `ui` scripts and no npm dependencies yet.
+## 0. Start here: release 1.0.0 (web UI done)
+**Status 2026-11-12:** the user reviewed the dark Nordic-pagan redesign ("Now it is way better") and asked for a commit tagged as the 1.0.0 release. Committed and tagged `v1.0.0` on `main` (version 1.0.0 in `package.json`). `npm test`: **85 passing**. Next steps are the user's call; open items are listed at the end of this section.
+
+**Redesign (2026-11-11, second night; the user's brief, nearly verbatim: "it looks so boring… cheap… does not evoke any feelings"; take inspiration from Heilung and Wardruna; forest green and ice blue instead of pure white; "metal, but also professional"; the right-hand list "must be tighter… not very useful unless I see multiple apartments"; "find another map service"; "really put weight on the UI and UX"):**
+- **New look**, all in tokens: night-forest surfaces with film grain, bone text, glacial ice for interaction, brushed bronze for metal accents; Cinzel carved capitals, Barlow / Barlow Condensed, Elder Futhark runes (Noto Sans Runic) as ornament; engraved slider tracks with bronze diamond handles; glass map controls; double rules in the drawer. Details: `docs/03-design.md` §8.3.
+- **Tight list:** compact rows (about 77 px; 9 homes fully visible at 1440 × 900) by default, with a Rows / Cards toggle; each row's left edge has its marker's build-year colour.
+- **Maps:** Night (Esri dark canvas tinted forest green, frost labels; default), Forest (darkened satellite imagery with labels) and Terrain (OpenTopoMap, darkened), plus a vignette. All keyless and checked in the pane. MML's background map needs a key, CARTO too.
+- **Markers:** deep teal (old) to glowing frost (new), each with a thin bone rim so every era shows on the green land; place pins are runes in bronze diamonds (ᛟ Keskustori, ᚱ station), which the list reuses for distances (and ᛞ for the move-in date).
+- **Checked:** desktop 1440 × 900 and phone 375 px screenshots in the pane (Night, Forest, Terrain, drawer, filters panel); no horizontal scroll on the phone; WCAG AA for every text colour on every surface; no raw colours outside `tokens.css`; 84 tests pass. The agent preview now runs on **port 3005** because the user had their own `npm run ui` on 3000 (left running).
+- **Second pass the same night:** a photo **gallery** in the drawer (hero photo fading into the panel, ‹ ›, counter, thumbnails; ←/→ inside it change photos); a **rune-circle loader** (the Elder Futhark turning around ᛟ while the API answers); **aurora** veils drifting behind the header; the **build-year track coloured by era** (marker colours, unselected eras dimmed, notches at 1960/1990/2010/2020); photo **cards with text over the photo**; a metric scale bar. All motion stops under reduced motion. Checked with a synthetic DB whose "photos" are generated SVG landscapes (no Oikotie requests), and the loader through a throwaway proxy that delays `/api`.
+- **Third pass:** hillshade relief blended into the Night map, a compact legend with a "More" toggle, and a one-time staggered entrance of the first list rows.
+- **Fourth pass (while waiting for the user's review):** €/m² in every row and a "Rent per m², lowest first" sort (`sort=perm2`); ↑/↓/Home/End keyboard browsing of the list; the header's "New" counter toggles "only new" when there are new homes. 85 tests pass. Data note: the cheapest listing by €/m² is 3.5 €/m², probably a wrong size or an unusual listing; worth a look.
+- **Reviewed 2026-11-12:** the user approved the redesign. Still open (minor): whether the runes-as-icons in the rows read well, whether the satellite map should be the default, real Oikotie photos in the new layouts (only the user's browser loads them), and the 3.5 €/m² listing.
+
+**Overnight work, first night (the user said "build the app the best you can" and went to sleep; tell them in the morning, they haven't seen these yet):**
+- **Shared points spread out:** 158 of 381 listings share a coordinate with others (48 buildings, up to 10 homes), so only the top marker could be hovered. Groups now sit on a small ring around the true point with a faint dashed circle (`web/src/lib/spread.js`).
+- **Drawer prev/next:** ‹ › buttons and ←/→ keys step through the current list ("3 / 42"); the list follows.
+- **Fit to N homes** button on the map.
+- **Shortlist** (new feature, not in the plan): a star on cards and in the drawer, a "★ Shortlist" chip and an "Only my shortlist" filter (`saved=1`), and a dark outline on the map. Stored in the browser's localStorage only (`tcb.shortlist.v1`); the server and DB stay read-only. Easy to remove if unwanted.
+- **Fixes:** the Esri light-grey map went blank past zoom 16 (now upscaled); the quiet text colour was darkened slightly to pass WCAG AA on tinted backgrounds. A code review found 8 issues, all fixed: a photo that failed once stayed a placeholder when the drawer moved to the next listing; one Esc closed the filters panel and the drawer together (and an Esc inside a range field closed them too); a selected marker could hide under the drawer; a screen-reader live region spammed while dragging; a bad `--port` gave an obscure error; plus two small cleanups.
+- **Later the same night:** a clear message (and exit code 1) when port 3000 is already in use; a crash screen with Reload instead of a blank page (`ErrorBoundary`); at phone width, the drawer is anchored to both edges, and the list bar wraps (it was 416 px wide, which made phones zoom out); a short `README.md` with the everyday commands.
+- **Not verifiable in the agent's pane:** the pane runs no animation frames while hidden, so the animated "pan marker clear of the drawer" couldn't be watched; the logic uses Leaflet's documented `panInside` padding options.
+
+**What exists now:** `server/{app,start,index,dev}.mjs`, `web/` (Vite + React app; `web/public/postal-areas.geojson` fetched once, 17 of 17 zips, 18 KB, CC BY 4.0), `test/api.test.mjs`, `test/filters.test.mjs`, `test/ui-lib.test.mjs`, the npm scripts `ui`, `ui:build` and `ui:dev`, UI dependencies pinned in `package.json`, and `.claude/launch.json` with `ui-no-photos` (`npm run ui -- --no-photos`, port 3000) and `ui-test-db` (attaches to port 3100). `docs/03-design.md` §2/§8/§9/§11 describe it as built.
+
+**Checked in the pane** (real DB with `--no-photos`, and a temporary synthetic DB with a seeded second run): 380 markers = 380 cards = `v_window` by default (381 active; the one hidden is available 2027-03-26, after the default cutoff), 17 hollow approximate markers; build year 2010.. → 97, 2010..2015 → 25 (both ends honoured), list and markers shrink together and the URL updates; card↔marker hover sync both ways; sort by build year newest first with unknown years last; the drawer shows the lease text, the raw JSON and the right Oikotie link, and opens from a `?listing=` URL; empty state and Reset; postal chips; no-date toggle; three base maps load; postal overlay with credit; 375 px has no horizontal scroll; New tag, halo, "Only new" and "show removed" on the test DB; **no requests to Oikotie** from the pane; no raw colours outside `tokens.css`.
+
+**Changed from the spec while building (tell the user):**
+- **CARTO base maps now need an API key** (tiles are an "API KEY REQUIRED" placeholder, checked 2026-11-11). The base maps are now OpenStreetMap (default), Light grey (Esri) and Streets (Esri). Open question for the user: get a free CARTO key, use another provider, or keep these.
+- Fonts: now Cinzel + Barlow + Barlow Condensed + Noto Sans Runic (was Inter + Instrument Serif). The slider is hand-built (no library).
+- The rest of the filters sit in a panel under the header; only build year is in the header itself.
+
+**Not verified:** real photos (by design, only the user's browser loads them). `npm run ui:dev` was started once: Vite answers on 5173 and the `/api` proxy reaches the real DB (381 active); hot reload wasn't exercised.
+
+**Next:** the user reviews the UI in their own browser (`npm run ui`, then http://localhost:3000). Commit only when asked (branch → commit → fast-forward `main` → push, §2).
+
+---
+_The rest of §0 is the original brief for this step, kept for reference._
 
 **Before writing any code:** explain the user-facing flow to the user and get an explicit go-ahead. Cover what they'll run, what they'll see, how the filters behave, and the dependencies you'll add. This is their standing rule (§7); don't treat an ambiguous "ok" as approval.
 
@@ -59,21 +95,20 @@ The user moves to Tampere by the end of January 2027 and needs a rental. This to
 - **Default convenience view:** `v_window` = `available_date IS NULL OR available_date < '2027-02-01'`.
 - **Commute helpers:** `dist_centre_km` (Keskustori 61.4978 N, 23.7610 E) and `dist_station_km` (railway station 61.4983 N, 23.7737 E).
 - **"New" means new since the last crawl;** the initial crawl flags nothing as new.
-- **UI:** map plus side list with hover sync both ways, min–max range filters (build year is the most important to the user; they like new buildings), and a premium Nordic look (white and icy blues). Full spec in `PLAN.md` §5.
+- **UI:** map plus side list with hover sync both ways, min–max range filters (build year is the most important to the user; they like new buildings). The look was first a white "premium Nordic" design (`PLAN.md` §5); on 2026-11-11 the user rejected it as boring and cheap and asked for a dark **Nordic pagan / dark-folk** look (Heilung, Wardruna): forest green and ice blue, "metal, but also professional", plus a much tighter list. Current spec: `docs/03-design.md` §8.2–8.3.
 
 ## 2. Current state (done)
 | Item | State |
 |---|---|
-| nvm for Windows | 1.2.2 installed via winget. `NVM_HOME=C:\Users\JouniHuttunen\AppData\Local\nvm`, `NVM_SYMLINK=C:\nvm4w\nodejs` |
-| Node | **v26.13.0** (npm 11.20.0), active through `nvm use 26.13.0`, pinned in `.nvmrc` |
+| Node | **v26.13.0** (npm 11.20.0) from the **official nodejs.org MSI** (checksum and OpenJS signature verified), installed system-wide in `C:\Program Files\nodejs` on 2026-11-11. No version manager. `.nvmrc` still records the version. **nvm-windows was uninstalled 2026-11-11 at the user's request ("legacy"); don't reinstall it or use winget.** An empty `C:\nvm4w` folder is left over (the agent's shell couldn't delete it; harmless) |
 | Git | `main` = `a9325e0` (plan, handoff, repo setup) + `42a0a3e` (spec docs, all code and tests). Pushed 2026-11-11 to the private repo `https://github.com/jouni-huttunen/tampere-city-boy` (`origin`, `main` tracks `origin/main`). `git config user.name` is "Anonymous" (the user has been told). Workflow the user approved: short-lived branch → commit → fast-forward `main` → push. The local branch `capture-import-tooling` is a leftover at the same commit and can be deleted |
 | Files | `PLAN.md`, `HANDOFF.md`, `.gitignore` (ignores `data/`, `reports/`, `dist/`, `web/dist/`, `*.db`, `oikotie-*.json`), `.nvmrc`. A `.claude/` folder exists (app-created) |
 | Spec | **Written 2026-11-10:** `docs/01-requirements.md`, `docs/02-data-source.md`, `docs/03-design.md`. `docs/03-design.md` §13 lists 9 small refinements over this file and `PLAN.md` (e.g. `is_initial` and `v_new` definitions, `runs` column names); **the docs win** where they differ. Awaiting the user's review |
-| Code | **Built 2026-11-10/11, committed in `42a0a3e`:** `package.json`, `config.json`, `src/shared/*`, `src/{config,time,db,normalize,import,rebuild,report,cli}.mjs`, `src/capture/{browser.js,build.mjs}`, `test/*`. `npm test`: **63 passing**. Used for real: two captures in the user's browser, imported into `data/listings.db` (381 listings, all with details). Docs are synced with the code. No `ui` scripts or `server/`/`web/` yet (§0) |
+| Code | **Built 2026-11-10/11, committed in `42a0a3e`:** `package.json`, `config.json`, `src/shared/*`, `src/{config,time,db,normalize,import,rebuild,report,cli}.mjs`, `src/capture/{browser.js,build.mjs}`, `test/*`. `npm test`: **63 passing**. Used for real: two captures in the user's browser, imported into `data/listings.db` (381 listings, all with details). Docs are synced with the code. **Web UI built 2026-11-11, uncommitted** (§0): `server/`, `web/`, two more test files (78 passing) |
 
-**PATH gotcha:** shells opened before the nvm install don't have node on PATH. In such a shell, prefix:
+**PATH gotcha:** shells started from a process that predates a PATH change (e.g. the Claude desktop app's terminal tabs until the app is fully restarted) still have the old PATH, so `node` may be missing there. Permanent fix: fully quit and restart the app (or sign out and in). Per-shell fix:
 ```powershell
-$env:Path = "C:\Users\JouniHuttunen\AppData\Local\nvm;C:\nvm4w\nodejs;$env:Path"
+$env:Path = "C:\Program Files\nodejs;$env:APPDATA\npm;$env:Path"
 ```
 
 ## 3. The key decision: how data is retrieved
@@ -137,7 +172,7 @@ GET /api/search?cardType=101&locations=<json>&size[min]=40&price[max]=1400
 (Other Tampere ids, if the user widens the area: 33300=156680, 33310=161531, 33330=162355, 33340=161657, 33400=163722, 33420=160313, 33560=147928, 33580=149469, 33610=149876, 33680=166477, 33710=149053, 33720=152984, 33840=165389, 33850=166388, 33870=5080637, 34240=153960. Some listings have `address.zipCode.cardId = null`, but zip-filtered search still returns them.)
 
 **Other sources that were checked and work:**
-- **Base maps:** CARTO Voyager (`https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png`), CARTO Positron (`…/light_all/…`) and OSM (`https://tile.openstreetmap.org/{z}/{x}/{y}.png`). Attribution is required.
+- **Base maps:** OSM (`https://tile.openstreetmap.org/{z}/{x}/{y}.png`), Esri `World_Light_Gray_Base` and `World_Street_Map` (`https://server.arcgisonline.com/ArcGIS/rest/services/<name>/MapServer/tile/{z}/{y}/{x}`). Attribution is required. **CARTO Voyager/Positron now need an API key** (2026-11-11: every tile is an "API KEY REQUIRED" image, even though HTTP is 200). `tile.openstreetmap.fr` (HOT) is blocked in the agent's browser pane, so it couldn't be verified there.
 - **Postal-area polygons:** Statistics Finland Paavo WFS, CC BY 4.0. Property `posti_alue`, name `nimi`; filter by municipality with the URL-encoded CQL filter `kunta='837'`.
   ```
   https://geo.stat.fi/geoserver/postialue/wfs?service=WFS&version=2.0.0&request=GetFeature
@@ -193,7 +228,7 @@ Keep the planning logic in **pure functions in `src/shared/`**, used by both Nod
 4. Write `src/shared/*` and its tests, then `src/db.mjs` (`node:sqlite` `DatabaseSync`, schema per `PLAN.md`), `normalize.mjs`, `import.mjs`, `rebuild.mjs`, `report.mjs` and `cli.mjs`, with tests on **synthetic** fixtures (don't commit real Oikotie JSON).
 5. Write `src/capture/browser.js` and `build.mjs`. Test the built script under Node with a fake `document` and `fetch`.
 6. **Hand over to the user** for the first real capture and import. Then verify: active rows = `found`, spot-check 3 listings, `v_window` count.
-7. Build the web UI per `PLAN.md` §5 (Fastify + React + Vite + react-leaflet; design tokens in `web/src/styles/tokens.css`; fonts via `@fontsource`). Fetch the 17 polygons once into `web/public/postal-areas.geojson`, add a `.claude/launch.json` entry and preview it.
+7. ✅ **Built 2026-11-11, released as v1.0.0 on 2026-11-12:** the web UI per `PLAN.md` §5 (Fastify + React + Vite + react-leaflet; design tokens in `web/src/styles/tokens.css`; fonts via `@fontsource`), the 17 polygons in `web/public/postal-areas.geojson`, `.claude/launch.json`, previewed. See §0. Waiting for the user's own review in their browser.
 
 ## 7. User preferences learned
 - The user wants to be **told how something will work before implementation starts**. They stopped me once to ask for exactly that.

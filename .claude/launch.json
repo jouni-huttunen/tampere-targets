@@ -1,0 +1,15 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "ui-no-photos",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "ui", "--", "--no-photos", "--port", "3005"],
+      "port": 3005
+    },
+    {
+      "name": "ui-test-db",
+      "url": "http://localhost:3100"
+    }
+  ]
+}

@@ -47,8 +47,14 @@ src/rebuild.mjs          npm run rebuild: recompute columns from stored JSON, of
 src/report.mjs           reports/YYYY-MM-DD.md
 src/cli.mjs              list window|new|removed · show <id> · sql "<query>" · export <dir>
 test/*.test.mjs          node:test, synthetic fixtures in test/fixtures/
-server/index.mjs         Fastify: read-only JSON API + serves web/dist
-web/                     React + Vite SPA
+server/app.mjs           Fastify app: read-only JSON API (row shaping) + serves web/dist
+server/start.mjs         shared start-up: open DB read-only, listen on 127.0.0.1, --no-photos / --port
+server/index.mjs         npm run ui entry (port 3000)
+server/dev.mjs           npm run ui:dev entry (API on 3001 + Vite on 5173)
+web/                     React + Vite SPA: vite.config.mjs, index.html,
+                         src/{App,main}.jsx, src/components/*,
+                         src/lib/{filters,format,api,spread,shortlist}.js,
+                         src/styles/{tokens,app}.css, public/postal-areas.geojson
 data/ reports/ dist/ web/dist/      git-ignored
 ```
 
@@ -62,12 +68,13 @@ data/ reports/ dist/ web/dist/      git-ignored
 | `list` | `node src/cli.mjs list window` |
 | `report` | `node src/report.mjs` (re-writes the latest run's report) |
 | `test` | `node --test "test/*.test.mjs"` |
-| `ui` | _(not added yet)_ build `web/`, start `server/index.mjs` on port 3000 |
-| `ui:dev` | _(not added yet)_ Vite dev server with hot reload, `/api` proxied to Fastify |
+| `ui` | `vite build --config web/vite.config.mjs && node server/index.mjs`: builds `web/` and serves it plus the API on `http://localhost:3000`. Options after `--`: `--no-photos` (placeholders instead of Oikotie photos; used for agent previews), `--port N` |
+| `ui:build` | Only the Vite build (into `web/dist`) |
+| `ui:dev` | `node server/dev.mjs`: API on 127.0.0.1:3001 plus Vite with hot reload on `http://localhost:5173`, `/api` proxied to the API |
 
 `node:sqlite` in Node 26.13.0 prints no experimental warning, so no flag is needed.
 
-**Environment overrides** (used by the dry runs; normally unset): `TCB_DB` (database file, default `data/listings.db`) and `TCB_REPORTS` (report folder, default `reports/`).
+**Environment overrides** (used by the dry runs; normally unset): `TCB_DB` (database file, default `data/listings.db`), `TCB_REPORTS` (report folder, default `reports/`), and for the UI server `TCB_NO_PHOTOS=1` (same as `--no-photos`) and `TCB_PORT`.
 
 `config.json` is validated on load; among other checks, `capture.delayMs` below 2000 is refused, so the polite-pacing rule can't be loosened by accident.
 
@@ -290,34 +297,42 @@ Everything below runs in **one transaction**; any failure rolls back and leaves 
 | `export <dir>` | Writes `<id>.search.json` and `<id>.detail.json` for every listing |
 
 ## 8. Web UI
-### 8.1 Server (`server/index.mjs`)
-Fastify, listening on `127.0.0.1:3000` only, database opened read-only.
+### 8.1 Server (`server/app.mjs`, started by `server/index.mjs`)
+Fastify, listening on `127.0.0.1:3000` only, database opened read-only (`openDb(DB_PATH, { readOnly: true })`), no write routes. `buildApp({ db, config, noPhotos, staticDir })` is pure enough to test with `inject` (no port).
 
 | Route | Returns |
 |---|---|
-| `GET /api/listings` | All listings: extracted columns, `is_new`, `thumb_url` (from `search_json` `medias[0].imageSmallJPEG`). No raw JSON. |
-| `GET /api/listings/:id` | The columns plus `detail_json` and image URLs |
-| `GET /api/meta` | Last run time, whether it was the initial crawl, counts (active, window, new, removed), config places and cutoff |
-| everything else | Static files from `web/dist` |
+| `GET /api/listings` | All listings (removed ones too, flagged), ordered by id: every extracted column except `*_json` and `*_hash`, plus `is_new` (in `v_new`), `removed`, `dist: {centre, station}`, `location_approx` and `pets_allowed`/`furnished` as `true`/`false`/`null` (both `'1'/'0'` and `'true'/'false'` are read), `thumb_url` (`search_json` `medias[0].imageSmallJPEG`) and `thumb_large_url` (`imageLargeJPEG`). |
+| `GET /api/listings/:id` | The same row plus `title`, `description`, `photos` (`detail_json` `media[]` sorted by `ordernr`: `thumb`, `large`, `full`), `photo_count` and `raw: { search, detail }`. 400 for a non-numeric id, 404 when unknown. |
+| `GET /api/meta` | `lastRun` (`startedAt`, `finishedAt`, `isInitial`, mode, status), `counts` (from `counts()`), `places`, `zips`, `windowCutoff`, `noPhotos` |
+| other `/api/*` | 404 JSON |
+| everything else | Static files from `web/dist`; unknown paths get `index.html`. Without a build, `/` answers with a hint to run `npm run ui`. |
+
+Without a database file the API answers **503** `{ error: "no-database" }` and the UI shows the commands to run. With `--no-photos`, every photo URL is left out (`thumb_*` null, `photos` empty) and the UI shows placeholders, so an agent's browser never loads Oikotie's CDN; the raw JSON still contains the URLs as text. Response headers: `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin` (map tile servers expect a Referer). Oikotie photos and links set `no-referrer` themselves.
 
 ### 8.2 Client (`web/`)
-React + Vite. Components: `App`, `Header`, `Filters`, `RangeFilter`, `MapView`, `ListPanel`, `ListingCard`, `DetailDrawer`, `Legend`. All listings are loaded once; filtering and sorting are client-side. Filter state is serialised to the URL query.
+React + Vite. Components: `App`, `Header`, `Filters`, `RangeFilter`, `MapView`, `Legend`, `ListPanel`, `ListingCard`, `Photo`, `DetailDrawer`. All listings are loaded once; filtering and sorting are client-side. The pure filter, sort and URL logic is in `web/src/lib/filters.js` (unit-tested under Node); display formatting in `lib/format.js` (dates as 1.12.2026, times in Europe/Helsinki).
 
-**Layout:** a slim header (title, filters, "N of M homes · K new since <last crawl>"), a full-height map, and a list panel about 420 px wide on the right. Below about 900 px the list stacks under the map.
+**Layout:** a header (the TAMPERE HOMES wordmark with a rune mark and the name in Elder Futhark; engraved counters "Shown N / M", "New K" (a button that toggles "only new" when K > 0), "Crawled <time>"; the build-year range inline; a **Filters** button with an active-count badge; and Reset), a full-height map, and a list panel 460 px wide on the right. The other filters open in a panel under the header (full screen on phones). Below 900 px the list stacks under the map. M counts removed listings only while they are shown.
 
-**Map** (`react-leaflet`, centred on Tampere)
-- One circle marker per listing, shaded ice → glacier → fjord blue by build year, with a legend. Listings without a build year get a neutral shade.
-- New listings get a soft halo ring.
-- Listings with `location_approx = 1` get a distinct "approximate" marker (e.g. hollow or dashed) and an "approximate location" note on the card and in the detail; their distances are shown with "≈".
-- Pins for each `config.places` entry.
-- Optional overlay: the 17 postal areas from `web/public/postal-areas.geojson`.
-- Layer control: CARTO Voyager (default), CARTO Positron, OpenStreetMap, each with attribution.
+**Map** (`react-leaflet`, centred on Keskustori, zoom 13)
+- One circle marker per listing, shaded by build year in five bins (before 1960, 1960–1989, 1990–2009, 2010–2019, 2020+; ice → fjord blue) plus a neutral shade for unknown years, with a legend. Markers are managed directly in Leaflet; colours come from CSS classes (`mk-y0…5`), so hover only toggles classes and radii.
+- New listings get a halo ring (`mk-halo`).
+- Listings with `location_approx = 1` get a hollow, dashed marker, an "approximate location" note on the card and in the detail, and "≈" on their distances.
+- Pins for each `config.places` entry (navy diamonds with labels).
+- Optional overlay (off by default): the 17 postal areas from `web/public/postal-areas.geojson` (Statistics Finland Paavo `pno_2026`, CC BY 4.0, credited in the attribution), in a pane below the markers, with a zip-and-name tooltip.
+- Layer control (all keyless, each with attribution, each tinted by a CSS filter token `--tiles-*` to the night-forest palette): **Night** (default: Esri `Canvas/World_Dark_Gray_Base`, tinted forest green, with `World_Dark_Gray_Reference` labels in their own pane tinted frost), **Forest (satellite)** (Esri `World_Imagery`, darkened, with `Reference/World_Boundaries_and_Places` labels) and **Terrain** (OpenTopoMap, darkened). On Night, Esri `Elevation/World_Hillshade_Dark` is blended in (overlay, 55 %) so Pyynikki ridge and the Pispala slopes read as real terrain. A soft vignette darkens the map edges; a metric scale bar sits bottom-right. The legend shows the build-year colours and expands ("More") to the other marker styles and the runes. CARTO Voyager/Positron were the original choice, but since November 2026 their tiles return an "API key required" placeholder; the National Land Survey (MML) background map also needs a key (both checked 2026-11-11).
+- A `ResizeObserver` calls `invalidateSize()` whenever the map's container changes size.
+- **Shared points are spread out** (`web/src/lib/spread.js`): homes in one building share one coordinate (2026-11-11: 158 of 381 listings in 48 groups, up to 10 per point). Each group is laid out on a ring of pixels around the true point (radius grows with the group so markers never overlap), marked by a faint dashed circle, and re-laid out on every zoom. Spreading is by pixels, so the true point is always the ring's centre.
+- **Fit to N homes** button (under the zoom buttons) fits the map to the current list.
+- Shortlisted homes get a thick dark outline (`is-saved`); the legend explains every marker style.
+- The base layers use `maxNativeZoom` so a tile set with fewer zoom levels (Esri light grey: 16) is upscaled instead of going blank at zoom 17–19.
 
-**List panel:** photo-led cards (large thumbnail; district and street; build year; m² and rooms; available date or "no date"; km to centre and station; rent in a quiet secondary style; "New" tag). Sort: build year (newest first, default), size, rent, available date, distance to centre, distance to station, newest listing.
+**List panel:** two layouts, switched with a Rows / Cards toggle (remembered in the browser, key `tcb.listView.v1`). **Rows** (default, the user wants many homes on screen): about 77 px per home, so 9 are fully visible at 1440 × 900; a small photo, the build year in carved capitals, district and street, size · rooms · layout on one line (long layouts end in "…"), then ᛞ available, ᛟ km to Keskustori, ᚱ km to the station (the same runes mark those places on the map), the rent quietly at the right with €/m² under it, the star and New / Removed tags. Keyboard: with a row focused, ↑/↓ move to the next or previous home (focus also highlights its marker), Home/End jump to the ends, Enter opens it. **Cards**: the large-photo layout, with the build year and address set over the darkened foot of the photo. In both, the left edge of each home is coloured like its marker (build year), tying list and map together. Sort: build year (newest first, default), size, rent, available date, distance to centre, distance to station, newest listing.
 
-**Hover sync:** card hover → its marker grows, highlights and comes to the front. Marker hover → its card highlights and scrolls into view. Click on either → detail drawer.
+**Hover sync:** card hover (or keyboard focus) → its marker grows, highlights, comes to the front and shows its tooltip. Marker hover → its card highlights and scrolls into view (instant, not smooth, so it keeps up with the pointer). Click on either → detail drawer; the selected marker stays highlighted and is panned into view.
 
-**Filters** (all ranges are dual-handle sliders plus number inputs, bounds from the data):
+**Filters** (all ranges are dual-handle sliders plus typed inputs, bounds from the data). A range is `[min, max]` with `null` meaning "no limit"; dragging an end back to its data bound clears it. Numbers commit on Enter or leaving the field; dates when complete. URL keys: `year=2010..2026` (either side may be empty), `rent`, `size`, `rooms`, `avail=2026-12-01..2027-01-15`, `nodate=0|1`, `zip=33100,33200`, `new=1`, `saved=1`, `removed=show`, `sort=…`, and `listing=<id>` for an open drawer; only values that differ from the defaults are written, and bad values are ignored.
 
 | Filter | Default |
 |---|---|
@@ -328,22 +343,29 @@ React + Vite. Components: `App`, `Header`, `Filters`, `RangeFilter`, `MapView`, 
 | Available from–to, plus "include no date" | to 2027-01-31; no-date included |
 | Postal codes (multi-select) | all |
 | Only new | off |
+| Only my shortlist (also the "★ Shortlist" chip above the list) | off |
 | Hide removed | on |
 
-"Reset" restores the defaults.
+"Reset" restores the defaults (the sort is kept). Rent, size and rooms also start untouched; a listing with no value for a touched range is excluded.
 
-**Detail drawer:** photo strip; rent, fees, deposit; size, rooms, floor; build year, building type; available date and text; lease text; pets, furnished; company; description; "Open on Oikotie" link; raw JSON (collapsed).
+**Shortlist** (added 2026-11-11, not in the original plan): a star on every card and in the drawer. The shortlist is a list of card ids in the browser's `localStorage` (key `tcb.shortlist.v1`, `web/src/lib/shortlist.js`), so the server and the database stay read-only. It is per browser, follows other tabs (`storage` event), and the app works if storage is blocked (the list just isn't kept).
 
-**States:** designed empty ("no homes match", with Reset), loading (skeleton cards) and error (API unreachable, no database yet with the command to run).
+**Detail drawer** (non-modal, slides in on the right, Esc or × closes, focus moves to × and back; an open filters panel takes Esc first, and Esc in a typed range field only cancels that edit): ‹ › buttons and ←/→ keys step through the current filtered and sorted list ("3 / 42"; keys are ignored while typing, in the photo strip or on the map), and the list scrolls along; when the drawer opens, the map pans the marker clear of the drawer's overlap; a **gallery** at the top (a full-bleed hero photo that fades into the panel, ‹ › over it, an "i / n" counter, a row of thumbnails; ←/→ inside the gallery change the photo, the hero links to the full-size image; with `--no-photos` a placeholder and "N photos hidden"); district and postal area; address and ad title; shortlist star; New / Removed / Approximate tags; build year, size and rooms large; then layout, floor, available date and text, rent, water, electricity, deposit, pets, furnished, building type (shown as "code N (mapping unverified)"), distances, landlord or agent, listed, first seen, details fetched; the **lease text in full** (or a note that there is none); description; "Open on Oikotie" link; raw JSON (collapsed).
+
+**States:** designed empty ("No homes match", with Reset), loading (skeleton cards) and error (API unreachable → `npm run ui`; no database → `npm run capture` and `npm run import`).
 
 ### 8.3 Visual design
-- **Feel:** a premium Nordic property site: calm, airy, editorial. Photos, neighbourhood and build year lead; price is deliberately quiet.
-- **Palette:** pure white surfaces, icy blue tints, glacier and fjord blues for accents, deep navy for text. No warm or loud colours, no decorative gradients.
-- **Tokens:** every colour, type size, space, radius, shadow and motion value is a CSS custom property in `web/src/styles/tokens.css`. Components use tokens only (no hex values in component styles).
-- **Type:** two self-hosted `@fontsource` families: a refined grotesk sans for UI and a display face for headings. Tabular figures for numbers.
-- **Detail:** hairlines instead of boxes, generous whitespace, gentle fades; `prefers-reduced-motion` respected; visible keyboard focus; WCAG AA contrast.
+_Redesigned 2026-11-11 (night) at the user's request: the first, white "Nordic property" look felt boring and cheap to them. They asked for something "based and styled" in the spirit of Nordic pagan / dark-folk artists (Heilung, Wardruna): forest green and ice blue instead of white, "metal, but also professional", evoking feeling, with a tighter list and a more atmospheric map._
 
-**UI dependencies:** fastify, @fastify/static, react, react-dom, leaflet, react-leaflet, vite, @vitejs/plugin-react, two @fontsource fonts, and possibly a small accessible range-slider library (or a hand-built one).
+- **Feel:** night in a northern forest. Dark, calm and weighty; carved stone and cold metal; runes as quiet ornament, never as a gimmick. Still a professional tool: real contrast, a clear hierarchy, dense data where it helps.
+- **Palette:** night-forest greens for surfaces (`--c-night-*`, `--c-moss-*`), bone white for text (`--c-bone-*`), glacial ice for interaction and the newest buildings (`--c-ice-*`), brushed bronze for metal accents, the shortlist star and the place pins (`--c-bronze-*`), and a muted rust only for "removed". Build years run from deep forest teal (old) to glowing frost (new); every marker has a thin bone rim so all eras show on the green land and dark water.
+- **Moments:** while the homes load, the 24 runes of the Elder Futhark turn slowly in a ring around ᛟ over the map ("Gathering the homes"); two faint aurora veils drift behind the header (38 s cycle); the build-year slider's track is coloured by era in the marker colours, with the unselected eras dimmed and notches at 1960 / 1990 / 2010 / 2020; on first load the first rows of the list rise in one after another (only once, so filtering stays instant). All motion stops under `prefers-reduced-motion`.
+- **Materials:** a fine film grain (an inline SVG noise token) on the header, panels and list; engraved slider tracks with an ice-fill glow; bronze diamond slider handles; glass (blurred, translucent) map controls and legend; a frost line under the header; double rules around the drawer's key figures.
+- **Tokens:** every colour, type size, space, radius, shadow, gradient, texture, tile tint and motion value is a CSS custom property in `web/src/styles/tokens.css`. Components use tokens only (no hex or rgb values in component styles; checked by grep).
+- **Type:** self-hosted `@fontsource`: **Cinzel** (carved Roman capitals) for the wordmark, build years, key figures and section titles; **Barlow** for text; **Barlow Condensed** for labels, data and buttons (uppercase, tracked); **Noto Sans Runic** for Elder Futhark ornaments (the name "ᛏᚨᛗᛈᛖᚱᛖ · ᚺᛟᛗᛖᛋ", ᛟ for the centre, ᚱ for the station, ᛞ for the move-in date, ᛝ before section titles). Tabular figures for numbers.
+- **Detail:** sharp corners (2–6 px radii), hairlines in moss green, subtle glows instead of heavy shadows; `prefers-reduced-motion` respected; visible keyboard focus (ice outline); WCAG AA contrast (checked 2026-11-11: every text colour is ≥ 4.5:1 on every dark surface, quiet text 6.3–8.4:1, rust 5.5:1, button and badge text 6.6–11:1).
+
+**UI dependencies** (pinned exact): `dependencies` fastify 5.12.8 and @fastify/static 10.1.10 (the server); `devDependencies` react and react-dom 19.3.1, leaflet 1.9.4, react-leaflet 5.0.0, vite 8.3.7, @vitejs/plugin-react 6.3.0, @fontsource/cinzel, @fontsource/barlow, @fontsource/barlow-condensed and @fontsource/noto-sans-runic 5.3.0 (the build). The range slider is hand-built from two native range inputs, so there is no slider library.
 
 ## 9. Testing
 `npm test` (`node:test`, no network, synthetic fixtures only):
@@ -357,13 +379,16 @@ React + Vite. Components: `App`, `Header`, `Filters`, `RangeFilter`, `MapView`, 
 | Import | Initial run flags nothing new; second run flags only its additions; same file twice is a no-op; incomplete sweep removes nothing; complete sweep removes the missing; reappearance clears `removed_at`; detail 404 removes; versions and change-log rows on change; bad file rolls back |
 | Capture script | The built `dist/capture.js` is loaded with a fake `document` and `fetch`: correct URLs and headers, sequential pacing (with a fake clock), stop on 429, valid capture file |
 | Rebuild | Columns identical after rebuild; works with `fetch` disabled |
+| API (`test/api.test.mjs`) | Through Fastify `inject` on an in-memory DB with two synthetic runs: `is_new` only for the second run's additions, `removed` flag, thumbnails, distances, flags as booleans, no `*_json`/`*_hash` in the list route; detail photos sorted by `ordernr`, raw JSON, 404/400; `noPhotos` hides every photo URL; meta counts and cutoff; 503 without a database |
+| UI helpers (`test/ui-lib.test.mjs`) | Shared-point grouping and ring layout (no overlaps up to 20 markers); shortlist store round trip, bad data, blocked storage; "only shortlist" filter and `saved=1` |
+| UI logic (`test/filters.test.mjs`) | `web/src/lib/filters.js` and `format.js`: defaults (cutoff, no-date, unknown years, removed), both ends of every range, postal codes, only new, sorting with unknowns last, URL round trip and bad URL values, bounds snapping, formatting |
 
 After the first real capture (user step), verify by hand:
 - active rows = `found` in the run row;
 - 3 listings spot-checked against Oikotie (rent, size, available date, lease text);
 - `v_window` is a sensible subset.
 
-The UI is checked in the browser against FR-26…33.
+The UI is checked in the browser against FR-26…33. Agent previews use `npm run ui -- --no-photos --port 3005` (`.claude/launch.json` entry `ui-no-photos`; port 3005 so it never collides with the user's own `npm run ui` on 3000). The New tag, halo and "Only new" are checked against a temporary synthetic DB with a seeded second run (`TCB_DB=<temp file> node server/index.mjs --port 3100`, launch entry `ui-test-db`), never by editing `data/listings.db`.
 
 ## 10. Build order
 1. `package.json`, `config.json`.
@@ -378,7 +403,7 @@ The UI is checked in the browser against FR-26…33.
 - The server binds to `127.0.0.1`, serves read-only data and has no write routes.
 - The capture script sends requests only to its own origin (Oikotie) and writes only one local download. It contains no data other than listing ids, hashes and timestamps from the local database.
 - Raw API JSON includes landlord or agent contact details (`contact`, `company`). They stay in the local database and appear only in the local UI's raw-JSON view.
-- Listing photos are loaded from Oikotie's CDN when the UI is open; this is the only network traffic the UI causes besides map tiles.
+- Listing photos are loaded from Oikotie's CDN when the UI is open; this is the only network traffic the UI causes besides map tiles (OpenStreetMap, Esri). `--no-photos` turns the photos off. The postal-area polygons and fonts are served locally.
 
 ## 12. Open questions
 See [02-data-source.md §9](02-data-source.md#9-unknowns) for unknowns about the source. Design questions left for later:

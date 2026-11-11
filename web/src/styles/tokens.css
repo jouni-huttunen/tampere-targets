@@ -1,0 +1,204 @@
+/* Design tokens: the ONLY place colours, type, spacing, radii, shadows, textures and motion
+   are defined. Components (app.css) use these custom properties, never raw values.
+
+   Direction (2026-11-11, the user's brief): Nordic pagan / dark folk, in the spirit of
+   Heilung and Wardruna. Night forest greens, glacial ice, bone-white text and a little
+   bronze. Carved-stone capitals (Cinzel), a lean technical sans (Barlow), Elder Futhark
+   runes as ornament. Metal, but professional: calm layout, real contrast, no gimmicks. */
+:root {
+  color-scheme: dark;
+
+  /* Palette */
+  --c-void: #050807;
+  --c-night-950: #080d0b;
+  --c-night-900: #0b120f;
+  --c-night-850: #0e1612;
+  --c-night-800: #111b16;
+  --c-night-700: #16231c;
+  --c-night-600: #1c2c24;
+  --c-moss-500: #26392f;
+  --c-moss-400: #34503f;
+  --c-forest-300: #5d806a;
+  --c-bone-50: #f1ece0;
+  --c-bone-200: #d6cfbf;
+  --c-ash-300: #a3ada2;
+  --c-ash-400: #8d9a8f;
+  --c-ice-100: #dff3fa;
+  --c-ice-200: #b9e3f2;
+  --c-ice-300: #8fd0e8;
+  --c-ice-500: #4aa3c6;
+  --c-ice-700: #24607a;
+  --c-bronze-300: #e0b877;
+  --c-bronze-400: #c8995a;
+  --c-bronze-600: #8a6431;
+  --c-rust-400: #d98a72; /* ≥ 4.5:1 on every dark surface, hovered rows included */
+
+  /* Roles */
+  --bg: var(--c-night-900);
+  --bg-deep: var(--c-void);
+  --surface: var(--c-night-800);
+  --surface-raised: var(--c-night-700);
+  --surface-hover: var(--c-night-600);
+  --surface-sunk: var(--c-night-950);
+  --ink: var(--c-bone-50);
+  --ink-soft: var(--c-bone-200);
+  --ink-quiet: var(--c-ash-300);
+  --ink-faint: var(--c-ash-400);
+  --ink-inverse: var(--c-night-900);
+  --accent: var(--c-ice-300);
+  --accent-strong: var(--c-ice-200);
+  --accent-deep: var(--c-ice-700);
+  --metal: var(--c-bronze-400);
+  --metal-bright: var(--c-bronze-300);
+  --metal-deep: var(--c-bronze-600);
+  --danger: var(--c-rust-400);
+  --hairline: var(--c-moss-500);
+  --hairline-strong: var(--c-moss-400);
+  --forest-line: var(--c-forest-300);
+  --focus: var(--c-ice-300);
+  --focus-ring: rgb(143 208 232 / 0.35);
+  --track: var(--c-night-950);
+  --track-fill: var(--c-ice-500);
+  --scrim: rgb(5 8 7 / 0.6);
+  --glass: rgb(11 18 15 / 0.86);
+  --rune: rgb(143 208 232 / 0.38);
+  --rune-strong: rgb(143 208 232 / 0.7);
+
+  /* Metal: brushed bronze and cold steel, used on slider thumbs, the star and ornaments. */
+  --metal-gradient: linear-gradient(145deg, var(--c-bronze-300), var(--c-bronze-400) 45%, var(--c-bronze-600));
+  --steel-gradient: linear-gradient(145deg, var(--c-ice-100), var(--c-ice-300) 50%, var(--c-ice-500));
+  --header-gradient: linear-gradient(180deg, var(--c-night-850), var(--c-night-900));
+  --panel-gradient: linear-gradient(180deg, var(--c-night-800), var(--c-night-850));
+  --fill-gradient: linear-gradient(90deg, var(--c-ice-700), var(--c-ice-300));
+
+  /* Film grain over dark surfaces (an inline SVG noise, nothing loaded from the network). */
+  --texture-grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.05 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  --vignette: radial-gradient(ellipse at center, transparent 55%, rgb(5 8 7 / 0.55) 100%);
+  /* Aurora: two soft veils of ice and forest light drifting behind the header. */
+  --aurora:
+    radial-gradient(60% 140% at 20% 0%, rgb(143 208 232 / 0.16), transparent 70%),
+    radial-gradient(50% 120% at 75% 10%, rgb(93 128 106 / 0.22), transparent 70%),
+    radial-gradient(40% 100% at 50% 100%, rgb(74 163 198 / 0.08), transparent 70%);
+  /* Photo foot fade, so text can sit on any photo. */
+  --photo-fade: linear-gradient(180deg, transparent 35%, rgb(5 8 7 / 0.55) 65%, rgb(5 8 7 / 0.92) 100%);
+  --hero-fade: linear-gradient(180deg, transparent 60%, rgb(14 22 18 / 0.85) 100%);
+  --mask-dim: rgb(5 8 7 / 0.72);
+
+  /* Build-year marker shades on the dark map: deep forest (old) → frost (new). 0 = unknown. */
+  --year-0: #66706b;
+  --year-1: #163f33;
+  --year-2: #2a7462;
+  --year-3: #4aa3a0;
+  --year-4: #7cc8e0;
+  --year-5: #e4f6fc;
+  /* A thin bone rim keeps every era visible against the green land and dark water. */
+  --marker-stroke: rgb(214 207 191 / 0.75);
+  --marker-hover-stroke: var(--c-ice-100);
+  --halo: var(--c-ice-100);
+  --star: var(--c-bronze-300);
+  --place: var(--c-bronze-400);
+  --postal-line: var(--c-ice-300);
+  --postal-fill: rgb(143 208 232 / 0.04);
+  --marker-glow: drop-shadow(0 0 4px rgb(143 208 232 / 0.55));
+
+  /* Type */
+  --font-sans: 'Barlow', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-condensed: 'Barlow Condensed', 'Barlow', system-ui, sans-serif;
+  --font-display: 'Cinzel', 'Trajan Pro', Georgia, serif;
+  --font-rune: 'Noto Sans Runic', 'Segoe UI Historic', sans-serif;
+  --font-mono: ui-monospace, 'Cascadia Mono', Consolas, monospace;
+  --fs-3xs: 10px;
+  --fs-2xs: 11px;
+  --fs-xs: 12px;
+  --fs-sm: 13px;
+  --fs-base: 14px;
+  --fs-md: 15px;
+  --fs-lg: 18px;
+  --fs-xl: 22px;
+  --fs-2xl: 28px;
+  --fs-3xl: 36px;
+  --fs-ritual: 46px;
+  --fw-regular: 400;
+  --fw-medium: 500;
+  --fw-semibold: 600;
+  --fw-bold: 700;
+  --lh-tight: 1.1;
+  --lh-snug: 1.3;
+  --lh-base: 1.5;
+  --tracking-caps: 0.14em;
+  --tracking-display: 0.08em;
+  --tracking-wide: 0.32em;
+
+  /* Space (4 px grid) */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 20px;
+  --sp-6: 24px;
+  --sp-7: 32px;
+  --sp-8: 40px;
+  --sp-9: 56px;
+
+  /* Layout */
+  --header-h: 72px;
+  --list-w: 460px;
+  --drawer-w: 580px;
+  --row-thumb-w: 88px;
+  --row-thumb-h: 64px;
+  --photo-ratio: 16 / 10;
+
+  /* Radius: mostly sharp, carved edges */
+  --r-xs: 2px;
+  --r-sm: 3px;
+  --r-md: 4px;
+  --r-lg: 6px;
+  --r-pill: 999px;
+
+  /* Elevation */
+  --shadow-1: 0 1px 0 rgb(255 255 255 / 0.03) inset, 0 1px 2px rgb(0 0 0 / 0.4);
+  --shadow-2: 0 10px 30px rgb(0 0 0 / 0.45);
+  --shadow-3: 0 24px 80px rgb(0 0 0 / 0.65);
+  --shadow-engrave: inset 0 1px 2px rgb(0 0 0 / 0.7), 0 1px 0 rgb(255 255 255 / 0.04);
+  --shadow-thumb: 0 2px 6px rgb(0 0 0 / 0.6);
+  --glow-ice: 0 0 0 1px rgb(143 208 232 / 0.5), 0 0 18px rgb(143 208 232 / 0.18);
+  --glow-metal: 0 0 0 1px rgb(224 184 119 / 0.55), 0 0 14px rgb(224 184 119 / 0.18);
+
+  /* Motion */
+  --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+  --dur-fast: 120ms;
+  --dur: 220ms;
+  --dur-slow: 380ms;
+
+  /* Map tile tints per base map (see MapView BASE_MAPS) */
+  --tiles-night: sepia(0.5) hue-rotate(100deg) saturate(2) brightness(1.1) contrast(1.05);
+  --tiles-forest: saturate(0.85) brightness(0.82) contrast(1.15);
+  --tiles-terrain: grayscale(0.35) sepia(0.25) hue-rotate(70deg) brightness(0.55) contrast(1.25);
+  --tiles-relief: sepia(0.4) hue-rotate(100deg) saturate(1.4);
+  --relief-blend: overlay;
+  --relief-opacity: 0.55;
+  --labels-night: brightness(1.25) sepia(0.4) hue-rotate(150deg) saturate(1.6);
+  --labels-forest: brightness(1.1);
+
+  --z-map-ui: 500;
+  --z-header: 1000;
+  --z-panel: 1100;
+  --z-drawer: 1200;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --dur-fast: 0ms;
+    --dur: 0ms;
+    --dur-slow: 0ms;
+  }
+}
+
+@media (max-width: 900px) {
+  :root {
+    --header-h: auto;
+    --drawer-w: 100vw;
+    --row-thumb-w: 84px;
+    --row-thumb-h: 62px;
+  }
+}

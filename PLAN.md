@@ -66,7 +66,7 @@ Everything from normalize onward (DB, rebuild, views, new-since-last-crawl, web 
 - Images aren't downloaded; their URLs are kept in the JSON.
 
 ### 4. The tool (Node 26 LTS via nvm, plain JavaScript ESM, built-in `fetch`, `node:sqlite`, `node:test`)
-- **Node version:** managed with **nvm for Windows** (`CoreyButler.NVMforWindows` 1.2.2 via winget). It's pinned to `26.13.0` in `.nvmrc` and `package.json` `engines`.
+- **Node version:** 26.13.0 from the official nodejs.org MSI (nvm-windows was used at first and uninstalled on 2026-11-11). The version is recorded in `.nvmrc`, and `package.json` `engines` requires Node ≥ 26.
 - **Crawler:** no runtime dependencies. better-sqlite3 is the fallback if `node:sqlite` falls short.
 
 ```
@@ -124,7 +124,7 @@ The first full download is about 380 detail requests at roughly 2 s each, about 
 **Structure and behaviour.**
 - **Layout:** a full-height map with a list panel on the side (about 420 px; it stacks under the map on narrow windows) and a slim header with filters and "N of M homes · K new since <last crawl time>".
 - **Map:** Leaflet via `react-leaflet`, centred on Tampere, with one marker per listing (lat/lon from the search card). Marker shade follows **build year** (newer is deeper blue, with a legend). Pins for Keskustori and the railway station, plus an optional overlay of your 17 postal areas (Statistics Finland Paavo polygons, CC BY 4.0, saved once to `web/public/postal-areas.geojson`) help with orientation.
-- **Base maps** (free, no exact geodata needed), switchable with a layer control:
+- **Base maps** (free, no exact geodata needed), switchable with a layer control. _(2026-11-11: CARTO now needs an API key, so the built UI uses OpenStreetMap, Esri Light Gray and Esri Streets instead; see `docs/03-design.md` §8.2.)_ Originally planned:
   - **CARTO Voyager (default):** clean, readable street names, no key. Free for non-commercial use with attribution.
   - **CARTO Positron:** very light grey, so markers stand out most.
   - **OpenStreetMap standard:** most detail (stops, shops). Fine for light personal use under the OSM tile policy, with attribution.
@@ -174,7 +174,7 @@ The first full download is about 380 detail requests at roughly 2 s each, about 
   - Markers appear over Tampere and the count matches `v_active`.
   - Setting build year to 2010–2026 shrinks the list and the markers together, and the URL updates. Every range filter honours both its min and max.
   - After the initial crawl, nothing shows "New". After a second crawl that adds listings (or a test DB with a seeded second run), exactly those show the tag and halo, and "Only new" filters to them.
-  - The UI uses only the design tokens (no stray hex colours in components), and a quick visual review of the screenshot shows the clean white and icy-blue look.
+  - The UI uses only the design tokens (no stray hex colours in components), and a quick visual review of the screenshot shows the intended look (since 2026-11-11: the dark Nordic-pagan night-forest theme, `docs/03-design.md` §8.3).
   - Hovering a card highlights its marker, and hovering a marker highlights its card and scrolls to it.
   - Sorting by build year puts the newest first.
   - Switching between the three base maps works.
