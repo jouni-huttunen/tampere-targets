@@ -68,8 +68,8 @@ export default function RangeFilter({ label, hint, bounds, value, onChange, step
             {eras
               .filter((era) => era.from != null && era.from > lo && era.from < hi)
               .map((era) => (
-                <span key={era.from} className="range-notch" style={{ left: pct(era.from) }}>
-                  {era.from}
+                <span key={era.from} className="range-notch" style={{ left: pct(era.from) }} title={String(era.from)}>
+                  ’{String(era.from).slice(2)}
                 </span>
               ))}
           </div>

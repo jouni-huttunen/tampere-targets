@@ -25,8 +25,9 @@ function ListingCard({ l, index = 0, view, active, selected, saved, noPhotos, re
 
   const tags = (
     <>
+      {selected && <span className="tag tag-lock">Locked</span>}
       {l.is_new && <span className="tag tag-new">New</span>}
-      {l.removed && <span className="tag tag-removed">Removed</span>}
+      {l.removed && <span className="tag tag-removed">Withdrawn</span>}
     </>
   );
 
@@ -69,20 +70,20 @@ function ListingCard({ l, index = 0, view, active, selected, saved, noPhotos, re
             {l.room_config && <span className="card-quiet">{l.room_config}</span>}
           </span>
           <span className="card-meta">
-            <span className="card-avail" title="Available">
-              <span className="meta-rune" aria-hidden="true">ᛞ</span>
+            <span className="card-avail" title="Move-in">
+              <span className="meta-key" aria-hidden="true">In</span>
               {availabilityText(l)}
             </span>
-            <span title="Distance to Keskustori">
-              <span className="meta-rune" aria-hidden="true">ᛟ</span>
+            <span title="Range to HQ (Keskustori)">
+              <span className="meta-key" aria-hidden="true">HQ</span>
               {fmtKm(l.dist?.centre, l.location_approx)}
             </span>
-            <span title="Distance to the railway station">
-              <span className="meta-rune" aria-hidden="true">ᚱ</span>
+            <span title="Range to the railway station">
+              <span className="meta-key" aria-hidden="true">Rail</span>
               {fmtKm(l.dist?.station, l.location_approx)}
             </span>
           </span>
-          {l.location_approx && <span className="card-approx">Approximate location</span>}
+          {l.location_approx && <span className="card-approx">Approx. position</span>}
         </span>
         <span className="card-rent">
           {fmtEur(l.rent_eur)}

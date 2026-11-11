@@ -79,3 +79,36 @@ test('"only shortlist" filter and its URL key', () => {
   assert.equal(toQuery(f, d), 'saved=1');
   assert.equal(fromQuery('saved=1', d).onlySaved, true);
 });
+
+test('theme: only "nv" switches night vision on; storage failures fall back to RECON', async () => {
+  const { THEME_KEY, applyTheme, loadTheme, parseTheme, saveTheme } = await import('../web/src/lib/theme.js');
+  assert.equal(parseTheme('nv'), 'nv');
+  for (const v of [null, undefined, '', 'NV', 'recon', 'green']) assert.equal(parseTheme(v), 'recon');
+
+  const data = new Map();
+  const storage = { getItem: (k) => data.get(k) ?? null, setItem: (k, v) => data.set(k, v) };
+  assert.equal(loadTheme(storage), 'recon');
+  saveTheme('nv', storage);
+  assert.equal(data.get(THEME_KEY), 'nv');
+  assert.equal(loadTheme(storage), 'nv');
+  saveTheme('bogus', storage);
+  assert.equal(loadTheme(storage), 'recon');
+
+  const broken = { getItem() { throw new Error('blocked'); }, setItem() { throw new Error('blocked'); } };
+  assert.equal(loadTheme(broken), 'recon');
+  assert.doesNotThrow(() => saveTheme('nv', broken));
+
+  const root = { dataset: {} };
+  applyTheme('nv', root);
+  assert.equal(root.dataset.theme, 'nv');
+  applyTheme('recon', root);
+  assert.equal('theme' in root.dataset, false);
+});
+
+test('median ignores missing values and averages the middle pair', async () => {
+  const { median } = await import('../web/src/lib/filters.js');
+  assert.equal(median([]), null);
+  assert.equal(median([null, undefined]), null);
+  assert.equal(median([900, null, 700, 800]), 800);
+  assert.equal(median([600, 1000, 700, 800]), 750);
+});

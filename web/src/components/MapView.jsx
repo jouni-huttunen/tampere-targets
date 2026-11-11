@@ -12,12 +12,12 @@ const ESRI_CANVAS = 'Esri, HERE, Garmin, &copy; OpenStreetMap contributors, and 
 const ESRI_IMAGERY = 'Esri, Maxar, Earthstar Geographics, and the GIS user community';
 const OPENTOPO = `${OSM}, SRTM | style &copy; <a href="https://opentopomap.org">OpenTopoMap</a> (CC-BY-SA)`;
 const ARC = 'https://server.arcgisonline.com/ArcGIS/rest/services';
-// Keyless tile services, tinted in CSS (tokens --tiles-*) to the night-forest palette.
+// Keyless tile services, tinted in CSS (tokens --tiles-*) to the console theme (RECON or NV).
 // CARTO was the original pick, but since November 2026 its tiles need an API key.
 // nativeZoom: the deepest zoom the server has tiles for; Leaflet upscales beyond it.
 const BASE_MAPS = [
   {
-    name: 'Night',
+    name: 'Night ops',
     url: `${ARC}/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}`,
     labels: `${ARC}/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}`,
     // Terrain relief (Pyynikki ridge, Pispala slopes) blended softly into the dark canvas.
@@ -28,12 +28,12 @@ const BASE_MAPS = [
     attribution: ESRI_CANVAS,
   },
   {
-    name: 'Forest (satellite)',
+    name: 'Recon sat',
     url: `${ARC}/World_Imagery/MapServer/tile/{z}/{y}/{x}`,
     labels: `${ARC}/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}`,
     nativeZoom: 19,
-    tint: 'tiles-forest',
-    labelTint: 'labels-forest',
+    tint: 'tiles-sat',
+    labelTint: 'labels-sat',
     attribution: ESRI_IMAGERY,
   },
   {
@@ -47,9 +47,13 @@ const BASE_MAPS = [
 const PAAVO = 'Postal areas &copy; <a href="https://www.stat.fi/en/">Statistics Finland</a> (CC BY 4.0)';
 
 const R = { base: 6.5, hover: 10, halo: 12 };
+// Selecting a target pans it into the central 40 % of the visible map (30 % margins).
+const CENTRE_MARGIN = 0.3;
+const LOCK_LABEL_ROOM = 240; // px right of the marker for the "Target locked" label
 
 export default function MapView({ listings, places, areas, hoverId, selectedId, saved, onHover, onSelect }) {
   const [map, setMap] = useState(null);
+  const readoutRef = useRef(null);
   const located = useMemo(() => listings.filter((l) => l.lat != null && l.lon != null), [listings]);
 
   const fit = () => {
@@ -79,7 +83,7 @@ export default function MapView({ listings, places, areas, hoverId, selectedId, 
             </LayersControl.BaseLayer>
           ))}
           {areas && (
-            <LayersControl.Overlay name="Postal areas">
+            <LayersControl.Overlay name="Sectors (postal areas)">
               <GeoJSON data={areas} pane="postal" className="postal-area" attribution={PAAVO} onEachFeature={bindAreaTooltip} />
             </LayersControl.Overlay>
           )}
@@ -87,21 +91,29 @@ export default function MapView({ listings, places, areas, hoverId, selectedId, 
         <ScaleControl position="bottomright" imperial={false} maxWidth={140} />
         <PlacePins places={places} />
         <ListingMarkers listings={located} hoverId={hoverId} selectedId={selectedId} saved={saved} onHover={onHover} onSelect={onSelect} />
+        <ZoomStrike />
+        <CursorReadout target={readoutRef} />
       </MapContainer>
       <div className="map-vignette" aria-hidden="true" />
+      <p className="map-tag" aria-hidden="true">
+        <span className="panel-index">02</span> Tactical map · Tampere AO
+      </p>
+      <p className="map-readout" ref={readoutRef} aria-hidden="true">
+        &nbsp;
+      </p>
       {located.length > 0 && (
       <button
         type="button"
         className="map-fit"
         onClick={fit}
         disabled={!map || located.length === 0}
-        title="Zoom the map to the homes in the list"
+        title="Zoom the map to the targets in the list"
       >
         <svg className="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
           <path d="M3 7V3h4M13 3h4v4M17 13v4h-4M7 17H3v-4" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
         <span>
-          Fit to {located.length} {located.length === 1 ? 'home' : 'homes'}
+          Fit {located.length} {located.length === 1 ? 'target' : 'targets'}
         </span>
       </button>
       )}
@@ -133,9 +145,9 @@ function bindAreaTooltip(feature, layer) {
   layer.bindTooltip(textNode(`${zip} ${name}`, 'tip-text'), { sticky: true, className: 'map-tip', direction: 'top' });
 }
 
-// Places are marked with runes, the same ones the list uses for their distances:
-// ᛟ othala (home, inheritance) for the centre, ᚱ raidho (journey) for the station.
-const PLACE_RUNES = { centre: 'ᛟ', station: 'ᚱ' };
+// Reference points, with the same short codes the list uses for its ranges:
+// HQ for the centre (Keskustori), RAIL for the railway station.
+const PLACE_CODES = { centre: 'HQ', station: 'RAIL' };
 
 function PlacePins({ places }) {
   const icons = useMemo(
@@ -143,7 +155,7 @@ function PlacePins({ places }) {
       Object.fromEntries(
         places.map((p) => [
           p.key,
-          L.divIcon({ className: 'place-pin', html: `<span>${PLACE_RUNES[p.key] ?? 'ᛝ'}</span>`, iconSize: [26, 26] }),
+          L.divIcon({ className: 'place-pin', html: '<span class="place-diamond"></span>', iconSize: [24, 24] }),
         ]),
       ),
     [places],
@@ -157,7 +169,7 @@ function PlacePins({ places }) {
         offset={[p.key === 'centre' ? -14 : 14, 0]}
         className="place-label"
       >
-        {p.key === 'station' ? 'Station' : p.name}
+        <span className="place-code">{PLACE_CODES[p.key] ?? 'REF'}</span> {p.key === 'station' ? 'Station' : p.name}
       </Tooltip>
     </Marker>
   ));
@@ -181,6 +193,8 @@ function ListingMarkers({ listings, hoverId, selectedId, saved, onHover, onSelec
   handlers.current = { onHover, onSelect };
   const state = useRef({ hoverId, selectedId, saved });
   state.current = { hoverId, selectedId, saved };
+  const lock = useRef(null); // the TARGET LOCKED reticle on the selected marker
+  const lockId = useRef(null);
 
   useEffect(() => {
     group.current = L.featureGroup().addTo(map);
@@ -189,10 +203,40 @@ function ListingMarkers({ listings, hoverId, selectedId, saved, onHover, onSelec
     return () => {
       map.off('zoomend', relayout);
       group.current.remove();
+      lock.current?.remove();
+      lock.current = null;
+      lockId.current = null;
       layers.current.clear();
       rings.current = [];
     };
   }, [map]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  /**
+   * Keep the lock reticle on the selected marker. A new selection draws a fresh reticle (so the
+   * lock-on animation plays again); a relayout or a new filter only moves the existing one.
+   */
+  function syncLock(restart = false) {
+    const id = state.current.selectedId;
+    const entry = id != null ? layers.current.get(id) : null;
+    if (!entry) {
+      lock.current?.remove();
+      lock.current = null;
+      lockId.current = null;
+      return;
+    }
+    if (lock.current && lockId.current === id && !restart) {
+      lock.current.setLatLng(entry.marker.getLatLng());
+      return;
+    }
+    lock.current?.remove();
+    lock.current = L.marker(entry.marker.getLatLng(), {
+      icon: lockIcon(entry.listing),
+      interactive: false,
+      keyboard: false,
+      zIndexOffset: 1000,
+    }).addTo(map);
+    lockId.current = id;
+  }
 
   function layout() {
     for (const { center, ids } of groups.current) {
@@ -206,6 +250,7 @@ function ListingMarkers({ listings, hoverId, selectedId, saved, onHover, onSelec
         entry.halo?.setLatLng(at);
       });
     }
+    syncLock();
   }
 
   // Add and remove markers as the filtered list changes, then regroup shared points.
@@ -270,6 +315,8 @@ function ListingMarkers({ listings, hoverId, selectedId, saved, onHover, onSelec
     }
     layout();
     for (const id of layers.current.keys()) paint(id);
+    // A target opened from the URL: its marker exists only now, so bring it into view now.
+    if (state.current.selectedId != null && pannedFor.current !== state.current.selectedId) panToSelected();
   }, [listings]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function paint(id) {
@@ -309,26 +356,174 @@ function ListingMarkers({ listings, hoverId, selectedId, saved, onHover, onSelec
     }
   }, [hoverId]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Selection: highlight and pan it into view if it is off-screen.
+  /**
+   * Bring the selected marker towards the middle of the visible map (the part the target profile
+   * does not cover): into the central 40 % of it, so it is easy to spot. Not fully centred: a
+   * target already in that zone does not move, and one outside moves only to its edge. The
+   * right side always keeps room for the lock label (~240 px) when there is space for it.
+   */
+  const pannedFor = useRef(null);
+  function panToSelected() {
+    const id = state.current.selectedId;
+    const entry = id != null ? layers.current.get(id) : null;
+    if (!entry) return;
+    pannedFor.current = id;
+    // The target profile overlaps the map's right edge (offsetLeft: its resting place, not
+    // where its slide-in animation happens to be right now).
+    const drawer = document.querySelector('.drawer');
+    const box = map.getContainer().getBoundingClientRect();
+    const covered = drawer ? Math.max(0, box.right - drawer.offsetLeft) : 0;
+    const visible = box.width - covered;
+    if (visible < 120) return; // nothing sensible to show beside the profile
+    const marginX = Math.round(visible * CENTRE_MARGIN);
+    const marginY = Math.max(60, Math.round(box.height * CENTRE_MARGIN));
+    const labelRoom = visible > 520 ? LOCK_LABEL_ROOM : 0;
+    map.panInside(entry.marker.getLatLng(), {
+      paddingTopLeft: [Math.max(40, marginX), marginY],
+      paddingBottomRight: [covered + Math.max(40, marginX, labelRoom), marginY],
+    });
+  }
+
+  // Selection: highlight, lock on (reticle animation) and pan it into view if it is off-screen.
   const prevSelected = useRef(null);
   useEffect(() => {
     const prev = prevSelected.current;
     prevSelected.current = selectedId;
     if (prev != null && prev !== selectedId) paint(prev);
+    syncLock(prev !== selectedId);
     if (selectedId != null) {
       paint(selectedId);
-      const entry = layers.current.get(selectedId);
-      if (entry) {
-        // The drawer overlaps the map's right edge; keep the marker clear of it.
-        const drawer = document.querySelector('.drawer')?.getBoundingClientRect();
-        const box = map.getContainer().getBoundingClientRect();
-        const covered = drawer ? Math.max(0, box.right - drawer.left) : 0;
-        if (covered < box.width - 120) {
-          map.panInside(entry.marker.getLatLng(), { paddingTopLeft: [60, 60], paddingBottomRight: [covered + 60, 60] });
-        }
-      }
+      panToSelected();
     }
   }, [selectedId, map]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  return null;
+}
+
+const fmtLat = (v) => `${Math.abs(v).toFixed(4)}° ${v >= 0 ? 'N' : 'S'}`;
+const fmtLon = (v) => `${Math.abs(v).toFixed(4)}° ${v >= 0 ? 'E' : 'W'}`;
+
+/** The lock reticle: brackets snap in, the ring turns, a label shows the true coordinates. */
+function lockIcon(l) {
+  const where = `${l.location_approx ? '≈ ' : ''}${fmtLat(l.lat)} · ${fmtLon(l.lon)}`;
+  return L.divIcon({
+    className: 'lock-icon',
+    iconSize: [96, 96],
+    iconAnchor: [48, 48],
+    html: `<svg class="lock-svg" viewBox="-48 -48 96 96" aria-hidden="true" focusable="false">
+        <g class="lock-ring"><circle r="27" /></g>
+        <g class="lock-brackets"><path d="M-21 -11V-21H-11M11 -21H21V-11M21 11V21H11M-11 21H-21V11" /></g>
+        <g class="lock-ticks"><path d="M0 -42V-32M0 32V42M-42 0H-32M32 0H42" /></g>
+      </svg>
+      <span class="lock-label"><span class="lock-title">Target locked</span><span class="lock-coord">${where}</span></span>`,
+  });
+}
+
+const STRIKE_SVG = `<svg class="strike-svg" viewBox="-60 -60 120 120" aria-hidden="true" focusable="false">
+  <g class="strike-ring"><circle r="34" /></g>
+  <g class="strike-brackets"><path d="M-24 -12V-24H-12M12 -24H24V-12M24 12V24H12M-12 24H-24V12" /></g>
+  <g class="strike-cross"><path d="M0 -56V-38M0 38V56M-56 0H-38M38 0H56" /></g>
+  <circle class="strike-dot" r="2.5" />
+</svg>`;
+
+const prefersReducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+/**
+ * Zoom strike: on every zoom, a crosshair snaps onto the point the operator zoomed at (the
+ * pointer for the wheel and double-click, the centre for buttons, keys and "Fit"), with
+ * brackets closing in (zoom in) or a ring blowing out (zoom out) and a zoom readout. Purely
+ * decorative: plain DOM in an overlay that ignores the pointer, removed after ~0.4 s.
+ */
+function ZoomStrike() {
+  const map = useMap();
+  useEffect(() => {
+    const container = map.getContainer();
+    const layer = document.createElement('div');
+    layer.className = 'fx-layer';
+    container.appendChild(layer);
+
+    let aim = null; // { point, t } of the last wheel or double-click
+    let fromZoom = map.getZoom();
+    let struck = false;
+    let last = 0;
+    const record = (e) => {
+      aim = { point: map.mouseEventToContainerPoint(e), t: performance.now() };
+    };
+    // Capture phase: runs before Leaflet's own handlers start the zoom.
+    container.addEventListener('wheel', record, { capture: true, passive: true });
+    container.addEventListener('dblclick', record, { capture: true });
+
+    const strike = (direction, zoom) => {
+      const now = performance.now();
+      if (now - last < 200 || prefersReducedMotion()) return; // one strike per wheel burst
+      last = now;
+      const size = map.getSize();
+      const p = aim && now - aim.t < 700 ? aim.point : L.point(size.x / 2, size.y / 2);
+      aim = null;
+      const el = document.createElement('div');
+      el.className = `strike strike-${direction}`;
+      el.style.left = `${p.x}px`;
+      el.style.top = `${p.y}px`;
+      el.innerHTML = `${STRIKE_SVG}<span class="strike-z">Z ${zoom.toFixed(1)}</span>`;
+      layer.appendChild(el);
+      setTimeout(() => el.remove(), 900);
+    };
+    const onStart = () => {
+      fromZoom = map.getZoom();
+      struck = false;
+    };
+    const onAnim = (e) => {
+      if (e.zoom === fromZoom) return;
+      struck = true;
+      strike(e.zoom > fromZoom ? 'in' : 'out', e.zoom);
+    };
+    const onEnd = () => {
+      const z = map.getZoom();
+      if (!struck && z !== fromZoom) strike(z > fromZoom ? 'in' : 'out', z);
+    };
+    map.on('zoomstart', onStart);
+    map.on('zoomanim', onAnim);
+    map.on('zoomend', onEnd);
+    return () => {
+      map.off('zoomstart', onStart);
+      map.off('zoomanim', onAnim);
+      map.off('zoomend', onEnd);
+      container.removeEventListener('wheel', record, { capture: true });
+      container.removeEventListener('dblclick', record, { capture: true });
+      layer.remove();
+    };
+  }, [map]);
+  return null;
+}
+
+/** Live pointer coordinates and zoom under the map, written straight to the DOM (no re-render). */
+function CursorReadout({ target }) {
+  const map = useMap();
+  useEffect(() => {
+    let latlng = null;
+    const write = () => {
+      const el = target.current;
+      if (!el) return;
+      const z = `Zoom ${map.getZoom().toFixed(1)}`;
+      el.textContent = latlng ? `Cursor ${fmtLat(latlng.lat)} · ${fmtLon(latlng.lng)}   ${z}` : `Cursor ––   ${z}`;
+    };
+    const onMove = (e) => {
+      latlng = e.latlng;
+      write();
+    };
+    const onOut = () => {
+      latlng = null;
+      write();
+    };
+    write();
+    map.on('mousemove', onMove);
+    map.on('mouseout', onOut);
+    map.on('zoomend', write);
+    return () => {
+      map.off('mousemove', onMove);
+      map.off('mouseout', onOut);
+      map.off('zoomend', write);
+    };
+  }, [map, target]);
   return null;
 }

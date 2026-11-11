@@ -1,8 +1,8 @@
-# Tampere homes
+# Tampere Targets
 
 A personal tool for finding a rental in Tampere. It collects Oikotie rental listings into a local SQLite database (through a script you run in your own browser) and lets you browse them on a local map and list. Everything stays on your PC.
 
-_Version 1.0.0. It is renamed **Tampere Targets** in 1.1.0._
+_Version 1.1.0 (called "Tampere homes" up to 1.0.0). The UI is a tactical console: press **N** for night vision._
 
 ## Setup
 

@@ -9,16 +9,16 @@ export default class ErrorBoundary extends Component {
   }
 
   componentDidCatch(error, info) {
-    console.error('Tampere homes crashed:', error, info?.componentStack);
+    console.error('Tampere Targets crashed:', error, info?.componentStack);
   }
 
   render() {
     if (!this.state.error) return this.props.children;
     return (
       <div className="crash" role="alert">
-        <p className="state-title">Something broke on this page</p>
+        <p className="state-title">System fault</p>
         <p className="state-text">
-          Reloading usually helps. If it keeps happening, clear the filters by opening the page without its address
+          Reloading usually helps. If it keeps happening, reset the mission parameters by opening the page without its address
           parameters.
         </p>
         <pre className="state-code">{String(this.state.error?.message ?? this.state.error)}</pre>
@@ -27,7 +27,7 @@ export default class ErrorBoundary extends Component {
             Reload
           </button>
           <a className="btn btn-ghost" href="/">
-            Open without filters
+            Open without parameters
           </a>
         </div>
       </div>

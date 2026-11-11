@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { SORTS } from '../lib/filters.js';
+import { Crosshair } from './Icons.jsx';
 import ListingCard from './ListingCard.jsx';
 
 const VIEW_KEY = 'tcb.listView.v1';
@@ -14,7 +15,7 @@ function loadView() {
 
 export default function ListPanel({
   listings, loading, error, sort, onSort, hover, selectedId, onHover, onSelect, onReset, noPhotos,
-  saved, onToggleSaved, onlySaved, onOnlySaved,
+  saved, onToggleSaved, onlySaved, onOnlySaved, animateIn = true,
 }) {
   const registry = useRef(new Map());
   // Rows (compact, the default) or cards (large photos); remembered in this browser.
@@ -45,22 +46,28 @@ export default function ListPanel({
   // switched off so filtering and sorting stay instant.
   const [entering, setEntering] = useState(true);
   useEffect(() => {
-    if (loading) return undefined;
-    const t = setTimeout(() => setEntering(false), 1200);
+    if (loading || !animateIn) return undefined;
+    const t = setTimeout(() => setEntering(false), 1400);
     return () => clearTimeout(t);
-  }, [loading]);
+  }, [loading, animateIn]);
 
   return (
-    <section className="list-panel" aria-label="Homes">
-      <div className="list-bar">
-        <div className="list-bar-row">
-          <p className="list-count">
+    <section className="list-panel frame" aria-label="Target list">
+      <div className="panel-head">
+        <h2 className="panel-title">
+          <span className="panel-index">03</span>
+          Target list
+        </h2>
+          <p className="list-count" aria-live="polite">
             {busy ? ' ' : (
               <>
-                <span className="list-count-n">{listings.length}</span> {listings.length === 1 ? 'home' : 'homes'}
+                <span className="list-count-n">{listings.length}</span> {listings.length === 1 ? 'target' : 'targets'}
               </>
             )}
           </p>
+      </div>
+      <div className="list-bar">
+        <div className="list-bar-row">
           <div className="segmented" role="group" aria-label="List layout">
             <button type="button" aria-pressed={view === 'rows'} onClick={() => setView('rows')} title="Compact rows">
               <svg className="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
@@ -83,12 +90,12 @@ export default function ListPanel({
             aria-pressed={onlySaved}
             onClick={() => onOnlySaved(!onlySaved)}
             disabled={busy}
-            title="Show only the homes on your shortlist"
+            title="Show only your priority targets"
           >
-            <span aria-hidden="true">★</span> Shortlist <span className="chip-count">{saved.size}</span>
+            <span aria-hidden="true">★</span> Priority <span className="chip-count">{saved.size}</span>
           </button>
           <label className="sort">
-            <span className="sort-label">Sort</span>
+            <span className="sort-label">Order</span>
             <select value={sort} onChange={(e) => onSort(e.target.value)} disabled={busy}>
               {SORTS.map((s) => (
                 <option key={s.key} value={s.key}>
@@ -103,7 +110,7 @@ export default function ListPanel({
       {error ? (
         <ErrorState error={error} />
       ) : loading ? (
-        <ul className={`cards cards-${view}`} aria-busy="true" aria-label="Loading homes">
+        <ul className={`cards cards-${view}`} aria-busy="true" aria-label="Loading targets">
           {Array.from({ length: 6 }, (_, i) => (
             <li key={i} className={`card-item card-item-${view}`}>
               <div className={`card card-${view} skeleton`} aria-hidden="true">
@@ -120,25 +127,25 @@ export default function ListPanel({
       ) : listings.length === 0 ? (
         onlySaved && saved.size === 0 ? (
           <div className="state">
-            <p className="state-rune" aria-hidden="true">ᛉ</p>
-            <p className="state-title">Your shortlist is empty</p>
-            <p className="state-text">Mark homes with the star to keep them here. The shortlist is saved in this browser only.</p>
+            <Crosshair className="state-icon" />
+            <p className="state-title">No priority targets</p>
+            <p className="state-text">Mark targets with the star to keep them here. Priority targets are saved in this browser only.</p>
             <button type="button" className="btn btn-primary" onClick={() => onOnlySaved(false)}>
-              Show all homes
+              Show all targets
             </button>
           </div>
         ) : (
           <div className="state">
-            <p className="state-rune" aria-hidden="true">ᚾ</p>
-            <p className="state-title">No homes match</p>
-            <p className="state-text">Widen a range or switch a filter off.</p>
+            <Crosshair className="state-icon" />
+            <p className="state-title">No targets in sector</p>
+            <p className="state-text">Widen a parameter or switch a flag off.</p>
             <button type="button" className="btn btn-primary" onClick={onReset}>
-              Reset filters
+              Clear params
             </button>
           </div>
         )
       ) : (
-        <ul className={`cards cards-${view} ${entering ? 'cards-enter' : ''}`} onKeyDown={moveFocus}>
+        <ul className={`cards cards-${view} ${entering && animateIn ? 'cards-enter' : ''}`} onKeyDown={moveFocus}>
           {listings.map((l, i) => (
             <ListingCard
               key={l.card_id}
@@ -184,25 +191,25 @@ function ErrorState({ error }) {
   const body =
     error.kind === 'no-database' ? (
       <>
-        <p className="state-title">No database yet</p>
+        <p className="state-title">No intel yet</p>
         <p className="state-text">Capture listings first, then reload this page:</p>
         <pre className="state-code">npm run capture{'\n'}npm run import</pre>
       </>
     ) : error.kind === 'unreachable' ? (
       <>
-        <p className="state-title">Can’t reach the local server</p>
-        <p className="state-text">Start it again, then reload this page:</p>
+        <p className="state-title">Uplink lost</p>
+        <p className="state-text">The local server isn’t answering. Start it again, then reload this page:</p>
         <pre className="state-code">npm run ui</pre>
       </>
     ) : (
       <>
-        <p className="state-title">Something went wrong</p>
+        <p className="state-title">System fault</p>
         <p className="state-text">{error.message}</p>
       </>
     );
   return (
     <div className="state" role="alert">
-      <p className="state-rune" aria-hidden="true">ᚺ</p>
+      <Crosshair className="state-icon state-icon-alert" />
       {body}
     </div>
   );

@@ -72,7 +72,7 @@ export function availabilityText(l) {
   return 'no date';
 }
 
-// Build-year shade bins, ice (old) → fjord (new). 0 = unknown year.
+// Build-year shade bins, deep (old) → white-hot (new) in the theme colour. 0 = unknown year.
 export const YEAR_BINS = [
   { bin: 1, label: 'before 1960', test: (y) => y < 1960 },
   { bin: 2, label: '1960–1989', test: (y) => y < 1990 },

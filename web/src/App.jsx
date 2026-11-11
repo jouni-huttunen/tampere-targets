@@ -1,9 +1,11 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import BootSequence from './components/BootSequence.jsx';
 import DetailDrawer from './components/DetailDrawer.jsx';
+import Filters from './components/Filters.jsx';
 import Header from './components/Header.jsx';
 import ListPanel from './components/ListPanel.jsx';
 import MapView from './components/MapView.jsx';
-import RuneCircle from './components/RuneCircle.jsx';
+import Radar from './components/Radar.jsx';
 import { ApiError, getJson } from './lib/api.js';
 import {
   activeFilterCount,
@@ -11,14 +13,52 @@ import {
   dataBounds,
   defaultFilters,
   fromQuery,
+  median,
   sortListings,
   toQuery,
 } from './lib/filters.js';
 import { SHORTLIST_KEY, loadShortlist, parseShortlist, saveShortlist, toggled } from './lib/shortlist.js';
+import { applyTheme, loadTheme, saveTheme } from './lib/theme.js';
+
+// Three columns (parameters | map | targets) from this width; same value as tokens.css notes.
+const WIDE_QUERY = '(min-width: 1360px)';
+// The boot sequence plays once per browser tab; a reload goes straight to the deploy animation.
+const BOOT_KEY = 'tcb.boot.v1';
+const DEPLOY_MS = 1300;
+const NV_SWAP_MS = 190; // the theme flips while the effect is at its brightest
+const NV_FX_MS = 720;
 
 function selectedFromUrl() {
   const id = new URLSearchParams(window.location.search).get('listing');
   return id && /^\d+$/.test(id) ? Number(id) : null;
+}
+
+const reducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+function firstPhase() {
+  if (reducedMotion()) return 'ready';
+  try {
+    return sessionStorage.getItem(BOOT_KEY) === '1' ? 'deploy' : 'boot';
+  } catch {
+    return 'boot';
+  }
+}
+
+function useMediaQuery(query) {
+  const [matches, setMatches] = useState(() => window.matchMedia(query).matches);
+  useEffect(() => {
+    const mq = window.matchMedia(query);
+    const onChange = () => setMatches(mq.matches);
+    onChange();
+    mq.addEventListener('change', onChange);
+    return () => mq.removeEventListener('change', onChange);
+  }, [query]);
+  return matches;
+}
+
+/** Keys typed into a field are never shortcuts. */
+function isTyping(el) {
+  return !!el?.closest?.('input, select, textarea, [contenteditable="true"]');
 }
 
 export default function App() {
@@ -30,8 +70,65 @@ export default function App() {
   const [hover, setHover] = useState({ id: null, source: null });
   const [selectedId, setSelectedId] = useState(selectedFromUrl);
   const [saved, setSaved] = useState(() => loadShortlist());
+  const [phase, setPhase] = useState(firstPhase);
+  const wide = useMediaQuery(WIDE_QUERY);
+  const [paramsOpen, setParamsOpen] = useState(false);
+  const paramsButtonRef = useRef(null);
 
-  // Shortlist: saved in this browser only; follow changes made in other tabs.
+  // Theme: RECON or night vision, remembered in this browser.
+  const [theme, setTheme] = useState(loadTheme);
+  const [nvFx, setNvFx] = useState(null); // 'on' | 'off' while the goggles effect plays
+  useEffect(() => {
+    applyTheme(theme);
+    saveTheme(theme);
+  }, [theme]);
+  const themeRef = useRef(theme);
+  themeRef.current = theme;
+  const fxTimers = useRef([]);
+  useEffect(() => () => fxTimers.current.forEach(clearTimeout), []);
+  const toggleNv = useCallback(() => {
+    if (fxTimers.current.length) return; // one switch at a time
+    const next = themeRef.current === 'nv' ? 'recon' : 'nv';
+    if (reducedMotion()) {
+      setTheme(next);
+      return;
+    }
+    setNvFx(next === 'nv' ? 'on' : 'off');
+    fxTimers.current = [
+      setTimeout(() => setTheme(next), NV_SWAP_MS),
+      setTimeout(() => {
+        setNvFx(null);
+        fxTimers.current = [];
+      }, NV_FX_MS),
+    ];
+  }, []);
+
+  // N toggles night vision (not while typing, and not during the boot sequence).
+  useEffect(() => {
+    const onKey = (e) => {
+      if (phase === 'boot' || e.altKey || e.ctrlKey || e.metaKey || isTyping(e.target)) return;
+      if (e.key === 'n' || e.key === 'N') toggleNv();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [phase, toggleNv]);
+
+  // Boot → deploy (the console opens up) → ready.
+  const bootDone = useCallback(() => {
+    try {
+      sessionStorage.setItem(BOOT_KEY, '1');
+    } catch {
+      /* fine: the intro just plays again next time */
+    }
+    setPhase(reducedMotion() ? 'ready' : 'deploy');
+  }, []);
+  useEffect(() => {
+    if (phase !== 'deploy') return undefined;
+    const t = setTimeout(() => setPhase('ready'), DEPLOY_MS);
+    return () => clearTimeout(t);
+  }, [phase]);
+
+  // Shortlist (priority targets): saved in this browser only; follow changes made in other tabs.
   const toggleSaved = useCallback((id) => setSaved((s) => toggled(s, id)), []);
   useEffect(() => {
     saveShortlist(saved);
@@ -67,16 +164,18 @@ export default function App() {
     () => (listings && filters ? sortListings(applyFilters(listings, filters, saved), filters.sort) : []),
     [listings, filters, saved],
   );
-  // "N of M homes": M counts removed listings only while they are shown.
+  // "N / M targets": M counts removed listings only while they are shown.
   const activeCount = useMemo(() => {
     if (!listings) return 0;
     return filters?.hideRemoved === false ? listings.length : listings.filter((l) => !l.removed).length;
   }, [listings, filters?.hideRemoved]);
+  const medianRent = useMemo(() => median(shown.map((l) => l.rent_eur)), [shown]);
   const zipNames = useMemo(() => {
     const names = {};
     for (const f of areas?.features ?? []) names[f.properties.zip] = f.properties.name;
     return names;
   }, [areas]);
+  const paramCount = filters && defaults ? activeFilterCount(filters, defaults) : 0;
 
   // Keep the URL in step with the filters and the open listing (bookmarkable views).
   useEffect(() => {
@@ -86,6 +185,15 @@ export default function App() {
     const text = q.toString();
     window.history.replaceState(null, '', text ? `?${text}` : window.location.pathname);
   }, [filters, defaults, selectedId]);
+
+  // The slide-out parameters panel only exists in narrow windows.
+  useEffect(() => {
+    if (wide) setParamsOpen(false);
+  }, [wide]);
+  const closeParams = useCallback(() => {
+    setParamsOpen(false);
+    paramsButtonRef.current?.focus();
+  }, []);
 
   const update = useCallback((patch) => setFilters((f) => ({ ...f, ...patch })), []);
   const reset = useCallback(() => setFilters((f) => ({ ...defaults, sort: f.sort })), [defaults]);
@@ -111,25 +219,46 @@ export default function App() {
     [shown, position],
   );
 
+  const showParams = wide || paramsOpen;
+
   return (
-    <div className="app">
+    <div className={`app phase-${phase} ${nvFx ? `nv-switching nv-switching-${nvFx}` : ''}`}>
       <Header
         meta={meta}
         shown={shown.length}
         total={activeCount}
         filters={filters}
-        defaults={defaults}
-        bounds={bounds}
-        zipNames={zipNames}
-        listings={listings}
         saved={saved}
-        activeCount={filters && defaults ? activeFilterCount(filters, defaults) : 0}
+        medianRent={medianRent}
         onChange={update}
+        nv={theme === 'nv'}
+        onToggleNv={toggleNv}
+        wide={wide}
+        paramsOpen={paramsOpen}
+        paramCount={paramCount}
+        paramsButtonRef={paramsButtonRef}
+        onParams={() => setParamsOpen((o) => !o)}
         onReset={reset}
       />
       <main className="main">
-        <section className="map-wrap" aria-label="Map">
-          {!listings && !error && <RuneCircle />}
+        {showParams && (
+          <Filters
+            overlay={!wide}
+            filters={filters}
+            defaults={defaults}
+            bounds={bounds}
+            zips={meta?.zips ?? []}
+            zipNames={zipNames}
+            listings={listings}
+            saved={saved}
+            activeCount={paramCount}
+            onChange={update}
+            onReset={reset}
+            onClose={closeParams}
+          />
+        )}
+        <section className="map-wrap frame" aria-label="Tactical map">
+          {!listings && !error && phase !== 'boot' && <Radar />}
           <MapView
             listings={shown}
             places={meta?.places ?? []}
@@ -140,6 +269,7 @@ export default function App() {
             onHover={onHover}
             onSelect={onSelect}
           />
+          {phase === 'deploy' && <div className="map-sweep" aria-hidden="true" />}
         </section>
         <ListPanel
           listings={shown}
@@ -157,6 +287,7 @@ export default function App() {
           onToggleSaved={toggleSaved}
           onlySaved={filters?.onlySaved ?? false}
           onOnlySaved={(onlySaved) => update({ onlySaved })}
+          animateIn={phase !== 'boot'}
         />
       </main>
       {selectedId != null && (
@@ -173,6 +304,11 @@ export default function App() {
           isSaved={saved.has(selectedId)}
           onToggleSaved={() => toggleSaved(selectedId)}
         />
+      )}
+      <div className="nv-goggles" aria-hidden="true" />
+      {nvFx && <div className={`nv-fx nv-fx-${nvFx}`} aria-hidden="true" />}
+      {phase === 'boot' && (
+        <BootSequence meta={meta} count={listings ? activeCount : null} error={error} saved={saved} onDone={bootDone} />
       )}
     </div>
   );

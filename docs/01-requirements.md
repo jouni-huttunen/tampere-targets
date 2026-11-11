@@ -169,18 +169,25 @@ Each requirement has at least one acceptance criterion in Given / When / Then fo
 
 **FR-29 Hover sync.** Hovering a home in the list highlights its marker; hovering a marker highlights its home and scrolls it into view. Clicking either opens the detail.
 
-**FR-30 Filters.** Every numeric or date filter is a min–max range with a dual-handle slider and number inputs, bounded by the data: build year (first and most prominent), rent, size, rooms, available date (with "include no date"). Plus postal codes (multi-select), "only new" and "hide removed". Reset clears all. The filter state lives in the URL.
+**FR-30 Filters ("mission parameters").** Every numeric or date filter is a min–max range with a dual-handle slider and number inputs, bounded by the data: build year (first and most prominent), rent, size, rooms, available date (with "include no date"). Plus postal codes (multi-select), "only new", "only shortlist" and "hide removed". In a wide window (≥ 1360 px) all filters sit in a panel on the left that is always open, so they are fast to set (layout: filters | map | list); narrower windows open the same panel from a header button. Reset clears all. The filter state lives in the URL.
 - *Given* build year is set to 2010–2026, *when* the filter applies, *then* the list and the markers shrink together and the URL changes; reloading the URL restores the same view.
 
-**FR-31 New markers.** Listings in `v_new` carry a "New" tag and a distinct marker; the header shows how many homes are shown out of how many, how many are new since the last crawl, and when the last crawl ran. The "new" count toggles the "only new" filter.
+**FR-31 New markers and readouts.** Listings in `v_new` carry a "New" tag and a distinct marker; the header shows how many listings are shown out of how many, how many are new since the last crawl, how many are on the shortlist, the median rent of the shown listings, when the last crawl ran, and the Helsinki time. The "new" and shortlist counts toggle their filters. Every number shown is real data.
 
-**FR-32 Detail drawer.** A photo gallery, key fields, description, a link to the Oikotie listing and the raw JSON (collapsed). The lease text (`rentTermInfo`) is shown in full so the user can verify the lease type by reading it; lease type is deliberately **not** a filter (decided 2026-11-11, because Oikotie gives it only as free text). Previous/next controls (and ←/→) step through the current filtered, sorted list; Esc closes. The open listing is part of the URL.
+**FR-32 Target profile (detail).** A photo gallery, key fields, description, a link to the Oikotie listing and the raw JSON (collapsed). The lease text (`rentTermInfo`) is shown in full so the user can verify the lease type by reading it; lease type is deliberately **not** a filter (decided 2026-11-11, because Oikotie gives it only as free text). Previous/next controls (and ←/→) step through the current filtered, sorted list; Esc closes. The open listing is part of the URL. In a wide window it docks over the right side of the map, so the list and the filters stay visible.
 
-**FR-33 Narrow windows.** Below a set width the list stacks under the map with no horizontal scrolling.
+**FR-33 Narrow windows.** Below 1360 px the filters move into a slide-out panel; below 900 px the list stacks under the map with no horizontal scrolling.
 
 **FR-34 Shortlist.** The user can star homes and filter to the starred ones. The shortlist lives only in the browser's `localStorage`; the server and database stay read-only, and the UI works if storage is blocked.
 
-**FR-35 States.** Designed loading, empty ("no homes match", with Reset) and error states; a rendering error shows a message with a reload button instead of a blank page.
+**FR-35 States.** Designed loading, empty ("no targets in sector", with Reset) and error states; a rendering error shows a message with a reload button instead of a blank page.
+
+**FR-36 Boot sequence** (added in 1.1.0). Opening the UI plays a short tactical boot log (about 3 s) while the data loads: uplink, secure channel, encryption, GPS coordinates of the map centre, the number of listings, sectors, last crawl, new contacts, shortlist, "all systems armed". All values are real. Then the console "deploys" (header, map, panels animate in). It plays once per browser tab; any key or click skips it; it is skipped under `prefers-reduced-motion`.
+- *Given* the database loads slowly, *then* the log waits on the database line instead of inventing a number.
+
+**FR-37 Themes** (added in 1.1.0). Two colour themes: RECON (navy, cyan, amber; the default) and night vision (green). An "NV" button in the header (or the N key) switches between them with a short goggles effect; the choice is remembered in the browser (`localStorage` key `tcb.theme.v1`) and applied before the first paint.
+
+**FR-38 Map effects** (added in 1.1.0). Zooming shows a fast crosshair "strike" at the point zoomed at (the pointer, or the centre for buttons and keys). Selecting a listing locks a reticle onto its marker with a short animation and a "Target locked" label with its coordinates; the lock stays while the profile is open. Both are decorative, never block the pointer, and are off under `prefers-reduced-motion`.
 
 ## 7. Non-functional requirements
 | Id | Requirement |

@@ -1,11 +1,11 @@
 import { useState } from 'react';
 import { YEAR_BINS } from '../lib/format.js';
 
-/** Build-year colours always; the other marker styles and runes behind "More". */
+/** Build-year colours always; the other marker styles and reference points behind "More". */
 export default function Legend() {
   const [open, setOpen] = useState(false);
   return (
-    <div className={`legend ${open ? 'is-open' : ''}`} aria-label="Map legend" role="group">
+    <div className={`legend frame ${open ? 'is-open' : ''}`} aria-label="Map legend" role="group">
       <div className="legend-head">
         <p className="legend-title">Build year</p>
         <button type="button" className="legend-toggle" aria-expanded={open} aria-controls="legend-extra" onClick={() => setOpen((o) => !o)}>
@@ -30,31 +30,27 @@ export default function Legend() {
         <ul className="legend-list legend-extra" id="legend-extra">
           <li>
             <span className="legend-dot legend-new mk-y4" aria-hidden="true" />
-            new since last crawl
+            new contact
           </li>
           <li>
             <span className="legend-dot legend-saved mk-y2" aria-hidden="true" />
-            on your shortlist
+            priority target
           </li>
           <li>
             <span className="legend-dot legend-approx mk-y4" aria-hidden="true" />
-            approximate location
+            approx. position
           </li>
           <li>
             <span className="legend-dot legend-group" aria-hidden="true" />
             same building, spread out
           </li>
           <li>
-            <span className="legend-rune" aria-hidden="true">ᛟ</span>
-            Keskustori
+            <span className="legend-pin" aria-hidden="true" />
+            HQ · Keskustori
           </li>
           <li>
-            <span className="legend-rune" aria-hidden="true">ᚱ</span>
-            railway station
-          </li>
-          <li>
-            <span className="legend-rune" aria-hidden="true">ᛞ</span>
-            available (in the list)
+            <span className="legend-pin" aria-hidden="true" />
+            RAIL · railway station
           </li>
         </ul>
       )}

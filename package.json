@@ -1,6 +1,6 @@
 {
-  "name": "tampere-city-boy",
-  "version": "1.0.0",
+  "name": "tampere-targets",
+  "version": "1.1.0",
   "private": true,
   "description": "Personal Tampere rental finder: Oikotie capture, local SQLite database, map UI",
   "type": "module",
@@ -24,9 +24,8 @@
   },
   "devDependencies": {
     "@fontsource/barlow": "5.3.0",
-    "@fontsource/barlow-condensed": "5.3.0",
-    "@fontsource/cinzel": "5.3.0",
-    "@fontsource/noto-sans-runic": "5.3.0",
+    "@fontsource/jetbrains-mono": "5.3.0",
+    "@fontsource/rajdhani": "5.3.0",
     "@vitejs/plugin-react": "6.3.0",
     "leaflet": "1.9.4",
     "react": "19.3.1",

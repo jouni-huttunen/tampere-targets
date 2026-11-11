@@ -208,3 +208,11 @@ export function activeFilterCount(f, defaults) {
   if (f.hideRemoved !== defaults.hideRemoved) n++;
   return n;
 }
+
+/** Median of the non-null numbers, or null when there are none. */
+export function median(values) {
+  const v = values.filter((x) => typeof x === 'number' && Number.isFinite(x)).sort((a, b) => a - b);
+  if (v.length === 0) return null;
+  const mid = v.length >> 1;
+  return v.length % 2 ? v[mid] : (v[mid - 1] + v[mid]) / 2;
+}

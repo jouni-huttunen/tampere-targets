@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Crosshair } from './Icons.jsx';
 
 /** A listing photo, or a calm placeholder when photos are hidden, missing or fail to load. */
 export default function Photo({ src, alt = '', noPhotos = false, className = '', eager = false }) {
@@ -7,8 +8,8 @@ export default function Photo({ src, alt = '', noPhotos = false, className = '',
   if (!src || failedSrc === src) {
     return (
       <span className={`photo photo-placeholder ${className}`} role="img" aria-label={noPhotos ? 'Photo hidden' : 'No photo'}>
-        <span className="photo-rune" aria-hidden="true">ᛟ</span>
-        <span className="photo-note">{noPhotos ? 'Photo hidden in preview' : 'No photo'}</span>
+        <Crosshair className="photo-mark" />
+        <span className="photo-note">{noPhotos ? 'Visual hidden in preview' : 'No visual'}</span>
       </span>
     );
   }

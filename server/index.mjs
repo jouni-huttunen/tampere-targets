@@ -4,7 +4,7 @@ import { serverOptions, startServer } from './start.mjs';
 try {
   const { port, noPhotos } = serverOptions();
   await startServer({ port, noPhotos });
-  console.log(`Tampere homes: http://localhost:${port}`);
+  console.log(`Tampere Targets: http://localhost:${port}`);
 } catch (err) {
   console.error(err.message);
   process.exitCode = 1;

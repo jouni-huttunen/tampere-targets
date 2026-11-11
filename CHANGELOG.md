@@ -1,6 +1,25 @@
 # Changelog
 
-## 1.0.0 — 2026-11-12: local map and list web UI
+## 1.1.0 — 2026-11-11: Tampere Targets (tactical UI)
+
+Renamed to **Tampere Targets** and restyled as a tactical / spec-ops targeting console, at the user's request. Same data, filters and behaviour; new look, language and effects. Reviewed and approved by the user.
+
+**Added**
+- A boot sequence (about 3 s, once per tab, skippable, real values only) followed by a deploy animation of the console.
+- Two themes: RECON (navy, cyan, amber; the default) and night vision (green), switched with the NV button or the N key, with a short goggles effect; remembered in the browser (`tcb.theme.v1`).
+- Zoom strike (a crosshair at the point zoomed at) and target lock (a reticle with "Target locked" and coordinates on the selected marker); selecting a target pans it towards the middle of the visible map, not just inside its edge.
+- Mission parameters: all filters in an always-open panel on the left in wide windows (≥ 1360 px), so the layout is parameters | map | targets with the map in the centre; a slide-out panel below that.
+- Header readouts: priority count (toggles the shortlist filter), median cost of the shown targets, and a live Helsinki clock; a live cursor-coordinate readout on the map.
+- Tests for the theme store and the median (87 in total).
+
+**Changed**
+- Tactical wording everywhere: targets, TARGET PROFILE, mission parameters, priority targets, new contacts, withdrawn, sectors, HQ and RAIL, last recon.
+- The target list moved to the right edge, and the target profile docks over the right of the map against it, so the list and the parameters stay visible.
+- Fonts: Rajdhani and JetBrains Mono replace Cinzel, Barlow Condensed and Noto Sans Runic (Barlow stays for text). The runes are gone.
+- `package.json` name is `tampere-targets`; the capture format and the `tcb.*` storage keys are unchanged.
+- Fixed the 1.0.0 dates in the docs (2026-11-11, not 11-12).
+
+## 1.0.0 — 2026-11-11: local map and list web UI
 
 The first complete version: capture, import, query and browse. Reviewed and approved by the user.
 

@@ -1,12 +1,12 @@
-/** Toggle a home on the shortlist (stored in this browser only). */
+/** Mark or unmark a priority target (the shortlist, stored in this browser only). */
 export default function StarButton({ saved, onToggle, className = '', withLabel = false }) {
   return (
     <button
       type="button"
       className={`star ${saved ? 'is-saved' : ''} ${withLabel ? 'star-labelled' : ''} ${className}`}
       aria-pressed={saved}
-      aria-label={withLabel ? undefined : saved ? 'Remove from shortlist' : 'Add to shortlist'}
-      title={saved ? 'On your shortlist (click to remove)' : 'Add to your shortlist'}
+      aria-label={withLabel ? undefined : saved ? 'Remove from priority targets' : 'Mark as priority target'}
+      title={saved ? 'Priority target (click to remove)' : 'Mark as priority target'}
       onClick={(e) => {
         e.stopPropagation();
         onToggle();
@@ -21,7 +21,7 @@ export default function StarButton({ saved, onToggle, className = '', withLabel 
           strokeLinejoin="round"
         />
       </svg>
-      {withLabel && <span>{saved ? 'On shortlist' : 'Add to shortlist'}</span>}
+      {withLabel && <span>{saved ? 'Priority target' : 'Mark as priority'}</span>}
     </button>
   );
 }

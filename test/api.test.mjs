@@ -124,16 +124,16 @@ test('without a database the API answers 503 with a hint', async () => {
 test('static files: the built app, single-page fallback, and a hint when not built', async () => {
   const dir = mkdtempSync(path.join(os.tmpdir(), 'tcb-web-'));
   try {
-    writeFileSync(path.join(dir, 'index.html'), '<!doctype html><title>Tampere homes</title>');
+    writeFileSync(path.join(dir, 'index.html'), '<!doctype html><title>Tampere Targets</title>');
     const { db, config } = seeded();
     const app = buildApp({ db, config, staticDir: dir });
     const home = await app.inject({ method: 'GET', url: '/' });
     assert.equal(home.statusCode, 200);
-    assert.match(home.body, /Tampere homes/);
+    assert.match(home.body, /Tampere Targets/);
     assert.equal(home.headers['x-content-type-options'], 'nosniff');
     const deep = await app.inject({ method: 'GET', url: '/some/view?year=2010..' });
     assert.equal(deep.statusCode, 200);
-    assert.match(deep.body, /Tampere homes/);
+    assert.match(deep.body, /Tampere Targets/);
     assert.equal((await app.inject({ method: 'GET', url: '/api/unknown' })).statusCode, 404);
     assert.equal((await app.inject({ method: 'POST', url: '/api/listings' })).statusCode, 404, 'no write routes');
     await app.close();

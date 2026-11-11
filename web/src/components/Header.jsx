@@ -1,144 +1,157 @@
-import { useEffect, useRef, useState } from 'react';
-import { fmtDateTime } from '../lib/format.js';
+import { useEffect, useState } from 'react';
+import { fmtDateTime, fmtEur } from '../lib/format.js';
+import { Reticle } from './Icons.jsx';
 
-// Same bins as the map markers and the legend (format.js YEAR_BINS).
-const YEAR_ERAS = [
-  { from: null, cls: 'mk-y1' },
-  { from: 1960, cls: 'mk-y2' },
-  { from: 1990, cls: 'mk-y3' },
-  { from: 2010, cls: 'mk-y4' },
-  { from: 2020, cls: 'mk-y5' },
-];
-import Filters from './Filters.jsx';
-import RangeFilter from './RangeFilter.jsx';
+const clockFormat = new Intl.DateTimeFormat('fi-FI', {
+  timeZone: 'Europe/Helsinki',
+  hour: '2-digit',
+  minute: '2-digit',
+  second: '2-digit',
+  hourCycle: 'h23',
+});
 
-export default function Header({ meta, shown, total, filters, defaults, bounds, zipNames, listings, saved, activeCount, onChange, onReset }) {
-  const [open, setOpen] = useState(false);
-  const panelRef = useRef(null);
-  const buttonRef = useRef(null);
-
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (e) => {
-      if (e.key === 'Escape' && !e.defaultPrevented) {
-        e.preventDefault(); // the panel is on top: Esc closes it, not the drawer below
-        setOpen(false);
-        buttonRef.current?.focus();
-      }
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [open]);
-
+/**
+ * The command bar: wordmark, live readouts (every number is real data), the night-vision
+ * switch and, in narrow windows only, the button for the slide-out mission parameters.
+ */
+export default function Header({
+  meta, shown, total, filters, saved, medianRent, onChange, nv, onToggleNv, wide, paramsOpen, paramCount,
+  paramsButtonRef, onParams, onReset,
+}) {
   const run = meta?.lastRun;
   const newCount = meta?.counts?.isNew ?? 0;
+  const ready = !!filters;
 
   return (
     <header className="header">
       <div className="brand">
-        <span className="brand-mark" aria-hidden="true">ᛟ</span>
+        <Reticle className="brand-mark" />
         <div className="brand-text">
           <h1 className="brand-title">
-            Tampere <span className="brand-sub">homes</span>
+            Tampere <span className="brand-sub">Targets</span>
           </h1>
-          <p className="brand-runes" aria-hidden="true">ᛏᚨᛗᛈᛖᚱᛖ · ᚺᛟᛗᛖᛋ</p>
+          <p className="brand-tag">Tactical rental recon · Tampere AO</p>
         </div>
       </div>
 
-      <dl className="stats">
-        <div className="stat">
-          <dt>Shown</dt>
+      <dl className="readouts">
+        <div className="readout readout-main">
+          <dt>Targets</dt>
           <dd>
-            <span className="stat-n">{filters ? shown : '–'}</span>
-            <span className="stat-of">/ {filters ? total : '–'}</span>
+            <span className="readout-n">{ready ? shown : '––'}</span>
+            <span className="readout-of">/ {ready ? total : '––'}</span>
           </dd>
         </div>
-        <div className={`stat ${newCount ? 'stat-hot' : ''}`}>
-          <dt>{run?.isInitial ? 'First crawl' : 'New'}</dt>
+        <div className={`readout ${newCount && !run?.isInitial ? 'readout-hot' : ''}`}>
+          <dt>{run?.isInitial ? 'First recon' : 'New contacts'}</dt>
           <dd>
-            {filters && newCount > 0 ? (
+            {ready && newCount > 0 && !run?.isInitial ? (
               <button
                 type="button"
-                className="stat-n stat-button"
+                className="readout-n readout-button"
                 aria-pressed={filters.onlyNew}
                 onClick={() => onChange({ onlyNew: !filters.onlyNew })}
-                title={filters.onlyNew ? 'Show all homes again' : 'Show only the new homes'}
+                title={filters.onlyNew ? 'Show all targets again' : 'Show only the new contacts'}
               >
                 {newCount}
               </button>
             ) : (
-              <span className="stat-n">{!meta || run?.isInitial ? '–' : newCount}</span>
+              <span className="readout-n">{!meta || run?.isInitial ? '––' : newCount}</span>
             )}
           </dd>
         </div>
-        <div className="stat stat-time">
-          <dt>Crawled</dt>
-          <dd>{run ? fmtDateTime(run.finishedAt ?? run.startedAt) : '–'}</dd>
+        <div className={`readout ${saved.size ? 'readout-priority' : ''}`}>
+          <dt>Priority</dt>
+          <dd>
+            {ready && saved.size > 0 ? (
+              <button
+                type="button"
+                className="readout-n readout-button"
+                aria-pressed={filters.onlySaved}
+                onClick={() => onChange({ onlySaved: !filters.onlySaved })}
+                title={filters.onlySaved ? 'Show all targets again' : 'Show only your priority targets'}
+              >
+                {saved.size}
+              </button>
+            ) : (
+              <span className="readout-n">{saved.size}</span>
+            )}
+          </dd>
+        </div>
+        <div className="readout readout-wide">
+          <dt>Median cost</dt>
+          <dd>
+            <span className="readout-text">{ready && medianRent != null ? fmtEur(Math.round(medianRent)) : '––'}</span>
+          </dd>
+        </div>
+        <div className="readout readout-wide">
+          <dt>Last recon</dt>
+          <dd>
+            <span className="readout-text">{run ? fmtDateTime(run.finishedAt ?? run.startedAt) : '––'}</span>
+          </dd>
+        </div>
+        <div className="readout readout-clock">
+          <dt>Local · HEL</dt>
+          <dd>
+            <Clock />
+          </dd>
         </div>
       </dl>
 
-      <div className="header-year">
-        {filters && (
-          <RangeFilter
-            prominent
-            label="Build year"
-            hint={filters.year[0] == null && filters.year[1] == null ? 'All eras' : 'Unknown years hidden'}
-            bounds={bounds?.year}
-            value={filters.year}
-            onChange={(year) => onChange({ year })}
-            eras={YEAR_ERAS}
-          />
-        )}
-      </div>
-
       <div className="header-actions">
-        <button
-          ref={buttonRef}
-          type="button"
-          className={`btn btn-ghost ${open ? 'is-on' : ''}`}
-          aria-expanded={open}
-          aria-controls="filters-panel"
-          onClick={() => setOpen((o) => !o)}
-          disabled={!filters}
-        >
-          <FilterIcon />
-          Filters
-          {activeCount > 0 && <span className="badge" aria-label={`${activeCount} active`}>{activeCount}</span>}
-        </button>
-        {activeCount > 0 && (
-          <button type="button" className="btn btn-link" onClick={onReset}>
-            Reset
-          </button>
+        {!wide && (
+          <>
+            {paramCount > 0 && (
+              <button type="button" className="btn btn-link" onClick={onReset}>
+                Clear
+              </button>
+            )}
+            <button
+              ref={paramsButtonRef}
+              type="button"
+              className={`btn btn-ghost ${paramsOpen ? 'is-on' : ''}`}
+              aria-expanded={paramsOpen}
+              aria-controls="filters-panel"
+              onClick={onParams}
+              disabled={!filters}
+            >
+              <svg className="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+                <path d="M3 5h14M6 10h8M8.5 15h3" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="square" />
+              </svg>
+              Params
+              {paramCount > 0 && <span className="badge" aria-label={`${paramCount} active`}>{paramCount}</span>}
+            </button>
+          </>
         )}
+        <button
+          type="button"
+          className={`nv-toggle ${nv ? 'is-on' : ''}`}
+          aria-pressed={nv}
+          onClick={onToggleNv}
+          title={`Night vision ${nv ? 'off' : 'on'} (N)`}
+        >
+          <svg className="nv-icon" viewBox="0 0 32 20" aria-hidden="true" focusable="false">
+            <path d="M3 6h26v8a3 3 0 0 1-3 3h-6l-2-3h-4l-2 3H6a3 3 0 0 1-3-3z" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
+            <circle cx="10" cy="10.5" r="3" fill="currentColor" className="nv-lens" />
+            <circle cx="22" cy="10.5" r="3" fill="currentColor" className="nv-lens" />
+            <path d="M12 6V3h8v3" fill="none" stroke="currentColor" strokeWidth="1.6" />
+          </svg>
+          <span className="nv-text">
+            <span className="nv-label">NV</span>
+            <span className="nv-state">{nv ? 'On' : 'Off'}</span>
+          </span>
+        </button>
       </div>
-
-      {open && filters && (
-        <div className="filters-panel" id="filters-panel" ref={panelRef} role="region" aria-label="Filters">
-          <Filters
-            filters={filters}
-            defaults={defaults}
-            bounds={bounds}
-            zips={meta?.zips ?? []}
-            zipNames={zipNames}
-            listings={listings}
-            saved={saved}
-            onChange={onChange}
-            onReset={onReset}
-            onDone={() => {
-              setOpen(false);
-              buttonRef.current?.focus();
-            }}
-          />
-        </div>
-      )}
     </header>
   );
 }
 
-function FilterIcon() {
-  return (
-    <svg className="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
-      <path d="M3 5h14M6 10h8M8.5 15h3" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-    </svg>
-  );
+/** Helsinki wall clock, 14:32:07. Its own component so only it re-renders every second. */
+function Clock() {
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const t = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(t);
+  }, []);
+  return <time className="readout-text readout-time">{clockFormat.format(now).replace(/\./g, ':')}</time>;
 }

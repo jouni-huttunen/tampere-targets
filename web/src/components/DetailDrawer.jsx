@@ -60,16 +60,17 @@ export default function DetailDrawer({
   const approx = l?.location_approx;
 
   return (
-    <aside className="drawer" role="dialog" aria-modal="false" aria-labelledby="drawer-title">
+    <aside className="drawer frame" role="dialog" aria-modal="false" aria-labelledby="drawer-title">
       <div className="drawer-top">
-        <p className="eyebrow">
-          {[l?.district, l?.zip && `${l.zip}${zipNames[l.zip] ? ' ' + zipNames[l.zip] : ''}`].filter(Boolean).join(' · ')}
+        <p className="drawer-kicker">
+          <span className="kicker-tag">Target profile</span>
+          <span className="kicker-id">TGT {id}</span>
         </p>
         <div className="drawer-nav">
           {position >= 0 && (
             <>
               <button type="button" className="icon-btn" onClick={() => onStep(-1)} disabled={position === 0}
-                aria-label="Previous home in the list" title="Previous (←)">
+                aria-label="Previous target in the list" title="Previous target (←)">
                 <svg viewBox="0 0 20 20" className="icon" aria-hidden="true" focusable="false">
                   <path d="M12.5 4.5 7 10l5.5 5.5" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
@@ -78,14 +79,14 @@ export default function DetailDrawer({
                 {position + 1} / {count}
               </span>
               <button type="button" className="icon-btn" onClick={() => onStep(1)} disabled={position >= count - 1}
-                aria-label="Next home in the list" title="Next (→)">
+                aria-label="Next target in the list" title="Next target (→)">
                 <svg viewBox="0 0 20 20" className="icon" aria-hidden="true" focusable="false">
                   <path d="M7.5 4.5 13 10l-5.5 5.5" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
               </button>
             </>
           )}
-          <button ref={closeRef} type="button" className="icon-btn" onClick={onClose} aria-label="Close details" title="Close (Esc)">
+          <button ref={closeRef} type="button" className="icon-btn" onClick={onClose} aria-label="Close target profile" title="Close (Esc)">
             <svg viewBox="0 0 20 20" className="icon" aria-hidden="true" focusable="false">
               <path d="M5 5l10 10M15 5 5 15" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
             </svg>
@@ -97,15 +98,18 @@ export default function DetailDrawer({
         <Gallery id={id} detail={detail} noPhotos={noPhotos} />
 
         <header className="drawer-head">
+          <p className="eyebrow">
+            {[l?.district, l?.zip && `${l.zip}${zipNames[l.zip] ? ' ' + zipNames[l.zip] : ''}`].filter(Boolean).join(' · ')}
+          </p>
           <h2 id="drawer-title" className="drawer-title">
             {l?.address ?? (error ? 'Listing' : 'Loading…')}
           </h2>
           {detail?.title && <p className="drawer-subtitle">{detail.title}</p>}
           <div className="drawer-tags">
             {onToggleSaved && <StarButton saved={isSaved} onToggle={onToggleSaved} withLabel />}
-            {l?.is_new && <span className="tag tag-new">New</span>}
-            {l?.removed && <span className="tag tag-removed">Removed {fmtDay(l.removed_at)}</span>}
-            {approx && <span className="tag tag-approx">Approximate location</span>}
+            {l?.is_new && <span className="tag tag-new">New contact</span>}
+            {l?.removed && <span className="tag tag-removed">Withdrawn {fmtDay(l.removed_at)}</span>}
+            {approx && <span className="tag tag-approx">Approx. position</span>}
           </div>
         </header>
 
@@ -123,7 +127,7 @@ export default function DetailDrawer({
                 <span className="fact-hero">{l.build_year ?? '—'}</span>
               </div>
               <div>
-                <span className="fact-label">Size</span>
+                <span className="fact-label">Area</span>
                 <span className="fact-hero">{fmtM2(l.size_m2)}</span>
               </div>
               <div>
@@ -135,9 +139,9 @@ export default function DetailDrawer({
             <dl className="facts">
               <Fact label="Layout" value={l.room_config} />
               <Fact label="Floor" value={l.floor != null ? `${l.floor}${l.floor_count ? ` / ${l.floor_count}` : ''}` : null} />
-              <Fact label="Available" value={availabilityText(l)} />
-              {l.available_date && l.availability_text && <Fact label="Availability note" value={l.availability_text} />}
-              <Fact label="Rent" value={`${fmtEur(l.rent_eur)} / month`} />
+              <Fact label="Move-in" value={availabilityText(l)} />
+              {l.available_date && l.availability_text && <Fact label="Move-in note" value={l.availability_text} />}
+              <Fact label="Cost" value={`${fmtEur(l.rent_eur)} / month`} />
               <Fact label="Water" value={l.water_fee} />
               <Fact label="Electricity" value={l.electric_fee} />
               <Fact label="Deposit" value={l.deposit_eur != null ? fmtEur(l.deposit_eur) : null} />
@@ -145,7 +149,7 @@ export default function DetailDrawer({
               <Fact label="Furnished" value={fmtYesNo(l.furnished)} />
               <Fact label="Building type" value={l.building_type != null ? `code ${l.building_type} (mapping unverified)` : 'unknown'} />
               {places.map((p) => (
-                <Fact key={p.key} label={`To ${p.name}`} value={fmtKm(l.dist?.[p.key], approx)} />
+                <Fact key={p.key} label={`Range to ${p.key === 'centre' ? 'HQ' : p.key === 'station' ? 'rail' : p.name} · ${p.name}`} value={fmtKm(l.dist?.[p.key], approx)} />
               ))}
               <Fact label="Landlord / agent" value={l.company_name} />
               <Fact label="Listed" value={l.published_at ? fmtDay(l.published_at) : null} />
@@ -174,7 +178,7 @@ export default function DetailDrawer({
 
             {detail?.description && (
               <section className="drawer-section">
-                <h3 className="section-title">Description</h3>
+                <h3 className="section-title">Briefing</h3>
                 <p className="prose">{detail.description}</p>
               </section>
             )}
@@ -185,13 +189,13 @@ export default function DetailDrawer({
                   Open on Oikotie
                   <span aria-hidden="true"> ↗</span>
                 </a>
-                {l.available_date && <span className="quiet">Available {fmtDate(l.available_date)}</span>}
+                {l.available_date && <span className="quiet">Move-in {fmtDate(l.available_date)}</span>}
               </p>
             )}
 
             {detail && (
               <details className="raw">
-                <summary>Raw JSON</summary>
+                <summary>Raw intel (JSON)</summary>
                 <pre>{JSON.stringify(detail.raw, null, 2)}</pre>
               </details>
             )}
@@ -229,7 +233,7 @@ function Gallery({ id, detail, noPhotos }) {
         <div className="gallery-hero">
           <Photo className="gallery-photo" noPhotos={noPhotos} />
         </div>
-        {noPhotos && detail.photo_count > 0 && <p className="strip-note">{detail.photo_count} photos hidden in preview mode</p>}
+        {noPhotos && detail.photo_count > 0 && <p className="strip-note">{detail.photo_count} visuals hidden in preview mode</p>}
       </div>
     );
   }
