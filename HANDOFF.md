@@ -1,6 +1,53 @@
 # Handoff: Tampere apartment finder
 
-_Last updated 2026-11-10. Read this first, then `PLAN.md` (the approved spec). Where they differ, this file wins on the **current state** and `PLAN.md` wins on the **target design**._
+_Last updated 2026-11-11. Read this first, then `PLAN.md` (the approved spec). Where they differ, this file wins on the **current state** and `PLAN.md` wins on the **target design**. The formal spec is `docs/01–03`; `docs/03-design.md` wins over `PLAN.md` where they differ (its §13 lists why)._
+
+## 0. Start here: the next task is the web UI (step 7)
+**Status 2026-11-11:** steps 1–6 are done and committed. Data retrieval works end to end on real data, and the UI spec is complete. The UI has **not been started**: there is no `server/`, no `web/`, no `ui` scripts and no npm dependencies yet.
+
+**Before writing any code:** explain the user-facing flow to the user and get an explicit go-ahead. Cover what they'll run, what they'll see, how the filters behave, and the dependencies you'll add. This is their standing rule (§7); don't treat an ambiguous "ok" as approval.
+
+**Where the spec lives (read in this order):**
+1. `docs/03-design.md` §8 (server routes, components, layout, map, list, hover sync, filter table with defaults, detail drawer, states, visual design), §2 (file layout and npm scripts) and §11 (privacy).
+2. `docs/01-requirements.md` FR-26…FR-33 (acceptance criteria, Given/When/Then) and NFR-03, -05, -12, -13.
+3. `PLAN.md` §5 (design direction in the user's own framing: a premium Nordic property site, white and icy blues, photo-led, price de-emphasised, build year first) and the "UI in the browser pane" checks under Verification.
+
+**Already decided (don't re-ask):**
+- **Stack:** Fastify + @fastify/static, React + Vite (+ @vitejs/plugin-react), leaflet + react-leaflet, two `@fontsource` families, and optionally a small accessible range-slider library (or hand-built; implementer's call).
+- **Dependencies only for the UI** (NFR-05): capture, import, DB and CLI stay Node built-ins only.
+- **Server:** `server/index.mjs` binds `127.0.0.1:3000`, opens the database read-only (`openDb(DB_PATH, { readOnly: true })` from `src/db.mjs`, `DB_PATH` from `src/config.mjs`, which honours `TCB_DB`), and has no write routes. Routes: `GET /api/listings`, `GET /api/listings/:id`, `GET /api/meta`; everything else serves `web/dist`.
+- **Scripts:** `ui` builds `web/` and starts the server; `ui:dev` runs Vite with hot reload and proxies `/api` to Fastify. Update the npm-scripts table in `docs/03-design.md` §2 (it says "not added yet").
+- **Lease type is not a filter.** Show `lease_text` in full in the detail drawer (FR-32).
+- **Approximate locations:** rows with `location_approx = 1` (17 listings) get a distinct hollow or dashed marker, an "approximate location" note, and "≈" on their distances.
+- **"New"** = listed in `v_new`. After the current two runs it's empty (run 1 was initial, run 2 found nothing new), so test the New tag, halo and "Only new" toggle against a **temp test DB** with a seeded later run (use `TCB_DB`), never by editing `data/listings.db`.
+- **Postal polygons:** fetch the 17 polygons **once** from the Statistics Finland Paavo WFS (URL in §4, CC BY 4.0, attribution required), filter to the 17 zips in `config.json`, and save them as `web/public/postal-areas.geojson`. That file is public data and may be committed.
+- **Preview:** add a `.claude/launch.json` entry for `npm run ui` (port 3000) and check the UI in the built-in browser pane against FR-26…33 and the PLAN Verification list. It doesn't exist yet; `.claude/` only holds `settings.local.json`.
+
+**Ask the user before you do these:**
+- **Listing photos come from Oikotie's CDN** (`cdn.asunnot.oikotie.fi`). Previewing the real UI in the agent's built-in browser would make that browser load up to ~380 thumbnails from Oikotie, and Oikotie's robots.txt opts out of Anthropic agents (§3). Suggest an env flag (e.g. `TCB_NO_PHOTOS=1`) that swaps photos for placeholders during agent previews, or previewing only with the synthetic test DB, and let the user choose. The user's own browser loading photos is fine.
+- **Font choice and the slider library**, if you want the user's taste on them. Otherwise pick and mention it in the flow explanation.
+- **Commits:** none unless asked. When asked, branch off `main` first, then fast-forward `main` and push (see §2, Git row).
+
+**Data facts for the UI** (real DB, 2026-11-11, 381 listings):
+
+| Thing | Fact |
+|---|---|
+| Columns | `card_id, url, status, first_seen_at, first_seen_run_id, last_seen_at, removed_at, published_at, published_sort_at, price_changed_at, address, district, zip, lat, lon, rent_eur, size_m2, rooms, room_config, build_year, building_type, floor, floor_count, available_date, availability_text, lease_text, deposit_eur, water_fee, electric_fee, pets_allowed, furnished, company_name, search_json, search_hash, search_fetched_at, detail_json, detail_hash, detail_fetched_at, dist_centre_km, dist_station_km, location_approx`. The `dist_*` columns are added from `config.places` by `openDb` (non-read-only) via `distanceColumn(place)` in `src/normalize.mjs`. |
+| Build year | 1905–2026; **40 listings have none**. While the build-year range is untouched they stay included (03-design §8.2). |
+| Rent / size / rooms | 480–1400 € / 40–136 m² / 1–5 rooms (none missing) |
+| Available date | **136 have none** (date only in `availability_text`, e.g. "heti"); dates range 2025-08-31…2027-03-26. Show `availability_text` when there's no date. |
+| Lease text | present on 186 listings |
+| Pets / furnished | stored as text `'1'`, `'0'` or NULL (show unknown as "—"). Synthetic test fixtures use `'true'`/`'false'`, so handle both. |
+| Building type | codes 1 (359), 256 (19), 2 (3); the mapping is unverified (1 is probably kerrostalo). Show the code or "unknown" rather than guess. |
+| Distances | 0–5.58 km to Keskustori. `water_fee` is free text (a number or text such as "Vesimaksu: 30.00 €/kk/hlö"). |
+| Thumbnail | `search_json` → `medias[0].imageSmallJPEG` (330×206); also `imageLargeJPEG` and WebP variants |
+| Detail photos | `detail_json` → `media[]` (sorted by `ordernr`), each with `url_full`, `url_large`, `url_thumb` |
+| Timestamps | stored as UTC ISO; display with Europe/Helsinki (`src/time.mjs` has `helsinkiDate`/`helsinkiDateTime` for the server side) |
+| Runs | 2 runs, both complete. `GET /api/meta` should report the latest run time and `is_initial`. |
+
+**Privacy:** listing data stays local (NFR-03). Don't put listing data in hosted artifacts or commits; `data/`, `reports/`, `dist/` and `web/dist/` are git-ignored. The GitHub repo is private, but `HANDOFF.md` already names 3 listing ids and 7 street addresses (§6, §9), so remove them if the repo is ever made public.
+
+**Done when:** `npm run ui` serves the UI on `http://localhost:3000`; FR-26…33 hold in the browser pane; `npm test` still passes (add tests for the API's row shaping, e.g. `is_new`, `thumb_url`, no raw JSON in the list route, using a temp DB); and `docs/03-design.md` §2/§8 plus this file reflect what was built.
 
 ## 1. What this project is
 The user moves to Tampere by the end of January 2027 and needs a rental. This tool collects Oikotie rental listings into a **local SQLite DB** and offers a **local map and list web UI** for browsing. The current phase is **data retrieval plus browsing**; scheduling is explicitly out of scope ("I will define it later").
@@ -19,10 +66,10 @@ The user moves to Tampere by the end of January 2027 and needs a rental. This to
 |---|---|
 | nvm for Windows | 1.2.2 installed via winget. `NVM_HOME=C:\Users\JouniHuttunen\AppData\Local\nvm`, `NVM_SYMLINK=C:\nvm4w\nodejs` |
 | Node | **v26.13.0** (npm 11.20.0), active through `nvm use 26.13.0`, pinned in `.nvmrc` |
-| Git | On `main` with one commit (`a9325e0`: plan, handoff, repo setup). `git config user.name` is "Anonymous" (the user has been told). The `docs/` folder is **not committed yet** |
+| Git | `main` = `a9325e0` (plan, handoff, repo setup) + `42a0a3e` (spec docs, all code and tests). Pushed 2026-11-11 to the private repo `https://github.com/jouni-huttunen/tampere-city-boy` (`origin`, `main` tracks `origin/main`). `git config user.name` is "Anonymous" (the user has been told). Workflow the user approved: short-lived branch → commit → fast-forward `main` → push. The local branch `capture-import-tooling` is a leftover at the same commit and can be deleted |
 | Files | `PLAN.md`, `HANDOFF.md`, `.gitignore` (ignores `data/`, `reports/`, `dist/`, `web/dist/`, `*.db`, `oikotie-*.json`), `.nvmrc`. A `.claude/` folder exists (app-created) |
 | Spec | **Written 2026-11-10:** `docs/01-requirements.md`, `docs/02-data-source.md`, `docs/03-design.md`. `docs/03-design.md` §13 lists 9 small refinements over this file and `PLAN.md` (e.g. `is_initial` and `v_new` definitions, `runs` column names); **the docs win** where they differ. Awaiting the user's review |
-| Code | **Built 2026-11-10 (uncommitted):** `package.json`, `config.json`, `src/shared/*`, `src/{config,time,db,normalize,import,rebuild,report,cli}.mjs`, `src/capture/{browser.js,build.mjs}`, `test/*`. `npm test`: 58 passing. Dry run with fake data in a temp DB (env vars `TCB_DB`, `TCB_REPORTS`) covered capture build, import, re-import, a second run, every CLI command, rebuild and report. Docs are synced with the code (03-design §13 items 10–11). **Never run in a real browser yet.** No `ui` scripts or `server/`/`web/` yet |
+| Code | **Built 2026-11-10/11, committed in `42a0a3e`:** `package.json`, `config.json`, `src/shared/*`, `src/{config,time,db,normalize,import,rebuild,report,cli}.mjs`, `src/capture/{browser.js,build.mjs}`, `test/*`. `npm test`: **63 passing**. Used for real: two captures in the user's browser, imported into `data/listings.db` (381 listings, all with details). Docs are synced with the code. No `ui` scripts or `server/`/`web/` yet (§0) |
 
 **PATH gotcha:** shells opened before the nvm install don't have node on PATH. In such a shell, prefix:
 ```powershell
@@ -137,7 +184,7 @@ Keep the planning logic in **pure functions in `src/shared/`**, used by both Nod
 - File size is about 8 MB for a full run.
 
 ## 6. Next steps (in order)
-1. ✅ **Done 2026-11-10:** `docs/01-requirements.md`, `docs/02-data-source.md` and `docs/03-design.md` (formal spec: use cases, FR/NFR with Given/When/Then, Finnish glossary, API reference, field map, design). Steps 2–5 are built too. **Step 6 trial done 2026-11-10:** run 1 = full sweep, 381 of 381 found, 5 details, 9 requests 3–4.7 s apart, no errors, status partial, initial. Real data revealed a placeholder point (64.5498, 29.5323) on 17 listings, now filtered in `normalize.mjs`; `npm run rebuild` was run on the real DB (backup in the session scratchpad). **Full capture done 2026-11-10/11:** run 2 = incremental (published=1, 25 found), 376 details, 377 requests, all 200, no errors, status ok, 25 min (one 7-min gap, likely a background tab). DB now: 381 active, all with details, 380 in `v_window`, 0 new, 0 removed. Step-6 checks: active = found (381) ✅, `v_window` sensible ✅, user spot-check of 3 listings pending (24760731, 24705365, 24716849). Data findings are in `docs/02-data-source.md` §9 (move-in dates often only in text, lease type only in text, placeholder coordinates). **Next:** either parse `availabilityInfo` into a derived move-in date, or step 7 (web UI); explain the flow to the user first.
+1. ✅ **Done 2026-11-10:** `docs/01-requirements.md`, `docs/02-data-source.md` and `docs/03-design.md` (formal spec: use cases, FR/NFR with Given/When/Then, Finnish glossary, API reference, field map, design). Steps 2–5 are built too. **Step 6 trial done 2026-11-10:** run 1 = full sweep, 381 of 381 found, 5 details, 9 requests 3–4.7 s apart, no errors, status partial, initial. Real data revealed a placeholder point (64.5498, 29.5323) on 17 listings, now filtered in `normalize.mjs`; `npm run rebuild` was run on the real DB (backup in the session scratchpad). **Full capture done 2026-11-10/11:** run 2 = incremental (published=1, 25 found), 376 details, 377 requests, all 200, no errors, status ok, 25 min (one 7-min gap, likely a background tab). DB now: 381 active, all with details, 380 in `v_window`, 0 new, 0 removed. Step-6 checks: active = found (381) ✅, `v_window` sensible ✅, user spot-check of 3 listings pending (24760731, 24705365, 24716849). Data findings are in `docs/02-data-source.md` §9 (move-in dates often only in text, lease type only in text, placeholder coordinates). **Next (decided 2026-11-11):** step 7, the web UI; see §0. The move-in classifier waits until the user asks (§9).
 2. Add `package.json`:
    - `"type": "module"` and `"engines": {"node": ">=26"}`.
    - Scripts: `capture`, `import`, `rebuild`, `list`, `report`, `test` (`node --test`), `ui` and `ui:dev`.

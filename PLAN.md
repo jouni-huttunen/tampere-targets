@@ -156,12 +156,13 @@ The first full download is about 380 detail requests at roughly 2 s each, about 
 
 **Next:**
 1. ✅ Done 2026-11-10: `docs/01–03` (the spec), reflecting the DevTools capture flow. `docs/03-design.md` §13 lists small refinements over this plan.
+2–6. ✅ Done 2026-11-10/11 (committed as `42a0a3e`): steps 2–5 built and tested, two real captures imported (381 listings), checks passed except the user's own 3-listing spot-check. Details in `HANDOFF.md` §2 and §6.
 2. Add `package.json` (type module, engines, scripts) and `config.json`. No commits unless the user asks.
 3. Write `src/shared` (pure, unit-tested), `src/db.mjs`, `src/normalize.mjs`, `src/import.mjs`, `src/rebuild.mjs`, `src/report.mjs` and `src/cli.mjs`, with tests on synthetic fixtures.
 4. Write `src/capture/browser.js` and `src/capture/build.mjs`. Unit-test the run planning with a fake `fetch`.
 5. **User step:** the user runs `npm run capture`, pastes it into DevTools on Oikotie in their own browser, then runs `npm run import`. **Claude must not run the capture itself through the built-in browser** beyond a tiny smoke test (at most 2 detail requests) agreed with the user.
 6. Check the import: row counts match `found`, spot-check 3 listings, `v_window` is a sensible subset.
-7. Build the web UI (server + React app). Fetch the 17 postal-area polygons once into `web/public/postal-areas.geojson`, add a `.claude/launch.json` entry for `npm run ui`, and open it in the browser pane.
+7. **Next (handoff in `HANDOFF.md` §0):** build the web UI (server + React app). Fetch the 17 postal-area polygons once into `web/public/postal-areas.geojson`, add a `.claude/launch.json` entry for `npm run ui`, and open it in the browser pane.
 
 ## Verification
 - `npm test`: normalize picks the right fields from fixture JSON, converts both timestamp styles to UTC, and handles a missing `availabilityDate`. Age-filter choice: last run 20 h ago → `published=1`, 3 days → `4`, 8 days → full. Removal: a listing missing from an incomplete sweep is not marked removed, but one missing from a complete sweep is. The card hash is identical in Node and in the built browser script.
