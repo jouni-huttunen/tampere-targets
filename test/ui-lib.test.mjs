@@ -169,3 +169,18 @@ test('history: listing in the address, profile entries count their depth, × goe
   assert.equal(stepsToMain(first), 1);
   for (const st of [null, undefined, { tcb: 'main' }, { tcb: PROFILE, depth: 0 }, { tcb: PROFILE, depth: 'x' }]) assert.equal(stepsToMain(st), 0);
 });
+
+test('the app version shown on the boot screen comes from package.json, not a literal', async () => {
+  const { readFileSync, readdirSync } = await import('node:fs');
+  const { join } = await import('node:path');
+  const config = readFileSync('web/vite.config.mjs', 'utf8');
+  assert.match(config, /__APP_VERSION__:\s*JSON\.stringify\(version\)/);
+  assert.match(config, /package\.json/);
+  const boot = readFileSync('web/src/components/BootSequence.jsx', 'utf8');
+  assert.match(boot, /v\$\{__APP_VERSION__\}/);
+  // No version literal ("v1.2.3") anywhere in the UI source: it would go stale at the next release.
+  const walk = (dir) => readdirSync(dir, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(join(dir, e.name)) : [join(dir, e.name)]));
+  for (const file of walk('web/src').filter((f) => /\.(jsx?|css)$/.test(f))) {
+    assert.doesNotMatch(readFileSync(file, 'utf8'), /\bv\d+\.\d+\.\d+\b/, `${file} has a hard-coded version`);
+  }
+});

@@ -26,7 +26,7 @@ export default function BootSequence({ meta, count, error, saved, onDone }) {
     const run = meta?.lastRun;
     const newCount = meta?.counts?.isNew ?? 0;
     const out = [
-      { text: 'Tampere Targets · tactical console v1.1.0', kind: 'head' },
+      { text: `Tampere Targets · tactical console v${__APP_VERSION__}`, kind: 'head' }, // from package.json (vite.config.mjs)
       { text: 'Initializing tactical uplink', status: 'OK' },
       { text: `Establishing secure channel · ${window.location.hostname || '127.0.0.1'}`, status: 'OK' },
       { text: 'Encrypting session', status: 'OK' },

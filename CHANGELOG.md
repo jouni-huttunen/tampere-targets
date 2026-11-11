@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.4.1 — 2026-11-12: boot screen version
+
+A small fix. Deployed.
+
+**Fixed**
+- The boot screen still said "tactical console v1.1.0". It now shows the real version, taken from package.json at build time (also in the hosted copy), so it cannot fall behind again.
+
 ## 1.4.0 — 2026-11-11: targets in map view first
 
 The target list follows the map: the targets you can see come first, the rest sit under a separator. Same data and look elsewhere. Deployed.
