@@ -19,9 +19,10 @@ The user moves to Tampere by the end of January 2027 and needs a rental. This to
 |---|---|
 | nvm for Windows | 1.2.2 installed via winget. `NVM_HOME=C:\Users\JouniHuttunen\AppData\Local\nvm`, `NVM_SYMLINK=C:\nvm4w\nodejs` |
 | Node | **v26.13.0** (npm 11.20.0), active through `nvm use 26.13.0`, pinned in `.nvmrc` |
-| Git | `git init -b main` done. **Nothing committed.** `git config user.name` is "Anonymous", so mention it to the user before the first commit |
+| Git | On `main` with one commit (`a9325e0`: plan, handoff, repo setup). `git config user.name` is "Anonymous" (the user has been told). The `docs/` folder is **not committed yet** |
 | Files | `PLAN.md`, `HANDOFF.md`, `.gitignore` (ignores `data/`, `reports/`, `dist/`, `web/dist/`, `*.db`, `oikotie-*.json`), `.nvmrc`. A `.claude/` folder exists (app-created) |
-| Code | **None yet.** No `package.json`, no `config.json`, no `docs/` |
+| Spec | **Written 2026-11-10:** `docs/01-requirements.md`, `docs/02-data-source.md`, `docs/03-design.md`. `docs/03-design.md` §13 lists 9 small refinements over this file and `PLAN.md` (e.g. `is_initial` and `v_new` definitions, `runs` column names); **the docs win** where they differ. Awaiting the user's review |
+| Code | **Built 2026-11-10 (uncommitted):** `package.json`, `config.json`, `src/shared/*`, `src/{config,time,db,normalize,import,rebuild,report,cli}.mjs`, `src/capture/{browser.js,build.mjs}`, `test/*`. `npm test`: 58 passing. Dry run with fake data in a temp DB (env vars `TCB_DB`, `TCB_REPORTS`) covered capture build, import, re-import, a second run, every CLI command, rebuild and report. Docs are synced with the code (03-design §13 items 10–11). **Never run in a real browser yet.** No `ui` scripts or `server/`/`web/` yet |
 
 **PATH gotcha:** shells opened before the nvm install don't have node on PATH. In such a shell, prefix:
 ```powershell
@@ -136,7 +137,7 @@ Keep the planning logic in **pure functions in `src/shared/`**, used by both Nod
 - File size is about 8 MB for a full run.
 
 ## 6. Next steps (in order)
-1. Write `docs/01-requirements.md`, `docs/02-data-source.md` and `docs/03-design.md` (formal spec: use cases, FR/NFR with Given/When/Then, Finnish glossary, API reference, field map, design). The content is mostly in `PLAN.md` and this file.
+1. ✅ **Done 2026-11-10:** `docs/01-requirements.md`, `docs/02-data-source.md` and `docs/03-design.md` (formal spec: use cases, FR/NFR with Given/When/Then, Finnish glossary, API reference, field map, design). Steps 2–5 are built too. **Step 6 trial done 2026-11-10:** run 1 = full sweep, 381 of 381 found, 5 details, 9 requests 3–4.7 s apart, no errors, status partial, initial. Real data revealed a placeholder point (64.5498, 29.5323) on 17 listings, now filtered in `normalize.mjs`; `npm run rebuild` was run on the real DB (backup in the session scratchpad). **Full capture done 2026-11-10/11:** run 2 = incremental (published=1, 25 found), 376 details, 377 requests, all 200, no errors, status ok, 25 min (one 7-min gap, likely a background tab). DB now: 381 active, all with details, 380 in `v_window`, 0 new, 0 removed. Step-6 checks: active = found (381) ✅, `v_window` sensible ✅, user spot-check of 3 listings pending (24760731, 24705365, 24716849). Data findings are in `docs/02-data-source.md` §9 (move-in dates often only in text, lease type only in text, placeholder coordinates). **Next:** either parse `availabilityInfo` into a derived move-in date, or step 7 (web UI); explain the flow to the user first.
 2. Add `package.json`:
    - `"type": "module"` and `"engines": {"node": ">=26"}`.
    - Scripts: `capture`, `import`, `rebuild`, `list`, `report`, `test` (`node --test`), `ui` and `ui:dev`.
@@ -153,9 +154,15 @@ Keep the planning logic in **pure functions in `src/shared/`**, used by both Nod
 - They prefer simple mechanisms and local filtering over clever rules.
 - **No commits unless asked.**
 
+## 9. Decisions and findings after the full capture (2026-11-11)
+- **Lease type is NOT a filter** (user decision). The lease text (`lease_text` = `adData.rentTermInfo`) is only shown in the listing detail so the user can read and verify it.
+- **17 listings without a location** (Oikotie placeholder point) sit in 7 buildings: Lapintie 10 A (33100), Winterinraitti 4-6 ×5 (33270), Halkoniemenkatu 5 A/C (33410), Pohjolankatu 22-28 C and Sarvijaakonkatu 15-17 A/B ×3 (33540), Hissikatu 1 A/B ×5 (33900). Full street addresses are present. **Resolved (user chose postal-code centre):** `config.areas` now carries each code's centre (Oikotie's own `address.zipCode.coordinates`); `normalize.mjs` falls back to it and sets the new column `location_approx = 1` (migration 2). The real DB was rebuilt: 0 listings without a location, 17 approximate. The UI must mark them as approximate (03-design §8.2). External geocoding was not used.
+- **Move-in buckets, "think later"** (user's words): a scratch classifier (date field first, else `availabilityInfo` text: heti / ISO date / d.m.yyyy / d.m. / Finnish month names / sopimuksen mukaan) put 375 of 381 into Now (<1.12.2026) 201, December 144, January 28, Later 2; Unknown 6 (3 by agreement, 1 no text, 2 unrelated text). Not in the project yet; rebuild the classifier from this description when the user asks.
+
 ## 8. Open questions and unknowns
 - How long the tokens last, and whether the page's tokens rotate during a 13-minute capture. If you see 401s mid-run, re-read the meta tags (they don't change without a reload) or ask the user to reload the page and re-run; the state makes the re-run cheap.
 - Chrome or Edge may show a "multiple downloads" or "allow downloads" prompt for the Blob download, possibly only once.
 - **Background-tab throttling:** Chrome limits chained timers to about one per minute in tabs hidden for more than 5 minutes, so the user must keep the tab in the foreground. Show this in the panel.
 - The `buildingOverrideBuildingType` code mapping is unverified.
 - Firefox hasn't been tested (Chrome and Edge are the targets).
+- Move-in dates: many details have `availabilityDate` null and the date only in `availabilityInfo` text ("heti", "Vapautuu: 30.11.2026"). Consider parsing it after the full capture (see `docs/02-data-source.md` §9).

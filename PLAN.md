@@ -155,7 +155,7 @@ The first full download is about 380 detail requests at roughly 2 s each, about 
 **Done (2026-11-10):** the plan was saved here, nvm-windows 1.2.2 and Node 26.13.0 are installed (`nvm use` worked without an admin prompt), and `git init -b main` was run with `.gitignore` and `.nvmrc`. The retrieval decision is the DevTools capture script.
 
 **Next:**
-1. Write `docs/01–03` (the spec), reflecting the DevTools capture flow.
+1. ✅ Done 2026-11-10: `docs/01–03` (the spec), reflecting the DevTools capture flow. `docs/03-design.md` §13 lists small refinements over this plan.
 2. Add `package.json` (type module, engines, scripts) and `config.json`. No commits unless the user asks.
 3. Write `src/shared` (pure, unit-tested), `src/db.mjs`, `src/normalize.mjs`, `src/import.mjs`, `src/rebuild.mjs`, `src/report.mjs` and `src/cli.mjs`, with tests on synthetic fixtures.
 4. Write `src/capture/browser.js` and `src/capture/build.mjs`. Unit-test the run planning with a fake `fetch`.
