@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import BootSequence from './components/BootSequence.jsx';
 import DetailDrawer from './components/DetailDrawer.jsx';
 import Filters from './components/Filters.jsx';
@@ -18,6 +18,7 @@ import {
   toQuery,
 } from './lib/filters.js';
 import { SHORTLIST_KEY, loadShortlist, parseShortlist, saveShortlist, toggled } from './lib/shortlist.js';
+import { listingFromSearch, profileState, searchWithListing, stepsToMain } from './lib/history.js';
 import { applyTheme, loadTheme, saveTheme } from './lib/theme.js';
 
 // Three columns (parameters | map | targets) from this width; same value as tokens.css notes.
@@ -30,10 +31,14 @@ const DEPLOY_MS = 1300;
 const NV_SWAP_MS = 190; // the theme flips while the effect is at its brightest
 const NV_FX_MS = 720;
 
+const NO_PLACES = [];
+const NO_ZIPS = [];
+
 function selectedFromUrl() {
-  const id = new URLSearchParams(window.location.search).get('listing');
-  return id && /^\d+$/.test(id) ? Number(id) : null;
+  return listingFromSearch(window.location.search);
 }
+
+const urlWith = (id) => `${window.location.pathname}${searchWithListing(window.location.search, id)}`;
 
 const reducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
@@ -166,9 +171,16 @@ export default function App() {
 
   const defaults = useMemo(() => (meta ? defaultFilters(meta) : null), [meta]);
   const bounds = useMemo(() => (listings ? dataBounds(listings) : null), [listings]);
+  // The list and the map follow a deferred copy of the filters: a slider thumb moves at once and
+  // the expensive part (filter, sort, ~400 rows, the markers) catches up when there is time,
+  // skipping in-between values while the thumb is dragged.
+  const deferredFilters = useDeferredValue(filters);
   const shown = useMemo(
-    () => (listings && filters ? sortListings(applyFilters(listings, filters, saved), filters.sort) : []),
-    [listings, filters, saved],
+    () =>
+      listings && deferredFilters
+        ? sortListings(applyFilters(listings, deferredFilters, saved), deferredFilters.sort)
+        : [],
+    [listings, deferredFilters, saved],
   );
   // "N / M targets": M counts removed listings only while they are shown.
   const activeCount = useMemo(() => {
@@ -183,19 +195,37 @@ export default function App() {
   }, [areas]);
   const paramCount = filters && defaults ? activeFilterCount(filters, defaults) : 0;
 
-  // Keep the URL in step with the filters and the open listing (bookmarkable views).
+  // Keep the address in step with the filters and the open target (bookmarkable views). Filter
+  // changes rewrite the current history entry (keeping its state), never add one. Deferred, so a
+  // dragged slider does not rewrite the address on every pixel.
   useEffect(() => {
-    if (!filters || !defaults) return;
-    const q = new URLSearchParams(toQuery(filters, defaults));
+    if (!deferredFilters || !defaults) return;
+    const q = new URLSearchParams(toQuery(deferredFilters, defaults));
     if (selectedId) q.set('listing', String(selectedId));
     const text = q.toString();
-    window.history.replaceState(null, '', text ? `?${text}` : window.location.pathname);
-  }, [filters, defaults, selectedId]);
+    window.history.replaceState(window.history.state, '', text ? `?${text}` : window.location.pathname);
+  }, [deferredFilters, defaults, selectedId]);
+
+  // Browser history (FR-40). A target opened from a link gets a main-view entry under it, so
+  // Back closes the profile instead of leaving the site (once per tab: a reload keeps the stack).
+  useEffect(() => {
+    const id = selectedFromUrl();
+    if (id == null || window.history.state?.tcb) return;
+    window.history.replaceState({ tcb: 'main' }, '', urlWith(null));
+    window.history.pushState(profileState(null, id), '', urlWith(id));
+  }, []);
+  // Back / Forward: the address decides which profile is open (or none).
+  useEffect(() => {
+    const onPop = () => setSelectedId(selectedFromUrl());
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, []);
 
   // The slide-out parameters panel only exists in narrow windows.
   useEffect(() => {
     if (wide) setParamsOpen(false);
   }, [wide]);
+  const toggleParams = useCallback(() => setParamsOpen((o) => !o), []);
   const closeParams = useCallback(() => {
     setParamsOpen(false);
     paramsButtonRef.current?.focus();
@@ -207,19 +237,42 @@ export default function App() {
     (id, source) => setHover((h) => (h.id === id && h.source === source ? h : { id, source })),
     [],
   );
-  const onSelect = useCallback((id, source = 'list') => {
+  // Opening a target (from the list, the map or ‹ ›) adds one history entry.
+  const selectedRef = useRef(selectedId);
+  selectedRef.current = selectedId;
+  const openTarget = useCallback((id, source) => {
+    if (source) setSelectSource(source);
+    if (id === selectedRef.current) return;
+    window.history.pushState(profileState(window.history.state, id), '', urlWith(id));
     setSelectedId(id);
-    setSelectSource(source);
   }, []);
-  // Phone layout: a target picked on the map goes back to the map when its profile closes (after
-  // the profile has handed focus back), not to wherever the page happened to be.
+  const onSelect = useCallback((id, source = 'list') => openTarget(id, source), [openTarget]);
+  // × and Esc go straight back to the main view: as many entries back as profiles were opened.
   const onClose = useCallback(() => {
-    setSelectedId(null);
-    if (stacked && selectSource === 'map') {
-      setHover({ id: null, source: null }); // a tap never sends "pointer left": drop the marker tooltip
-      requestAnimationFrame(() => mapRef.current?.scrollIntoView({ block: 'start', behavior: 'auto' }));
+    const steps = stepsToMain(window.history.state);
+    if (steps > 0) {
+      window.history.go(-steps); // popstate then closes the profile
+    } else {
+      window.history.replaceState(window.history.state, '', urlWith(null));
+      setSelectedId(null);
     }
-  }, [stacked, selectSource]);
+  }, []);
+  // Phone layout: a target picked on the map goes back to the map when its profile closes (by ×,
+  // Esc or Back, after the profile has handed focus back), not to wherever the page happened to be.
+  const stackedRef = useRef(stacked);
+  stackedRef.current = stacked;
+  const sourceRef = useRef(selectSource);
+  sourceRef.current = selectSource;
+  const prevSelected = useRef(selectedId);
+  useEffect(() => {
+    const was = prevSelected.current;
+    prevSelected.current = selectedId;
+    if (was == null || selectedId != null || !stackedRef.current || sourceRef.current !== 'map') return;
+    setHover({ id: null, source: null }); // a tap never sends "pointer left": drop the marker tooltip
+    requestAnimationFrame(() => mapRef.current?.scrollIntoView({ block: 'start', behavior: 'auto' }));
+  }, [selectedId]);
+  const onSort = useCallback((sort) => update({ sort }), [update]);
+  const onOnlySaved = useCallback((onlySaved) => update({ onlySaved }), [update]);
 
   const selectedSummary = useMemo(
     () => listings?.find((l) => l.card_id === selectedId) ?? null,
@@ -231,9 +284,9 @@ export default function App() {
     (delta) => {
       if (position < 0) return;
       const next = shown[position + delta];
-      if (next) setSelectedId(next.card_id);
+      if (next) openTarget(next.card_id); // ‹ › adds a history entry too (the user's choice)
     },
-    [shown, position],
+    [shown, position, openTarget],
   );
 
   const showParams = wide || paramsOpen;
@@ -254,7 +307,7 @@ export default function App() {
         paramsOpen={paramsOpen}
         paramCount={paramCount}
         paramsButtonRef={paramsButtonRef}
-        onParams={() => setParamsOpen((o) => !o)}
+        onParams={toggleParams}
         onReset={reset}
       />
       <main className="main">
@@ -264,7 +317,7 @@ export default function App() {
             filters={filters}
             defaults={defaults}
             bounds={bounds}
-            zips={meta?.zips ?? []}
+            zips={meta?.zips ?? NO_ZIPS}
             zipNames={zipNames}
             listings={listings}
             saved={saved}
@@ -278,7 +331,7 @@ export default function App() {
           {!listings && !error && phase !== 'boot' && <Radar />}
           <MapView
             listings={shown}
-            places={meta?.places ?? []}
+            places={meta?.places ?? NO_PLACES}
             areas={areas}
             hoverId={hover.id}
             selectedId={selectedId}
@@ -293,7 +346,7 @@ export default function App() {
           loading={!error && !listings}
           error={error}
           sort={filters?.sort ?? 'year'}
-          onSort={(sort) => update({ sort })}
+          onSort={onSort}
           hover={hover}
           selectedId={selectedId}
           onHover={onHover}
@@ -303,7 +356,7 @@ export default function App() {
           saved={saved}
           onToggleSaved={toggleSaved}
           onlySaved={filters?.onlySaved ?? false}
-          onOnlySaved={(onlySaved) => update({ onlySaved })}
+          onOnlySaved={onOnlySaved}
           animateIn={phase !== 'boot'}
           stacked={stacked}
           selectSource={selectSource}

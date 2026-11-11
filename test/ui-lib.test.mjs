@@ -112,3 +112,25 @@ test('median ignores missing values and averages the middle pair', async () => {
   assert.equal(median([900, null, 700, 800]), 800);
   assert.equal(median([600, 1000, 700, 800]), 750);
 });
+
+test('history: listing in the address, profile entries count their depth, × goes back to the main view', async () => {
+  const { PROFILE, listingFromSearch, profileState, searchWithListing, stepsToMain } = await import('../web/src/lib/history.js');
+  assert.equal(listingFromSearch('?year=2010..&listing=24760731'), 24760731);
+  for (const bad of ['', '?listing=', '?listing=abc', '?listing=12x', '?listing=1234567890123']) assert.equal(listingFromSearch(bad), null, bad);
+
+  assert.equal(searchWithListing('?year=2010..', 5), '?year=2010..&listing=5');
+  assert.equal(searchWithListing('?year=2010..&listing=5', 7), '?year=2010..&listing=7');
+  assert.equal(searchWithListing('?year=2010..&listing=5', null), '?year=2010..');
+  assert.equal(searchWithListing('?listing=5', null), '');
+
+  const first = profileState(null, 1);
+  assert.deepEqual(first, { tcb: PROFILE, id: 1, depth: 1 });
+  const second = profileState(first, 2); // ‹ › or another target: one entry deeper
+  assert.equal(second.depth, 2);
+  assert.equal(profileState({ tcb: 'main' }, 3).depth, 1);
+  assert.equal(profileState({ some: 'other app state' }, 3).depth, 1);
+
+  assert.equal(stepsToMain(second), 2);
+  assert.equal(stepsToMain(first), 1);
+  for (const st of [null, undefined, { tcb: 'main' }, { tcb: PROFILE, depth: 0 }, { tcb: PROFILE, depth: 'x' }]) assert.equal(stepsToMain(st), 0);
+});

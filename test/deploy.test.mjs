@@ -194,3 +194,18 @@ test('exportData writes meta, the list, one file per listing (removed ones too) 
     db.close();
   }
 });
+
+test('gzip: text files are stored gzipped with Content-Encoding, fonts and images as they are', async () => {
+  const { compressible } = await import('../deploy/blob.mjs');
+  for (const n of ['index.html', 'assets/a.js', 'assets/a.css', 'api/listings.json', 'postal-areas.geojson', 'robots.txt', 'x.svg']) {
+    assert.equal(compressible(n), true, n);
+  }
+  for (const n of ['assets/f.woff2', 'assets/f.woff', 'a.png', 'a.jpg', 'blob.bin']) assert.equal(compressible(n), false, n);
+
+  const { fn, calls } = fakeFetch(() => ({ status: 201 }));
+  const client = blobClient(SETTINGS, { fetchImpl: fn, wait: async () => {} });
+  await client.put('api/meta.json', Buffer.from('x'), { encoding: 'gzip' });
+  await client.put('assets/f.woff2', Buffer.from('x'));
+  assert.equal(calls[0].headers['x-ms-blob-content-encoding'], 'gzip');
+  assert.equal('x-ms-blob-content-encoding' in calls[1].headers, false);
+});

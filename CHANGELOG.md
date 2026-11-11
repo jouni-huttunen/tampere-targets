@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.3.0 — 2026-11-11: faster on phones, browser history
+
+Smoother sliders and map on phones, a smaller download, and Back/Forward through target profiles. Same look. Deployed and in use.
+
+**Added**
+- Browser history for target profiles: opening one and each ‹ › step add a history entry, so Back (also the Android back gesture) walks back through the targets viewed and then to the main view; × and Esc go straight to the main view; a link to a target goes back to the main view instead of leaving the site.
+
+**Changed**
+- Faster sliders: the list and map update in a deferred render, so the thumb follows the finger at once; rows and markers that did not change are not redrawn; off-screen rows skip layout. One build-year step: 189 ms → 12 ms on the dev PC.
+- Touch screens: finger-sized slider thumbs, and lighter graphics (no terrain-shading layer, marker glow or blur). Desktop unchanged.
+- Smoother map panning: no marker hovers or tooltips while dragging; tiles load during a drag on phones and more loaded tiles are kept; a hover re-renders only the list and the markers; the spinning rings and the new-contact pulse run on the GPU instead of repainting every frame. Same look.
+- The hosted copy is served gzipped: about 1.1 MB → 0.24 MB on first load.
+
 ## 1.2.0 — 2026-11-11: hosted copy on Azure, phone fix
 
 A read-only copy of the app on Azure Storage, deployed by hand from the local database, and a fix for the phone layout. Deployed and in use.

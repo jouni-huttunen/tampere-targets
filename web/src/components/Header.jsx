@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { memo, useEffect, useState } from 'react';
 import { fmtDateTime, fmtEur } from '../lib/format.js';
 import { Reticle } from './Icons.jsx';
 
@@ -14,7 +14,9 @@ const clockFormat = new Intl.DateTimeFormat('fi-FI', {
  * The command bar: wordmark, live readouts (every number is real data), the night-vision
  * switch and, in narrow windows only, the button for the slide-out mission parameters.
  */
-export default function Header({
+export default memo(Header);
+
+function Header({
   meta, shown, total, filters, saved, medianRent, onChange, nv, onToggleNv, wide, paramsOpen, paramCount,
   paramsButtonRef, onParams, onReset,
 }) {

@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { memo, useEffect, useMemo } from 'react';
 import RangeFilter from './RangeFilter.jsx';
 
 // Same bins as the map markers and the legend (format.js YEAR_BINS).
@@ -14,7 +14,9 @@ const YEAR_ERAS = [
  * MISSION PARAMETERS: every filter in one column on the left, always open in a wide window.
  * In narrow windows it slides out over the console (overlay) and Esc or Done closes it.
  */
-export default function Filters({
+export default memo(Filters);
+
+function Filters({
   overlay, filters, defaults, bounds, zips, zipNames, listings, saved, activeCount, onChange, onReset, onClose,
 }) {
   const counts = useMemo(() => {

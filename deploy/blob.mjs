@@ -62,6 +62,14 @@ export function contentType(name) {
   return TYPES[ext] ?? 'application/octet-stream';
 }
 
+/**
+ * Text files are stored gzipped (Content-Encoding: gzip): Blob storage serves files as they are and
+ * never compresses on its own, and every browser accepts gzip. Fonts and images are compressed already.
+ */
+export function compressible(name) {
+  return /^(text\/|application\/(json|geo\+json)|image\/svg)/.test(contentType(name));
+}
+
 /** Vite's hashed files never change; everything else (index.html, data) must be revalidated. */
 export function cacheControl(name) {
   return name.startsWith('assets/') ? 'public, max-age=31536000, immutable' : 'no-cache';
@@ -118,7 +126,7 @@ export function blobClient(settings, { fetchImpl = globalThis.fetch, retries = 3
       } while (marker);
       return names;
     },
-    async put(name, data) {
+    async put(name, data, { encoding = null } = {}) {
       const type = contentType(name);
       await call(
         'PUT',
@@ -129,6 +137,7 @@ export function blobClient(settings, { fetchImpl = globalThis.fetch, retries = 3
           'Content-Type': type,
           'x-ms-blob-content-type': type,
           'x-ms-blob-cache-control': cacheControl(name),
+          ...(encoding ? { 'x-ms-blob-content-encoding': encoding } : {}),
         },
         data,
       );

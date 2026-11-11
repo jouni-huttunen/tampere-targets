@@ -1,5 +1,5 @@
 import L from 'leaflet';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { GeoJSON, LayerGroup, LayersControl, MapContainer, Marker, Pane, ScaleControl, TileLayer, Tooltip, useMap } from 'react-leaflet';
 import { fmtM2, yearBin } from '../lib/format.js';
 import { groupByPosition, ringOffsets, ringRadius } from '../lib/spread.js';
@@ -51,7 +51,13 @@ const R = { base: 6.5, hover: 10, halo: 12 };
 const CENTRE_MARGIN = 0.3;
 const LOCK_LABEL_ROOM = 240; // px right of the marker for the "Target locked" label
 
-export default function MapView({ listings, places, areas, hoverId, selectedId, saved, onHover, onSelect }) {
+export default memo(MapView);
+
+// Touch devices (phones, tablets) skip the blended terrain-shading layer: one tile layer fewer
+// per view and no full-map blend, which is costly on phone GPUs. Desktop keeps it.
+const LIGHT_GRAPHICS = typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches;
+
+function MapView({ listings, places, areas, hoverId, selectedId, saved, onHover, onSelect }) {
   const [map, setMap] = useState(null);
   const readoutRef = useRef(null);
   const located = useMemo(() => listings.filter((l) => l.lat != null && l.lon != null), [listings]);
@@ -68,28 +74,9 @@ export default function MapView({ listings, places, areas, hoverId, selectedId, 
         <Pane name="postal" style={{ zIndex: 350 }} />
         <Pane name="labels" style={{ zIndex: 380, pointerEvents: 'none' }} />
         <SizeWatcher />
-        <LayersControl position="topright">
-          {BASE_MAPS.map((b, i) => (
-            <LayersControl.BaseLayer key={b.name} checked={i === 0} name={b.name}>
-              <LayerGroup>
-                <TileLayer url={b.url} maxZoom={MAX_ZOOM} maxNativeZoom={b.nativeZoom} attribution={b.attribution} className={b.tint} />
-                {b.relief && (
-                  <TileLayer url={b.relief} maxZoom={MAX_ZOOM} maxNativeZoom={16} className="tiles-relief" />
-                )}
-                {b.labels && (
-                  <TileLayer url={b.labels} pane="labels" maxZoom={MAX_ZOOM} maxNativeZoom={b.nativeZoom} className={b.labelTint} />
-                )}
-              </LayerGroup>
-            </LayersControl.BaseLayer>
-          ))}
-          {areas && (
-            <LayersControl.Overlay name="Sectors (postal areas)">
-              <GeoJSON data={areas} pane="postal" className="postal-area" attribution={PAAVO} onEachFeature={bindAreaTooltip} />
-            </LayersControl.Overlay>
-          )}
-        </LayersControl>
+        <MapLayers areas={areas} />
         <ScaleControl position="bottomright" imperial={false} maxWidth={140} />
-        <PlacePins places={places} />
+        <PlacePinsLayer places={places} />
         <ListingMarkers listings={located} hoverId={hoverId} selectedId={selectedId} saved={saved} onHover={onHover} onSelect={onSelect} />
         <ZoomStrike />
         <CursorReadout target={readoutRef} />
@@ -117,10 +104,43 @@ export default function MapView({ listings, places, areas, hoverId, selectedId, 
         </span>
       </button>
       )}
-      <Legend />
+      <LegendPanel />
     </>
   );
 }
+
+// Tiles: load while a finger is still dragging (Leaflet waits for it to stop on phones, which
+// leaves blank edges mid-pan) and keep a larger ring of loaded tiles, so panning back is instant.
+const TILE_OPTS = { updateWhenIdle: false, keepBuffer: 4 };
+
+/**
+ * Base maps and the sectors overlay. Memoised: a marker hover re-renders MapView, and none of
+ * this depends on it.
+ */
+const MapLayers = memo(function MapLayers({ areas }) {
+  return (
+    <LayersControl position="topright">
+      {BASE_MAPS.map((b, i) => (
+        <LayersControl.BaseLayer key={b.name} checked={i === 0} name={b.name}>
+          <LayerGroup>
+            <TileLayer url={b.url} maxZoom={MAX_ZOOM} maxNativeZoom={b.nativeZoom} attribution={b.attribution} className={b.tint} {...TILE_OPTS} />
+            {b.relief && !LIGHT_GRAPHICS && (
+              <TileLayer url={b.relief} maxZoom={MAX_ZOOM} maxNativeZoom={16} className="tiles-relief" {...TILE_OPTS} />
+            )}
+            {b.labels && (
+              <TileLayer url={b.labels} pane="labels" maxZoom={MAX_ZOOM} maxNativeZoom={b.nativeZoom} className={b.labelTint} {...TILE_OPTS} />
+            )}
+          </LayerGroup>
+        </LayersControl.BaseLayer>
+      ))}
+      {areas && (
+        <LayersControl.Overlay name="Sectors (postal areas)">
+          <GeoJSON data={areas} pane="postal" className="postal-area" attribution={PAAVO} onEachFeature={bindAreaTooltip} />
+        </LayersControl.Overlay>
+      )}
+    </LayersControl>
+  );
+});
 
 /** Leaflet measures its container once; tell it whenever the container's size changes. */
 function SizeWatcher() {
@@ -148,6 +168,9 @@ function bindAreaTooltip(feature, layer) {
 // Reference points, with the same short codes the list uses for its ranges:
 // HQ for the centre (Keskustori), RAIL for the railway station.
 const PLACE_CODES = { centre: 'HQ', station: 'RAIL' };
+
+const PlacePinsLayer = memo(PlacePins);
+const LegendPanel = memo(Legend);
 
 function PlacePins({ places }) {
   const icons = useMemo(
@@ -185,8 +208,9 @@ function PlacePins({ places }) {
  */
 function ListingMarkers({ listings, hoverId, selectedId, saved, onHover, onSelect }) {
   const map = useMap();
-  const layers = useRef(new Map()); // card_id → { marker, halo, listing }
-  const rings = useRef([]); // faint circles marking shared points
+  const layers = useRef(new Map()); // card_id → { marker, halo, listing }: markers on the map now
+  const cache = useRef(new Map()); // every marker ever made, reused when a filter brings it back
+  const rings = useRef(new Map()); // "lat,lon,n" → faint circle marking a shared point
   const groups = useRef([]); // [{ center: LatLng, ids: [...] }] with more than one id
   const group = useRef(null);
   const handlers = useRef({ onHover, onSelect });
@@ -195,19 +219,48 @@ function ListingMarkers({ listings, hoverId, selectedId, saved, onHover, onSelec
   state.current = { hoverId, selectedId, saved };
   const lock = useRef(null); // the TARGET LOCKED reticle on the selected marker
   const lockId = useRef(null);
+  const dragging = useRef(false);
+  const haloRenderer = useRef(null);
 
   useEffect(() => {
     group.current = L.featureGroup().addTo(map);
+    // New-contact halos get their own pane and SVG, under the markers. The pane pulses by fading
+    // as a whole (a GPU opacity change); animating the rings inside the marker SVG would repaint
+    // every marker on every frame.
+    const haloPane = map.getPane('halos') ?? map.createPane('halos');
+    haloPane.style.zIndex = '395';
+    haloPane.style.pointerEvents = 'none';
+    haloRenderer.current = L.svg({ pane: 'halos' });
     const relayout = () => layout();
+    // While the map is dragged the pointer sweeps over many markers: no hovers then (each one
+    // re-renders the list and opens a tooltip). Hover works again as soon as the drag ends.
+    const container = map.getContainer();
+    const onDragStart = () => {
+      dragging.current = true;
+      container.classList.add('is-dragging');
+      if (state.current.hoverId != null) handlers.current.onHover(null, 'map');
+    };
+    const onDragEnd = () => {
+      dragging.current = false;
+      container.classList.remove('is-dragging');
+    };
     map.on('zoomend', relayout);
+    map.on('dragstart', onDragStart);
+    // moveend as well: it always ends a drag (also after the inertia glide), even if a dragend
+    // is missed, so hovers can never stay switched off.
+    map.on('dragend moveend', onDragEnd);
     return () => {
       map.off('zoomend', relayout);
+      map.off('dragstart', onDragStart);
+      map.off('dragend moveend', onDragEnd);
+      container.classList.remove('is-dragging');
       group.current.remove();
       lock.current?.remove();
       lock.current = null;
       lockId.current = null;
       layers.current.clear();
-      rings.current = [];
+      cache.current.clear();
+      rings.current.clear();
     };
   }, [map]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -238,18 +291,27 @@ function ListingMarkers({ listings, hoverId, selectedId, saved, onHover, onSelec
     lockId.current = id;
   }
 
-  function layout() {
+  /** Where each spread-out marker goes at the current zoom (shared points only). */
+  function ringPositions() {
+    const out = new Map();
     for (const { center, ids } of groups.current) {
       const origin = map.latLngToLayerPoint(center);
       const offsets = ringOffsets(ids.length);
-      ids.forEach((id, i) => {
-        const entry = layers.current.get(id);
-        if (!entry) return;
-        const at = map.layerPointToLatLng(origin.add(L.point(offsets[i][0], offsets[i][1])));
-        entry.marker.setLatLng(at);
-        entry.halo?.setLatLng(at);
-      });
+      ids.forEach((id, i) => out.set(id, map.layerPointToLatLng(origin.add(L.point(offsets[i][0], offsets[i][1])))));
     }
+    return out;
+  }
+
+  /** Move a marker (and its halo) only if it is not there already: every move redraws its path. */
+  function place(id, at) {
+    const entry = layers.current.get(id);
+    if (!entry || entry.marker.getLatLng().equals(at)) return;
+    entry.marker.setLatLng(at);
+    entry.halo?.setLatLng(at);
+  }
+
+  function layout() {
+    for (const [id, at] of ringPositions()) place(id, at);
     syncLock();
   }
 
@@ -266,43 +328,53 @@ function ListingMarkers({ listings, hoverId, selectedId, saved, onHover, onSelec
     }
     for (const [id, l] of wanted) {
       if (layers.current.has(id)) continue;
-      const classes = ['mk', `mk-y${yearBin(l.build_year)}`];
-      if (l.location_approx) classes.push('is-approx');
-      if (l.removed) classes.push('is-removed');
-      const halo = l.is_new
-        ? L.circleMarker([l.lat, l.lon], { radius: R.halo, className: 'mk-halo', interactive: false, weight: 2, fill: false })
-        : null;
-      const marker = L.circleMarker([l.lat, l.lon], {
-        radius: R.base,
-        className: classes.join(' '),
-        weight: l.location_approx ? 2 : 1.5,
-        fillOpacity: 1,
-        bubblingMouseEvents: false,
-      });
-      const tip = `${l.build_year ?? 'Year unknown'} · ${fmtM2(l.size_m2)} · ${l.address ?? l.district ?? ''}${l.location_approx ? ' (approximate location)' : ''}`;
-      marker.bindTooltip(textNode(tip, 'tip-text'), { direction: 'top', offset: [0, -8], className: 'map-tip' });
-      marker.on('mouseover', () => handlers.current.onHover(id, 'map'));
-      marker.on('mouseout', () => handlers.current.onHover(null, 'map'));
-      marker.on('click', () => handlers.current.onSelect(id, 'map'));
-      if (halo) halo.addTo(g);
-      marker.addTo(g);
-      layers.current.set(id, { marker, halo, listing: l });
+      let entry = cache.current.get(id);
+      if (!entry) {
+        const classes = ['mk', `mk-y${yearBin(l.build_year)}`];
+        if (l.location_approx) classes.push('is-approx');
+        if (l.removed) classes.push('is-removed');
+        const halo = l.is_new
+          ? L.circleMarker([l.lat, l.lon], {
+              radius: R.halo,
+              className: 'mk-halo',
+              interactive: false,
+              weight: 2,
+              fill: false,
+              pane: 'halos',
+              renderer: haloRenderer.current,
+            })
+          : null;
+        const marker = L.circleMarker([l.lat, l.lon], {
+          radius: R.base,
+          className: classes.join(' '),
+          weight: l.location_approx ? 2 : 1.5,
+          fillOpacity: 1,
+          bubblingMouseEvents: false,
+        });
+        const tip = `${l.build_year ?? 'Year unknown'} · ${fmtM2(l.size_m2)} · ${l.address ?? l.district ?? ''}${l.location_approx ? ' (approximate location)' : ''}`;
+        marker.bindTooltip(textNode(tip, 'tip-text'), { direction: 'top', offset: [0, -8], className: 'map-tip' });
+        marker.on('mouseover', () => !dragging.current && handlers.current.onHover(id, 'map'));
+        marker.on('mouseout', () => handlers.current.onHover(null, 'map'));
+        marker.on('click', () => handlers.current.onSelect(id, 'map'));
+        entry = { marker, halo, listing: l };
+        cache.current.set(id, entry);
+      }
+      if (entry.halo) entry.halo.addTo(g);
+      entry.marker.addTo(g);
+      layers.current.set(id, entry);
     }
 
-    // Regroup: reset everyone to the true point, then spread groups again.
-    for (const ring of rings.current) g.removeLayer(ring);
-    rings.current = [];
+    // Regroup shared points. Rings that still describe a group stay; only changed ones are redrawn.
     groups.current = [];
-    for (const [, entry] of layers.current) {
-      const at = [entry.listing.lat, entry.listing.lon];
-      entry.marker.setLatLng(at);
-      entry.halo?.setLatLng(at);
-    }
+    const keep = new Set();
     for (const ids of groupByPosition(listings).values()) {
       if (ids.length < 2) continue;
       const l = wanted.get(ids[0]);
       const center = L.latLng(l.lat, l.lon);
       groups.current.push({ center, ids });
+      const key = `${l.lat},${l.lon},${ids.length}`;
+      keep.add(key);
+      if (rings.current.has(key)) continue;
       const ring = L.circleMarker(center, {
         radius: ringRadius(ids.length) + R.base + 3,
         className: 'mk-group',
@@ -311,9 +383,18 @@ function ListingMarkers({ listings, hoverId, selectedId, saved, onHover, onSelec
       });
       ring.addTo(g);
       ring.bringToBack();
-      rings.current.push(ring);
+      rings.current.set(key, ring);
     }
-    layout();
+    for (const [key, ring] of rings.current) {
+      if (!keep.has(key)) {
+        g.removeLayer(ring);
+        rings.current.delete(key);
+      }
+    }
+    // Every marker at its true point, or on its group's ring; only the ones that moved are touched.
+    const spread = ringPositions();
+    for (const [id, entry] of layers.current) place(id, spread.get(id) ?? L.latLng(entry.listing.lat, entry.listing.lon));
+    syncLock();
     for (const id of layers.current.keys()) paint(id);
     // A target opened from the URL: its marker exists only now, so bring it into view now.
     if (state.current.selectedId != null && pannedFor.current !== state.current.selectedId) panToSelected();
@@ -328,7 +409,8 @@ function ListingMarkers({ listings, hoverId, selectedId, saved, onHover, onSelec
     el?.classList.toggle('is-hover', id === h);
     el?.classList.toggle('is-selected', id === s);
     el?.classList.toggle('is-saved', !!sv?.has(id));
-    entry.marker.setRadius(hot ? R.hover : R.base);
+    const radius = hot ? R.hover : R.base;
+    if (entry.marker.getRadius() !== radius) entry.marker.setRadius(radius);
     if (hot) {
       entry.halo?.bringToFront();
       entry.marker.bringToFront();
@@ -410,8 +492,8 @@ function lockIcon(l) {
     className: 'lock-icon',
     iconSize: [96, 96],
     iconAnchor: [48, 48],
-    html: `<svg class="lock-svg" viewBox="-48 -48 96 96" aria-hidden="true" focusable="false">
-        <g class="lock-ring"><circle r="27" /></g>
+    html: `<svg class="lock-ring-svg" viewBox="-48 -48 96 96" aria-hidden="true" focusable="false"><circle r="27" /></svg>
+      <svg class="lock-svg" viewBox="-48 -48 96 96" aria-hidden="true" focusable="false">
         <g class="lock-brackets"><path d="M-21 -11V-21H-11M11 -21H21V-11M21 11V21H11M-11 21H-21V11" /></g>
         <g class="lock-ticks"><path d="M0 -42V-32M0 32V42M-42 0H-32M32 0H42" /></g>
       </svg>
@@ -507,9 +589,15 @@ function CursorReadout({ target }) {
       const z = `Zoom ${map.getZoom().toFixed(1)}`;
       el.textContent = latlng ? `Cursor ${fmtLat(latlng.lat)} · ${fmtLon(latlng.lng)}   ${z}` : `Cursor ––   ${z}`;
     };
+    let frame = 0;
     const onMove = (e) => {
       latlng = e.latlng;
-      write();
+      if (!frame) {
+        frame = requestAnimationFrame(() => {
+          frame = 0;
+          write();
+        });
+      }
     };
     const onOut = () => {
       latlng = null;
@@ -520,6 +608,7 @@ function CursorReadout({ target }) {
     map.on('mouseout', onOut);
     map.on('zoomend', write);
     return () => {
+      cancelAnimationFrame(frame);
       map.off('mousemove', onMove);
       map.off('mouseout', onOut);
       map.off('zoomend', write);

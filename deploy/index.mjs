@@ -4,9 +4,10 @@
 // Settings come from .env (git-ignored). --dry-run builds and exports into dist/site and stops.
 import { existsSync, readFileSync, rmSync } from 'node:fs';
 import path from 'node:path';
+import { gzipSync } from 'node:zlib';
 import { DB_PATH, ROOT, loadConfig } from '../src/config.mjs';
 import { openDb } from '../src/db.mjs';
-import { blobClient, eachLimited, readSettings } from './blob.mjs';
+import { blobClient, compressible, eachLimited, readSettings } from './blob.mjs';
 import { buildWeb, exportData, listFiles, staleBlobs, uploadOrder } from './site.mjs';
 
 export const SITE_DIR = path.join(ROOT, 'dist', 'site');
@@ -52,17 +53,24 @@ async function main(argv = process.argv.slice(2)) {
     console.warn(`Could not list the container, so old files will not be cleaned up: ${err.message}`);
   }
   let done = 0;
+  let raw = 0;
+  let sent = 0;
   const names = uploadOrder(files.map((f) => f.name));
   const index = names.filter((n) => n === 'index.html');
   const rest = names.filter((n) => n !== 'index.html');
   const upload = async (name) => {
-    await client.put(name, readFileSync(path.join(SITE_DIR, name)));
+    const data = readFileSync(path.join(SITE_DIR, name));
+    const gzip = compressible(name);
+    const body = gzip ? gzipSync(data, { level: 9 }) : data;
+    raw += data.length;
+    sent += body.length;
+    await client.put(name, body, { encoding: gzip ? 'gzip' : null });
     done++;
     if (done % 100 === 0) console.log(`  ${done} / ${names.length}`);
   };
   await eachLimited(rest, PARALLEL, upload);
   for (const name of index) await upload(name); // last: the new page only once its files are there
-  console.log(`Uploaded ${done} files.`);
+  console.log(`Uploaded ${done} files: ${mb(sent)} (${mb(raw)} before gzip).`);
 
   if (existing) {
     const stale = staleBlobs(existing, names);

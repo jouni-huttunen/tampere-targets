@@ -23,7 +23,7 @@ npm install
 
 **Capturing:** open asunnot.oikotie.fi in Chrome or Edge, press F12 and open the Console. The first time in a browser profile, type `allow pasting` and press Enter. Paste the script and press Enter, then keep that tab in front until it downloads `oikotie-<time>.json` (about one request every two seconds, so a first full capture takes 10–25 minutes; later runs fetch far less). Then run step 2.
 
-Filters are kept in the address bar, so any view can be bookmarked. The shortlist is saved in the browser only.
+Filters are kept in the address bar, so any view can be bookmarked. Back closes a target profile (or goes to the target before it). The shortlist is saved in the browser only.
 
 ## Hosted copy (Azure)
 

@@ -190,6 +190,9 @@ Each requirement has at least one acceptance criterion in Given / When / Then fo
 
 **FR-38 Map effects** (added in 1.1.0). Zooming shows a fast crosshair "strike" at the point zoomed at (the pointer, or the centre for buttons and keys). Selecting a listing locks a reticle onto its marker with a short animation and a "Target locked" label with its coordinates; the lock stays while the profile is open. Both are decorative, never block the pointer, and are off under `prefers-reduced-motion`.
 
+**FR-40 Browser history** (added 2026-11-11). Opening a target profile, and each ‹ › step inside it, adds one browser-history entry (the user's choice): Back (browser button, Android back gesture, mouse back button) goes to the previous target and finally to the main view as it was; Forward reopens. × and Esc go straight back to the main view, removing the profile entries. A link that opens a target gets a main-view entry under it, so Back closes the profile instead of leaving the site. Filter changes never add entries.
+- *Given* the user opened a target and pressed › twice, *when* they press Back three times, *then* they see the second target, the first target, then the main view.
+
 **FR-39 Hosted copy** (added 2026-11-11). `npm run deploy` publishes a read-only copy of the UI with the current local data to Azure Storage static website hosting, by hand only; the local database stays the master. Settings and the SAS token live in a git-ignored `.env`. `--dry-run` builds without uploading. The copy is kept out of search engines (`noindex`, `robots.txt`). Details in [03-design.md §8.4](03-design.md#84-hosted-copy-npm-run-deploy).
 - *Given* a listing is gone from the local database export, *when* the deploy runs, *then* its old file is removed from the hosted copy.
 - *Given* the SAS token is missing, a placeholder or expired, *then* the deploy stops before building anything and says which value to fix, without printing the token.
@@ -209,7 +212,7 @@ Each requirement has at least one acceptance criterion in Given / When / Then fo
 | **NFR-10 Traceability** | Every request the capture makes is logged in the capture file. |
 | **NFR-11 Time** | Stored timestamps are UTC ISO 8601. Finnish local times are converted with the `Europe/Helsinki` zone, never a fixed offset. |
 | **NFR-12 UI quality** | Components use only design tokens; text contrast meets WCAG AA; keyboard focus is visible; `prefers-reduced-motion` is respected; fonts are self-hosted. |
-| **NFR-13 UI speed** | Filtering and sorting about 400 listings happens client-side with no perceptible delay. |
+| **NFR-13 UI speed** | Filtering and sorting about 400 listings happens client-side with no perceptible delay; a slider thumb follows the finger at once on a mid-range Android phone (the list and map may catch up a moment later). Measured 2026-11-11 on the dev PC: one build-year step 12 ms median (was 189 ms before the deferred update). |
 
 ## 8. Glossary (Finnish terms in listings)
 | Finnish | Meaning |

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { memo, useEffect, useRef, useState } from 'react';
 import { SORTS } from '../lib/filters.js';
 import { Crosshair } from './Icons.jsx';
 import ListingCard from './ListingCard.jsx';
@@ -13,7 +13,9 @@ function loadView() {
   }
 }
 
-export default function ListPanel({
+export default memo(ListPanel);
+
+function ListPanel({
   listings, loading, error, sort, onSort, hover, selectedId, onHover, onSelect, onReset, noPhotos,
   saved, onToggleSaved, onlySaved, onOnlySaved, animateIn = true, stacked = false, selectSource = null,
 }) {
@@ -153,7 +155,7 @@ export default function ListPanel({
           {listings.map((l, i) => (
             <ListingCard
               key={l.card_id}
-              index={i}
+              index={entering ? i : undefined}
               l={l}
               view={view}
               active={hover.id === l.card_id}
