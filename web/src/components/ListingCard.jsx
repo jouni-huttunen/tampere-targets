@@ -8,7 +8,7 @@ import StarButton from './StarButton.jsx';
  * One home in the list. `view` is "rows" (compact, many visible at once; the default) or
  * "cards" (large photo). The coloured edge matches the home's marker on the map.
  */
-function ListingCard({ l, index = 0, view, active, selected, saved, noPhotos, registry, onHover, onSelect, onToggleSaved }) {
+function ListingCard({ l, index = 0, view, outside = false, active, selected, saved, noPhotos, registry, onHover, onSelect, onToggleSaved }) {
   const id = l.card_id;
   const ref = useCallback(
     (el) => {
@@ -22,6 +22,7 @@ function ListingCard({ l, index = 0, view, active, selected, saved, noPhotos, re
   if (active) cls.push('is-hover');
   if (selected) cls.push('is-selected');
   if (l.removed) cls.push('is-removed');
+  if (outside) cls.push('is-outside'); // not on the visible map: listed under the separator
 
   const tags = (
     <>

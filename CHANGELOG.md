@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.4.0 — 2026-11-11: targets in map view first
+
+The target list follows the map: the targets you can see come first, the rest sit under a separator. Same data and look elsewhere. Deployed.
+
+**Added**
+- Target list: the targets on the visible map come first, then an "Outside map view" separator and the rest, both in the chosen order; the head reads "N in view · M targets". Targets hidden by an open target profile count as outside. It follows the map after each pan or zoom, also while a target profile is open, and jumps to the top when it reorders. Rows outside the view have a sunk background and a faded photo.
+
+**Changed**
+- Selecting a target no longer pulls it towards the middle of the map: the map moves only if the target is within 48 px of the edge of the visible map, and then only just enough. A target off the map (picked under the separator) is centred.
+- ‹ › in the target profile step only through the targets on the visible map, and wrap round (› on the last goes to the first, ‹ on the first to the last).
+- Dragging or zooming the map so that the locked target leaves the view (or goes under the profile) releases the lock, closes the profile and shows the top of the list.
+
 ## 1.3.0 — 2026-11-11: faster on phones, browser history
 
 Smoother sliders and map on phones, a smaller download, and Back/Forward through target profiles. Same look. Deployed and in use.

@@ -1,4 +1,4 @@
-import { memo, useEffect, useRef, useState } from 'react';
+import { Fragment, memo, useEffect, useMemo, useRef, useState } from 'react';
 import { SORTS } from '../lib/filters.js';
 import { Crosshair } from './Icons.jsx';
 import ListingCard from './ListingCard.jsx';
@@ -16,7 +16,7 @@ function loadView() {
 export default memo(ListPanel);
 
 function ListPanel({
-  listings, loading, error, sort, onSort, hover, selectedId, onHover, onSelect, onReset, noPhotos,
+  listings, inViewCount = null, loading, error, sort, onSort, hover, selectedId, onHover, onSelect, onReset, noPhotos,
   saved, onToggleSaved, onlySaved, onOnlySaved, animateIn = true, stacked = false, selectSource = null,
 }) {
   const registry = useRef(new Map());
@@ -47,6 +47,29 @@ function ListPanel({
   }, [selectedId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const busy = loading || !!error;
+  // Targets on the visible map come first; null: all of them are in view (no separator).
+  const split = inViewCount != null && inViewCount < listings.length;
+  const outsideCount = split ? listings.length - inViewCount : 0;
+
+  // When the list reorders (the map moved, a filter or the order changed), jump to its top so the
+  // new first targets can be read. Starring a row or a hover changes nothing here. With a profile
+  // open, its row is then kept in view if it is in view on the map; a locked target that left the
+  // map (its lock is being released) stays down in the list. Not in the stacked (phone) layout:
+  // the page scrolls there, not the list, and jumping would drag the page away from the map.
+  const listRef = useRef(null);
+  const orderKey = useMemo(() => `${inViewCount}|${listings.map((l) => l.card_id).join(',')}`, [listings, inViewCount]);
+  const lastOrder = useRef(orderKey);
+  useEffect(() => {
+    if (lastOrder.current === orderKey) return;
+    lastOrder.current = orderKey;
+    if (stacked || !listRef.current) return;
+    listRef.current.scrollTop = 0;
+    if (selectedId == null) return;
+    const at = listings.findIndex((l) => l.card_id === selectedId);
+    if (at >= 0 && (inViewCount == null || at < inViewCount)) {
+      registry.current.get(selectedId)?.scrollIntoView({ block: 'nearest', behavior: 'auto' });
+    }
+  }, [orderKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // First appearance only: the first rows rise in one after another, then the effect is
   // switched off so filtering and sorting stay instant.
@@ -66,9 +89,17 @@ function ListPanel({
         </h2>
           <p className="list-count" aria-live="polite">
             {busy ? ' ' : (
-              <>
-                <span className="list-count-n">{listings.length}</span> {listings.length === 1 ? 'target' : 'targets'}
-              </>
+              split ? (
+                <>
+                  <span className="list-count-n">{inViewCount}</span> in view
+                  <span aria-hidden="true"> · </span>
+                  {listings.length} {listings.length === 1 ? 'target' : 'targets'}
+                </>
+              ) : (
+                <>
+                  <span className="list-count-n">{listings.length}</span> {listings.length === 1 ? 'target' : 'targets'}
+                </>
+              )
             )}
           </p>
       </div>
@@ -151,22 +182,35 @@ function ListPanel({
           </div>
         )
       ) : (
-        <ul className={`cards cards-${view} ${entering && animateIn ? 'cards-enter' : ''}`} onKeyDown={moveFocus}>
+        <ul ref={listRef} className={`cards cards-${view} ${entering && animateIn ? 'cards-enter' : ''}`} onKeyDown={moveFocus}>
+          {split && inViewCount === 0 && (
+            <li key="none-in-view" className="list-note">
+              No targets in map view
+            </li>
+          )}
           {listings.map((l, i) => (
-            <ListingCard
-              key={l.card_id}
-              index={entering ? i : undefined}
-              l={l}
-              view={view}
-              active={hover.id === l.card_id}
-              selected={selectedId === l.card_id}
-              saved={saved.has(l.card_id)}
-              noPhotos={noPhotos}
-              registry={registry}
-              onHover={onHover}
-              onSelect={onSelect}
-              onToggleSaved={onToggleSaved}
-            />
+            <Fragment key={l.card_id}>
+              {split && i === inViewCount && (
+                <li className={`list-sep list-sep-${view}`}>
+                  <span className="list-sep-label">Outside map view</span>
+                  <span className="list-sep-n">{outsideCount}</span>
+                </li>
+              )}
+              <ListingCard
+                index={entering ? i : undefined}
+                l={l}
+                view={view}
+                outside={split && i >= inViewCount}
+                active={hover.id === l.card_id}
+                selected={selectedId === l.card_id}
+                saved={saved.has(l.card_id)}
+                noPhotos={noPhotos}
+                registry={registry}
+                onHover={onHover}
+                onSelect={onSelect}
+                onToggleSaved={onToggleSaved}
+              />
+            </Fragment>
           ))}
         </ul>
       )}
@@ -174,17 +218,21 @@ function ListPanel({
   );
 }
 
-/** ↑/↓ (and Home/End) move between homes when a row has focus; Enter opens it (native button). */
+/**
+ * ↑/↓ (and Home/End) move between homes when a row has focus; Enter opens it (native button).
+ * The "outside map view" separator is skipped.
+ */
 function moveFocus(e) {
   if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(e.key)) return;
   const item = e.target.closest?.('.card-item');
   if (!item || !e.target.classList.contains('card')) return;
-  const list = item.parentElement;
+  const items = [...item.parentElement.querySelectorAll(':scope > .card-item')];
+  const at = items.indexOf(item);
   const next =
-    e.key === 'ArrowDown' ? item.nextElementSibling
-    : e.key === 'ArrowUp' ? item.previousElementSibling
-    : e.key === 'Home' ? list.firstElementChild
-    : list.lastElementChild;
+    e.key === 'ArrowDown' ? items[at + 1]
+    : e.key === 'ArrowUp' ? items[at - 1]
+    : e.key === 'Home' ? items[0]
+    : items[items.length - 1];
   const button = next?.querySelector('.card');
   if (button) {
     e.preventDefault();

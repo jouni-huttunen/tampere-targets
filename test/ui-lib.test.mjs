@@ -5,6 +5,41 @@ import { applyFilters, defaultFilters, fromQuery, rentPerM2, sortListings, toQue
 import { fmtPerM2 } from '../web/src/lib/format.js';
 import { SHORTLIST_KEY, loadShortlist, parseShortlist, saveShortlist, toggled } from '../web/src/lib/shortlist.js';
 import { groupByPosition, ringOffsets, ringRadius } from '../web/src/lib/spread.js';
+import { sameIds, splitByView, stepIndex } from '../web/src/lib/inview.js';
+
+test('stepIndex wraps round in both directions; nothing to step to with one target or no position', () => {
+  assert.equal(stepIndex(0, 1, 3), 1);
+  assert.equal(stepIndex(2, 1, 3), 0); // › on the last goes to the first
+  assert.equal(stepIndex(0, -1, 3), 2); // ‹ on the first goes to the last
+  assert.equal(stepIndex(1, -1, 3), 0);
+  assert.equal(stepIndex(0, 1, 2), 1);
+  assert.equal(stepIndex(1, 1, 2), 0);
+  assert.equal(stepIndex(0, 1, 1), -1);
+  assert.equal(stepIndex(-1, 1, 5), -1);
+  assert.equal(stepIndex(0, 1, 0), -1);
+});
+
+test('splitByView: in-view targets first, both parts keep their order; no split without a report or when all are in view', () => {
+  const rows = [1, 2, 3, 4, 5].map((card_id) => ({ card_id }));
+  const ids = (r) => r.ordered.map((l) => l.card_id);
+  const split = splitByView(rows, new Set([4, 2]));
+  assert.deepEqual(ids(split), [2, 4, 1, 3, 5]);
+  assert.equal(split.inViewCount, 2);
+  const none = splitByView(rows, new Set());
+  assert.deepEqual(ids(none), [1, 2, 3, 4, 5]);
+  assert.equal(none.inViewCount, 0);
+  assert.deepEqual(splitByView(rows, null), { ordered: rows, inViewCount: null });
+  assert.deepEqual(splitByView(rows, new Set([1, 2, 3, 4, 5, 9])), { ordered: rows, inViewCount: null });
+  assert.deepEqual(splitByView([], new Set([1])), { ordered: [], inViewCount: null });
+});
+
+test('sameIds compares id sets', () => {
+  assert.ok(sameIds(new Set([1, 2]), new Set([2, 1])));
+  assert.ok(!sameIds(new Set([1, 2]), new Set([1, 3])));
+  assert.ok(!sameIds(new Set([1]), new Set([1, 2])));
+  assert.ok(!sameIds(null, new Set()));
+  assert.ok(sameIds(null, null));
+});
 
 test('groupByPosition groups identical points, sorted by id, and skips rows without a point', () => {
   const groups = groupByPosition([

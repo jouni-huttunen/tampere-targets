@@ -69,7 +69,7 @@ export default function DetailDrawer({
         <div className="drawer-nav">
           {position >= 0 && (
             <>
-              <button type="button" className="icon-btn" onClick={() => onStep(-1)} disabled={position === 0}
+              <button type="button" className="icon-btn" onClick={() => onStep(-1)} disabled={count < 2}
                 aria-label="Previous target in the list" title="Previous target (←)">
                 <svg viewBox="0 0 20 20" className="icon" aria-hidden="true" focusable="false">
                   <path d="M12.5 4.5 7 10l5.5 5.5" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
@@ -78,7 +78,7 @@ export default function DetailDrawer({
               <span className="drawer-pos" aria-live="polite">
                 {position + 1} / {count}
               </span>
-              <button type="button" className="icon-btn" onClick={() => onStep(1)} disabled={position >= count - 1}
+              <button type="button" className="icon-btn" onClick={() => onStep(1)} disabled={count < 2}
                 aria-label="Next target in the list" title="Next target (→)">
                 <svg viewBox="0 0 20 20" className="icon" aria-hidden="true" focusable="false">
                   <path d="M7.5 4.5 13 10l-5.5 5.5" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />

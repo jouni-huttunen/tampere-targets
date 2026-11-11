@@ -1227,6 +1227,64 @@ input[type='date'].range-field {
   padding: var(--sp-3) var(--sp-3) var(--sp-8);
 }
 
+/* The separator between the targets on the visible map and the rest (FR-41):
+   "// OUTSIDE MAP VIEW - - - - - 30". */
+.list-sep {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-3) var(--sp-3) var(--sp-2) var(--sp-4);
+  font-family: var(--font-mono);
+  font-size: var(--fs-3xs);
+  font-weight: var(--fw-semibold);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  color: var(--ink-quiet);
+  background: var(--surface-sunk);
+  border-top: 1px solid var(--hairline-strong);
+  border-bottom: 1px solid var(--hairline);
+}
+
+.list-sep-label::before {
+  content: '// ';
+  color: var(--ink-faint);
+}
+
+.list-sep::after {
+  content: '';
+  order: 1;
+  flex: 1;
+  border-top: 1px dashed var(--hairline-strong);
+}
+
+.list-sep-n {
+  order: 2;
+  font-family: var(--font-display);
+  font-size: var(--fs-md);
+  font-weight: var(--fw-bold);
+  letter-spacing: 0;
+  line-height: 1;
+  color: var(--accent);
+}
+
+/* Cards: the separator sits between the cards, without its own panel. */
+.list-sep-cards {
+  margin-top: var(--sp-2);
+  padding: 0;
+  background: transparent;
+  border: 0;
+}
+
+/* "No targets in map view": above the separator when the map shows none of the list. */
+.list-note {
+  padding: var(--sp-3) var(--sp-3) var(--sp-3) var(--sp-4);
+  font-family: var(--font-mono);
+  font-size: var(--fs-2xs);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+  color: var(--ink-quiet);
+}
+
 /* Rows off screen skip layout and paint until they are scrolled near (about 400 of them). */
 .card-item {
   position: relative;
@@ -1271,6 +1329,26 @@ input[type='date'].range-field {
   transition:
     background var(--dur-fast) var(--ease),
     box-shadow var(--dur-fast) var(--ease);
+}
+
+/* Targets outside the visible map, listed under the separator: a sunk background and a faded
+   photo. The text keeps full contrast (it is darker behind, so WCAG AA holds); hover, focus and
+   the lock bring the row back. Before .card:hover on purpose, so those win. */
+.card.is-outside {
+  background: var(--surface-sunk);
+}
+
+/* Only the image (or the placeholder mark) fades: in the Cards view the year and place are set
+   over the photo and keep full contrast. */
+.card.is-outside :is(.photo, .photo-mark) {
+  opacity: var(--outside-photo-opacity);
+  transition:
+    opacity var(--dur-fast) var(--ease),
+    filter var(--dur) var(--ease);
+}
+
+.card.is-outside:is(:hover, :focus-visible, .is-hover, .is-selected) :is(.photo, .photo-mark) {
+  opacity: 1;
 }
 
 .card:hover,

@@ -2,6 +2,7 @@ import L from 'leaflet';
 import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { GeoJSON, LayerGroup, LayersControl, MapContainer, Marker, Pane, ScaleControl, TileLayer, Tooltip, useMap } from 'react-leaflet';
 import { fmtM2, yearBin } from '../lib/format.js';
+import { sameIds } from '../lib/inview.js';
 import { groupByPosition, ringOffsets, ringRadius } from '../lib/spread.js';
 import Legend from './Legend.jsx';
 
@@ -47,9 +48,11 @@ const BASE_MAPS = [
 const PAAVO = 'Postal areas &copy; <a href="https://www.stat.fi/en/">Statistics Finland</a> (CC BY 4.0)';
 
 const R = { base: 6.5, hover: 10, halo: 12 };
-// Selecting a target pans it into the central 40 % of the visible map (30 % margins).
-const CENTRE_MARGIN = 0.3;
-const LOCK_LABEL_ROOM = 240; // px right of the marker for the "Target locked" label
+// Selecting a target moves the map only if its marker is closer than this to an edge of the visible
+// map (or off it), and then only far enough to bring it this far inside: room for the 96 px reticle.
+const EDGE_MARGIN = 48;
+// The map's own pan to a selection counts as its own (it never releases the lock) for at most this.
+const SELF_MOVE_MS = 1500;
 
 export default memo(MapView);
 
@@ -57,7 +60,7 @@ export default memo(MapView);
 // per view and no full-map blend, which is costly on phone GPUs. Desktop keeps it.
 const LIGHT_GRAPHICS = typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches;
 
-function MapView({ listings, places, areas, hoverId, selectedId, saved, onHover, onSelect }) {
+function MapView({ listings, places, areas, hoverId, selectedId, saved, onHover, onSelect, onViewChange, onLockLost }) {
   const [map, setMap] = useState(null);
   const readoutRef = useRef(null);
   const located = useMemo(() => listings.filter((l) => l.lat != null && l.lon != null), [listings]);
@@ -77,7 +80,16 @@ function MapView({ listings, places, areas, hoverId, selectedId, saved, onHover,
         <MapLayers areas={areas} />
         <ScaleControl position="bottomright" imperial={false} maxWidth={140} />
         <PlacePinsLayer places={places} />
-        <ListingMarkers listings={located} hoverId={hoverId} selectedId={selectedId} saved={saved} onHover={onHover} onSelect={onSelect} />
+        <ListingMarkers
+          listings={located}
+          hoverId={hoverId}
+          selectedId={selectedId}
+          saved={saved}
+          onHover={onHover}
+          onSelect={onSelect}
+          onViewChange={onViewChange}
+          onLockLost={onLockLost}
+        />
         <ZoomStrike />
         <CursorReadout target={readoutRef} />
       </MapContainer>
@@ -205,16 +217,27 @@ function PlacePins({ places }) {
  *
  * Homes in the same building share one coordinate; such groups are laid out on a ring of
  * pixels around the true point (marked by a faint dashed circle) and re-laid out on zoom.
+ *
+ * After every pan or zoom (moveend: never during a drag) and every new list it reports which
+ * targets have their marker on the visible map (onViewChange, a Set of card ids; changes only).
+ * When the operator moves the map (drag, zoom, Fit; not the map's own pans to a selection) so
+ * that the locked target leaves the visible map, it calls onLockLost.
  */
-function ListingMarkers({ listings, hoverId, selectedId, saved, onHover, onSelect }) {
+function ListingMarkers({ listings, hoverId, selectedId, saved, onHover, onSelect, onViewChange, onLockLost }) {
   const map = useMap();
   const layers = useRef(new Map()); // card_id → { marker, halo, listing }: markers on the map now
   const cache = useRef(new Map()); // every marker ever made, reused when a filter brings it back
   const rings = useRef(new Map()); // "lat,lon,n" → faint circle marking a shared point
   const groups = useRef([]); // [{ center: LatLng, ids: [...] }] with more than one id
   const group = useRef(null);
-  const handlers = useRef({ onHover, onSelect });
-  handlers.current = { onHover, onSelect };
+  const handlers = useRef({ onHover, onSelect, onViewChange, onLockLost });
+  handlers.current = { onHover, onSelect, onViewChange, onLockLost };
+  // While the map pans to a selection (not the operator's move): when that flag expires, else 0.
+  const selfMove = useRef(0);
+  const lockLostFor = useRef(null); // the target whose lock was released by a move
+  const selectedAt = useRef(0); // when the current target was locked (performance.now())
+  const moveStartedAt = useRef(0); // when the last map move began
+  const lastView = useRef(null); // the last reported Set of ids on the visible map
   const state = useRef({ hoverId, selectedId, saved });
   state.current = { hoverId, selectedId, saved };
   const lock = useRef(null); // the TARGET LOCKED reticle on the selected marker
@@ -249,10 +272,44 @@ function ListingMarkers({ listings, hoverId, selectedId, saved, onHover, onSelec
     // moveend as well: it always ends a drag (also after the inertia glide), even if a dragend
     // is missed, so hovers can never stay switched off.
     map.on('dragend moveend', onDragEnd);
+    // Leaflet fires zoomend before moveend, so the rings are laid out before the view is read.
+    // A container resize ends in moveend too. If the operator's move took the locked target off
+    // the visible map (or under the profile), the lock is released (the user's rule, FR-41).
+    const onMoveStart = () => {
+      moveStartedAt.current = performance.now();
+    };
+    const onMoveEnd = () => {
+      reportView();
+      const id = state.current.selectedId;
+      const inView = id != null && !!lastView.current?.has(id);
+      // The map's own pan to a selection: it ends with the target in view. A moveend before that
+      // must not count as the operator's; the flag also expires.
+      if (selfMove.current) {
+        if (id == null || inView || performance.now() > selfMove.current) selfMove.current = 0;
+        return;
+      }
+      if (id == null || inView || !layers.current.has(id)) return;
+      // A move that began before this target was locked (a zoom still finishing when it was
+      // picked; it can swallow the pan to the target): bring the target into view instead.
+      if (moveStartedAt.current < selectedAt.current) {
+        panToSelected();
+        return;
+      }
+      // Once per target: closing goes back in browser history, which completes a moment later,
+      // and a wheel burst can end in several moveends before that.
+      if (lockLostFor.current === id) return;
+      lockLostFor.current = id;
+      handlers.current.onLockLost?.();
+    };
+    map.on('movestart', onMoveStart);
+    map.on('moveend', onMoveEnd);
     return () => {
       map.off('zoomend', relayout);
       map.off('dragstart', onDragStart);
       map.off('dragend moveend', onDragEnd);
+      map.off('movestart', onMoveStart);
+      map.off('moveend', onMoveEnd);
+      lastView.current = null;
       container.classList.remove('is-dragging');
       group.current.remove();
       lock.current?.remove();
@@ -308,6 +365,37 @@ function ListingMarkers({ listings, hoverId, selectedId, saved, onHover, onSelec
     if (!entry || entry.marker.getLatLng().equals(at)) return;
     entry.marker.setLatLng(at);
     entry.halo?.setLatLng(at);
+  }
+
+  /**
+   * The part of the map the target profile leaves visible, in container pixels from the left:
+   * { width, height, mapWidth, hidden }. The profile docks over the map's right edge (offsetLeft:
+   * its resting place, not where its slide-in animation is now). When it would leave less than
+   * 120 px (the full-screen profile on phones), the whole map counts and `hidden` is true.
+   */
+  function visibleArea() {
+    const box = map.getContainer().getBoundingClientRect();
+    const drawer = document.querySelector('.drawer');
+    const covered = drawer ? Math.max(0, box.right - drawer.offsetLeft) : 0;
+    const hidden = box.width - covered < 120;
+    return { width: hidden ? box.width : box.width - covered, height: box.height, mapWidth: box.width, hidden };
+  }
+
+  /**
+   * Tell the app which targets have their marker (at its spread position) on the visible map:
+   * inside the map and not under the target profile (the user's rule: hidden by the profile is
+   * outside the map view).
+   */
+  function reportView() {
+    const { width, height } = visibleArea();
+    const ids = new Set();
+    for (const [id, entry] of layers.current) {
+      const p = map.latLngToContainerPoint(entry.marker.getLatLng());
+      if (p.x >= 0 && p.y >= 0 && p.x <= width && p.y <= height) ids.add(id);
+    }
+    if (sameIds(ids, lastView.current)) return;
+    lastView.current = ids;
+    handlers.current.onViewChange?.(ids);
   }
 
   function layout() {
@@ -396,6 +484,7 @@ function ListingMarkers({ listings, hoverId, selectedId, saved, onHover, onSelec
     for (const [id, entry] of layers.current) place(id, spread.get(id) ?? L.latLng(entry.listing.lat, entry.listing.lon));
     syncLock();
     for (const id of layers.current.keys()) paint(id);
+    reportView();
     // A target opened from the URL: its marker exists only now, so bring it into view now.
     if (state.current.selectedId != null && pannedFor.current !== state.current.selectedId) panToSelected();
   }, [listings]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -439,44 +528,60 @@ function ListingMarkers({ listings, hoverId, selectedId, saved, onHover, onSelec
   }, [hoverId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /**
-   * Bring the selected marker towards the middle of the visible map (the part the target profile
-   * does not cover): into the central 40 % of it, so it is easy to spot. Not fully centred: a
-   * target already in that zone does not move, and one outside moves only to its edge. The
-   * right side always keeps room for the lock label (~240 px) when there is space for it.
+   * Keep the selected marker on the visible map (the part the target profile does not cover).
+   * A target off the map (outside its bounds: one picked under the "outside map view"
+   * separator, or from a link) is centred in that part. Otherwise a target at least EDGE_MARGIN
+   * px inside it does not move the map at all (the user's choice: every pan reorders the list,
+   * FR-41); one nearer an edge or under the profile moves only far enough to sit EDGE_MARGIN px
+   * inside.
    */
   const pannedFor = useRef(null);
+  /** Returns true if it started moving the map (its moveend then reports the view). */
   function panToSelected() {
     const id = state.current.selectedId;
     const entry = id != null ? layers.current.get(id) : null;
-    if (!entry) return;
+    if (!entry) return false;
     pannedFor.current = id;
-    // The target profile overlaps the map's right edge (offsetLeft: its resting place, not
-    // where its slide-in animation happens to be right now).
-    const drawer = document.querySelector('.drawer');
-    const box = map.getContainer().getBoundingClientRect();
-    const covered = drawer ? Math.max(0, box.right - drawer.offsetLeft) : 0;
-    const visible = box.width - covered;
-    if (visible < 120) return; // nothing sensible to show beside the profile
-    const marginX = Math.round(visible * CENTRE_MARGIN);
-    const marginY = Math.max(60, Math.round(box.height * CENTRE_MARGIN));
-    const labelRoom = visible > 520 ? LOCK_LABEL_ROOM : 0;
-    map.panInside(entry.marker.getLatLng(), {
-      paddingTopLeft: [Math.max(40, marginX), marginY],
-      paddingBottomRight: [covered + Math.max(40, marginX, labelRoom), marginY],
+    const view = visibleArea();
+    if (view.hidden) return false; // nothing sensible to show beside the profile
+    const at = entry.marker.getLatLng();
+    const p = map.latLngToContainerPoint(at);
+    if (p.x < 0 || p.y < 0 || p.x > view.mapWidth || p.y > view.height) {
+      // Off the map: centre it in the part the profile leaves visible.
+      selfMove.current = performance.now() + SELF_MOVE_MS;
+      map.panBy(L.point(p.x - view.width / 2, p.y - view.height / 2));
+      return true;
+    }
+    const inside = p.x >= EDGE_MARGIN && p.x <= view.width - EDGE_MARGIN && p.y >= EDGE_MARGIN && p.y <= view.height - EDGE_MARGIN;
+    if (inside) return false;
+    // Near an edge or under the profile: move only far enough to sit EDGE_MARGIN px inside.
+    selfMove.current = performance.now() + SELF_MOVE_MS;
+    map.panInside(at, {
+      paddingTopLeft: [EDGE_MARGIN, EDGE_MARGIN],
+      paddingBottomRight: [view.mapWidth - view.width + EDGE_MARGIN, EDGE_MARGIN],
     });
+    return true;
   }
 
-  // Selection: highlight, lock on (reticle animation) and pan it into view if it is off-screen.
+  // Selection: highlight, lock on (reticle animation) and pan it into view if needed. Opening or
+  // closing the profile changes what is visible, so the view is reported again; after a pan its
+  // moveend does that (reporting now as well would reorder the list twice).
   const prevSelected = useRef(null);
   useEffect(() => {
     const prev = prevSelected.current;
     prevSelected.current = selectedId;
+    if (prev !== selectedId) {
+      lockLostFor.current = null; // a reopened target can be released again
+      selectedAt.current = performance.now();
+    }
     if (prev != null && prev !== selectedId) paint(prev);
     syncLock(prev !== selectedId);
+    let moving = false;
     if (selectedId != null) {
       paint(selectedId);
-      panToSelected();
+      moving = panToSelected();
     }
+    if (!moving) reportView();
   }, [selectedId, map]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return null;

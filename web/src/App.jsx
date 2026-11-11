@@ -17,6 +17,7 @@ import {
   sortListings,
   toQuery,
 } from './lib/filters.js';
+import { splitByView, stepIndex } from './lib/inview.js';
 import { SHORTLIST_KEY, loadShortlist, parseShortlist, saveShortlist, toggled } from './lib/shortlist.js';
 import { listingFromSearch, profileState, searchWithListing, stepsToMain } from './lib/history.js';
 import { applyTheme, loadTheme, saveTheme } from './lib/theme.js';
@@ -82,6 +83,8 @@ export default function App() {
   const stacked = useMediaQuery(STACKED_QUERY);
   // Where the open target was picked: 'map', 'list' or null (from the URL).
   const [selectSource, setSelectSource] = useState(null);
+  // Card ids with a marker on the visible map, reported by the map after each pan or zoom (FR-41).
+  const [mapView, setMapView] = useState(null);
   const mapRef = useRef(null);
   const [paramsOpen, setParamsOpen] = useState(false);
   const paramsButtonRef = useRef(null);
@@ -278,15 +281,25 @@ export default function App() {
     () => listings?.find((l) => l.card_id === selectedId) ?? null,
     [listings, selectedId],
   );
-  // Previous / next in the current (filtered, sorted) list.
-  const position = useMemo(() => shown.findIndex((l) => l.card_id === selectedId), [shown, selectedId]);
+  // The list: targets on the visible map first, then the rest (FR-41). It follows the map also
+  // while a profile is open (the user's choice: a live list over a locked one); the map pans for a
+  // selection only near its edge, which keeps the reshuffles rare.
+  const { ordered, inViewCount } = useMemo(() => splitByView(shown, mapView), [shown, mapView]);
+  // Previous / next (‹ › in the profile): only the targets on the visible map, in list order (the
+  // user's choice); all of them when every target is in view. A target off the map has no ‹ ›
+  // (position -1) until the map has centred it and it is in view.
+  const stepList = useMemo(
+    () => (inViewCount == null ? ordered : ordered.slice(0, inViewCount)),
+    [ordered, inViewCount],
+  );
+  const position = useMemo(() => stepList.findIndex((l) => l.card_id === selectedId), [stepList, selectedId]);
   const step = useCallback(
     (delta) => {
-      if (position < 0) return;
-      const next = shown[position + delta];
+      // Wraps round: › on the last target goes to the first, ‹ on the first to the last.
+      const next = stepList[stepIndex(position, delta, stepList.length)];
       if (next) openTarget(next.card_id); // ‹ › adds a history entry too (the user's choice)
     },
-    [shown, position, openTarget],
+    [stepList, position, openTarget],
   );
 
   const showParams = wide || paramsOpen;
@@ -338,11 +351,14 @@ export default function App() {
             saved={saved}
             onHover={onHover}
             onSelect={onSelect}
+            onViewChange={setMapView}
+            onLockLost={onClose}
           />
           {phase === 'deploy' && <div className="map-sweep" aria-hidden="true" />}
         </section>
         <ListPanel
-          listings={shown}
+          listings={ordered}
+          inViewCount={inViewCount}
           loading={!error && !listings}
           error={error}
           sort={filters?.sort ?? 'year'}
@@ -371,7 +387,7 @@ export default function App() {
           zipNames={zipNames}
           onClose={onClose}
           position={position}
-          count={shown.length}
+          count={stepList.length}
           onStep={step}
           isSaved={saved.has(selectedId)}
           onToggleSaved={() => toggleSaved(selectedId)}

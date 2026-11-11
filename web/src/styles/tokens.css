@@ -120,6 +120,8 @@
   --tiles-relief: sepia(0.5) hue-rotate(170deg) saturate(1.6);
   --relief-blend: overlay;
   --relief-opacity: 0.5;
+  /* Target list: photos of targets outside the visible map step back (their text does not). */
+  --outside-photo-opacity: 0.45;
   --labels-night: brightness(1.3) sepia(0.5) hue-rotate(160deg) saturate(2);
   --labels-sat: brightness(1.1);
 
