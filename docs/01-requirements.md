@@ -159,23 +159,28 @@ Each requirement has at least one acceptance criterion in Given / When / Then fo
 
 ### 6.4 Web UI
 
-**FR-26 Local server.** `npm run ui` builds the UI and serves it with a read-only JSON API on `http://localhost:3000`. `npm run ui:dev` runs it with hot reload.
+**FR-26 Local server.** `npm run ui` builds the UI and serves it with a read-only JSON API on `http://localhost:3000` (bound to 127.0.0.1 only; no write routes). `npm run ui:dev` runs it with hot reload. `--no-photos` replaces every Oikotie photo with a placeholder (used for agent previews); `--port N` changes the port. Without a database the UI says so and shows the commands to run.
 
-**FR-27 Map.** One marker per listing, shaded by build year (newer is deeper blue) with a legend; pins for Keskustori and the railway station; an optional overlay of the 17 postal areas; three switchable base maps.
+**FR-27 Map.** One marker per listing, coloured by build year in five eras plus "unknown", with a legend; pins for Keskustori and the railway station; an optional overlay of the 17 postal areas; at least three switchable keyless base maps; listings that share one coordinate (same building) are spread out so each stays selectable; a button fits the map to the current list.
 - *Given* the UI is open with no filters, *when* markers are counted, *then* the count equals the number of active listings that have coordinates.
+- *Given* a listing has `location_approx = 1`, *then* its marker, card and detail say the location is approximate and its distances are marked "≈".
 
-**FR-28 List.** Photo-led cards showing district and street, build year, size, rooms, available date (or "no date"), distances and, quietly, rent. Sortable by build year (newest first, the default), size, rent, available date, distance to centre, distance to station and newest listing.
+**FR-28 List.** Every home shows build year, district and street, size, rooms, available date (or its text, or "no date"), distance to Keskustori and to the station, rent and rent per m². A compact-rows layout (the default, many homes visible at once) and a large-photo layout can be switched. Sortable by build year (newest first, the default), size, rent, rent per m², available date, distance to centre, distance to station and newest listing; listings missing the sort value come last. With a row focused, ↑/↓/Home/End move between homes and Enter opens the detail.
 
-**FR-29 Hover sync.** Hovering a card highlights its marker; hovering a marker highlights its card and scrolls it into view. Clicking either opens the detail.
+**FR-29 Hover sync.** Hovering a home in the list highlights its marker; hovering a marker highlights its home and scrolls it into view. Clicking either opens the detail.
 
 **FR-30 Filters.** Every numeric or date filter is a min–max range with a dual-handle slider and number inputs, bounded by the data: build year (first and most prominent), rent, size, rooms, available date (with "include no date"). Plus postal codes (multi-select), "only new" and "hide removed". Reset clears all. The filter state lives in the URL.
 - *Given* build year is set to 2010–2026, *when* the filter applies, *then* the list and the markers shrink together and the URL changes; reloading the URL restores the same view.
 
-**FR-31 New markers.** Listings in `v_new` carry a "New" tag and a distinct marker; the header shows "N of M homes · K new since <last crawl>".
+**FR-31 New markers.** Listings in `v_new` carry a "New" tag and a distinct marker; the header shows how many homes are shown out of how many, how many are new since the last crawl, and when the last crawl ran. The "new" count toggles the "only new" filter.
 
-**FR-32 Detail drawer.** Photos, key fields, description, a link to the Oikotie listing and the raw JSON (collapsed). The lease text (`rentTermInfo`) is shown in full so the user can verify the lease type by reading it; lease type is deliberately **not** a filter (decided 2026-11-11, because Oikotie gives it only as free text).
+**FR-32 Detail drawer.** A photo gallery, key fields, description, a link to the Oikotie listing and the raw JSON (collapsed). The lease text (`rentTermInfo`) is shown in full so the user can verify the lease type by reading it; lease type is deliberately **not** a filter (decided 2026-11-11, because Oikotie gives it only as free text). Previous/next controls (and ←/→) step through the current filtered, sorted list; Esc closes. The open listing is part of the URL.
 
 **FR-33 Narrow windows.** Below a set width the list stacks under the map with no horizontal scrolling.
+
+**FR-34 Shortlist.** The user can star homes and filter to the starred ones. The shortlist lives only in the browser's `localStorage`; the server and database stay read-only, and the UI works if storage is blocked.
+
+**FR-35 States.** Designed loading, empty ("no homes match", with Reset) and error states; a rendering error shows a message with a reload button instead of a blank page.
 
 ## 7. Non-functional requirements
 | Id | Requirement |

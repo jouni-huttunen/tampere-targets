@@ -171,11 +171,15 @@ An unknown code's id can be read from any stored listing in that code: `address.
 ## 8. Other sources (for the web UI)
 **Base-map tiles** (all verified to load; attribution is required on the map):
 
-| Name | URL template | Terms |
+| Name | URL template (`{z}/{y}/{x}` for Esri, `{z}/{x}/{y}` for the others) | Terms |
 |---|---|---|
-| CARTO Voyager (default) | `https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png` | Free for non-commercial use, attribution to CARTO and OpenStreetMap |
-| CARTO Positron | `https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png` | Same |
-| OpenStreetMap standard | `https://tile.openstreetmap.org/{z}/{x}/{y}.png` | OSM tile usage policy; fine for light personal use |
+| Esri Dark Gray canvas + reference labels | `https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}` (labels: `…/Canvas/World_Dark_Gray_Reference/…`) | Esri attribution; native zoom 16 |
+| Esri World Imagery + places labels | `…/World_Imagery/MapServer/tile/{z}/{y}/{x}` (labels: `…/Reference/World_Boundaries_and_Places/…`) | Esri attribution |
+| Esri Hillshade Dark | `…/Elevation/World_Hillshade_Dark/MapServer/tile/{z}/{y}/{x}` | Blended over the dark canvas; native zoom 16 |
+| OpenTopoMap | `https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png` | CC-BY-SA, attribution to OSM and OpenTopoMap |
+| OpenStreetMap standard | `https://tile.openstreetmap.org/{z}/{x}/{y}.png` | OSM tile usage policy; fine for light personal use (not used by the UI now) |
+
+**Not usable (checked 2026-11-11):** CARTO Voyager and Positron now return an "API KEY REQUIRED" image on every tile (HTTP 200, so a status check misses it: look at the image). The National Land Survey (MML) background map needs a key. `tile.openstreetmap.fr` is blocked in the agent's browser pane, so it could not be verified.
 
 **Postal-area polygons:** Statistics Finland, Paavo WFS, CC BY 4.0. Property `posti_alue` is the code and `nimi` the name. Fetched once and saved to `web/public/postal-areas.geojson`:
 ```

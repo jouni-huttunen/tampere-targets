@@ -1,3 +1,5 @@
+> **Historical document (archived 2026-11-12).** This is the original plan from 2026-11-10. The build has moved past it: the white design, CARTO maps and nvm-windows setup described here were all replaced. For anything current, read `../../CLAUDE.md`, `../../HANDOFF.md` and the spec in `../` (01-requirements, 02-data-source, 03-design).
+
 # Tampere apartment finder — spec + data retrieval into a local DB
 
 ## Context

@@ -1,6 +1,6 @@
 # 03 · Design
 
-_Version 1, 2026-11-10. Implements [01-requirements.md](01-requirements.md) against the source described in [02-data-source.md](02-data-source.md). Points where this document refines `PLAN.md` or `HANDOFF.md` are listed in [§13](#13-refinements-over-planmd-and-handoffmd)._
+_Version 1, 2026-11-10. Implements [01-requirements.md](01-requirements.md) against the source described in [02-data-source.md](02-data-source.md). Points where this document refines the original plan ([archive/PLAN.md](archive/PLAN.md)) or the first handoff are listed in [§13](#13-refinements-over-planmd-and-handoffmd). Since 1.0.0 this folder is the single source of truth; §8.2–8.3 describe the 1.0.0 UI and its look, which is due to change in 1.1.0._
 
 ## 1. Architecture
 ```
@@ -32,7 +32,11 @@ Three facts shape this:
 .nvmrc                   26.13.0
 package.json             type: module · engines: node >= 26 · scripts below
 config.json              areas, filters, places, window cutoff, pacing, refresh ages
-docs/                    this spec
+README.md                commands for everyday use
+CLAUDE.md                rules and read order for AI agents
+HANDOFF.md               current state, open items, what is next
+CHANGELOG.md             what each release contains
+docs/                    this spec (docs/archive/ holds the original plan, historical)
 src/shared/*.mjs         pure functions for BOTH Node and the browser script:
                          hash.mjs (FNV-1a, cardHash), plan.mjs (planRun, detailsDue),
                          search.mjs (searchUrl, detailUrl, fileStamp)

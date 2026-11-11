@@ -1,10 +1,12 @@
 # Tampere homes
 
-A personal tool for finding a rental in Tampere: it collects Oikotie rental listings into a
-local SQLite database (through a script you run in your own browser) and shows them on a
-local map and list. Everything stays on this PC.
+A personal tool for finding a rental in Tampere. It collects Oikotie rental listings into a local SQLite database (through a script you run in your own browser) and lets you browse them on a local map and list. Everything stays on your PC.
 
-Requires Node 26 (the official installer from nodejs.org). Install the dependencies once:
+_Version 1.0.0. It is renamed **Tampere Targets** in 1.1.0._
+
+## Setup
+
+Requires Node 26 (the installer from nodejs.org). Then, once:
 
 ```bash
 npm install
@@ -14,14 +16,13 @@ npm install
 
 | Step | Command | What happens |
 |---|---|---|
-| 1. Capture | `npm run capture` | Builds `dist/capture.js` and copies it to the clipboard. Open asunnot.oikotie.fi in Chrome or Edge, press F12 → Console, paste, and keep the tab in front until it downloads `oikotie-<time>.json`. |
+| 1. Capture | `npm run capture` | Builds `dist/capture.js` and copies it to the clipboard. |
 | 2. Import | `npm run import` | Loads the newest capture file from Downloads into `data/listings.db` and writes a report to `reports/`. |
-| 3. Browse | `npm run ui` | Builds the web app and serves it at **http://localhost:3000**. |
+| 3. Browse | `npm run ui` | Builds the web app and serves it at http://localhost:3000. |
 
-In the browser: build year sits in the header; the other filters are under **Filters**. Hover
-a card or a marker to find its partner, click either for the details (← → step through the
-list, Esc closes). The star keeps a shortlist in this browser. Filters live in the address
-bar, so a view can be bookmarked.
+**Capturing:** open asunnot.oikotie.fi in Chrome or Edge, press F12 and open the Console. The first time in a browser profile, type `allow pasting` and press Enter. Paste the script and press Enter, then keep that tab in front until it downloads `oikotie-<time>.json` (about one request every two seconds, so a first full capture takes 10–25 minutes; later runs fetch far less). Then run step 2.
+
+Filters are kept in the address bar, so any view can be bookmarked. The shortlist is saved in the browser only.
 
 ## Other commands
 
@@ -32,14 +33,14 @@ bar, so a view can be bookmarked.
 | `npm run report` | Re-writes the latest run's report |
 | `npm run rebuild` | Recomputes every column from the stored JSON (offline) |
 | `npm run ui:dev` | The UI with hot reload at http://localhost:5173 |
-| `npm run ui -- --no-photos` | The UI with photo placeholders (used for agent previews) |
 | `npm run ui -- --port 3001` | The UI on another port |
+| `npm run ui -- --no-photos` | The UI with photo placeholders |
 
-## Documents
+## Documentation
 
-- `HANDOFF.md`: current state, decisions and next steps (read this first when picking the work up)
-- `PLAN.md`: the approved plan
-- `docs/01-requirements.md`, `docs/02-data-source.md`, `docs/03-design.md`: the spec
+- [CLAUDE.md](CLAUDE.md): rules and read order for AI agents working on the project
+- [HANDOFF.md](HANDOFF.md): current state and what is planned next
+- [docs/](docs/): requirements, data source and design
+- [CHANGELOG.md](CHANGELOG.md): what is in each release
 
-Listing data (`data/`, `reports/`, capture files) is personal and git-ignored; never commit
-or share it.
+Listing data (`data/`, `reports/`, capture files) is personal and git-ignored; never commit or share it.
