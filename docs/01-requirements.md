@@ -177,6 +177,7 @@ Each requirement has at least one acceptance criterion in Given / When / Then fo
 **FR-32 Target profile (detail).** A photo gallery, key fields, description, a link to the Oikotie listing and the raw JSON (collapsed). The lease text (`rentTermInfo`) is shown in full so the user can verify the lease type by reading it; lease type is deliberately **not** a filter (decided 2026-11-11, because Oikotie gives it only as free text). Previous/next controls (and ←/→) step through the current filtered, sorted list; Esc closes. The open listing is part of the URL. In a wide window it docks over the right side of the map, so the list and the filters stay visible.
 
 **FR-33 Narrow windows.** Below 1360 px the filters move into a slide-out panel; below 900 px the list stacks under the map with no horizontal scrolling.
+- *Given* the phone layout, *when* the user taps a marker, *then* the target profile opens without scrolling the page to the list, and closing it shows the map.
 
 **FR-34 Shortlist.** The user can star homes and filter to the starred ones. The shortlist lives only in the browser's `localStorage`; the server and database stay read-only, and the UI works if storage is blocked.
 
@@ -189,14 +190,18 @@ Each requirement has at least one acceptance criterion in Given / When / Then fo
 
 **FR-38 Map effects** (added in 1.1.0). Zooming shows a fast crosshair "strike" at the point zoomed at (the pointer, or the centre for buttons and keys). Selecting a listing locks a reticle onto its marker with a short animation and a "Target locked" label with its coordinates; the lock stays while the profile is open. Both are decorative, never block the pointer, and are off under `prefers-reduced-motion`.
 
+**FR-39 Hosted copy** (added 2026-11-11). `npm run deploy` publishes a read-only copy of the UI with the current local data to Azure Storage static website hosting, by hand only; the local database stays the master. Settings and the SAS token live in a git-ignored `.env`. `--dry-run` builds without uploading. The copy is kept out of search engines (`noindex`, `robots.txt`). Details in [03-design.md §8.4](03-design.md#84-hosted-copy-npm-run-deploy).
+- *Given* a listing is gone from the local database export, *when* the deploy runs, *then* its old file is removed from the hosted copy.
+- *Given* the SAS token is missing, a placeholder or expired, *then* the deploy stops before building anything and says which value to fix, without printing the token.
+
 ## 7. Non-functional requirements
 | Id | Requirement |
 |---|---|
 | **NFR-01 Compliance** | Nothing in the project may disguise itself as a browser (no spoofed User-Agent, no headless or stealth automation). The bulk capture is run only by the user in their own browser, never by an AI agent's browser. |
 | **NFR-02 Politeness** | Sequential requests, ≥ 2 s apart plus jitter. Stop on 403 or 429; never retry around a block. |
-| **NFR-03 Local only** | Listing data never leaves the PC. `data/`, `reports/`, `dist/` and capture files are git-ignored. The web server listens on localhost only and is read-only. |
+| **NFR-03 Local master, personal use** | The local database is the master; a hosted copy, if any, is updated only by hand from it and is for the user alone (changed 2026-11-11: listing data no longer has to stay on the PC). Listing data stays out of Git: `data/`, `reports/`, `dist/` and capture files are git-ignored. The local web server listens on localhost only and is read-only. |
 | **NFR-04 No re-fetch** | Any new column or filter must be derivable from stored JSON (FR-25). |
-| **NFR-05 Dependencies** | Capture, import, database and CLI use only Node built-ins (`node:sqlite`, `node:test`, `fetch`). Only the web UI has npm dependencies. |
+| **NFR-05 Dependencies** | Capture, import, database and CLI use only Node built-ins (`node:sqlite`, `node:test`, `fetch`). Only the web UI has npm dependencies; the deploy reuses them (Fastify for the export, Vite for the build) and talks to Azure with plain `fetch`, no SDK. |
 | **NFR-06 Platform** | Windows 11, Node ≥ 26 (pinned 26.13.0 in `.nvmrc`), current Chrome or Edge. |
 | **NFR-07 Atomic import** | An import runs in one transaction; a bad or truncated file leaves the database untouched. |
 | **NFR-08 Testability** | Planning, hashing and normalising are pure functions. `npm test` needs no network and uses only synthetic fixtures; no real Oikotie JSON is committed. |

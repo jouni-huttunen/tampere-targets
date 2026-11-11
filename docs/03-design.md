@@ -55,11 +55,15 @@ server/app.mjs           Fastify app: read-only JSON API (row shaping) + serves 
 server/start.mjs         shared start-up: open DB read-only, listen on 127.0.0.1, --no-photos / --port
 server/index.mjs         npm run ui entry (port 3000)
 server/dev.mjs           npm run ui:dev entry (API on 3001 + Vite on 5173)
+deploy/index.mjs         npm run deploy: build + export to dist/site, upload to Azure Storage ($web)
+deploy/site.mjs          static export of the API answers (Fastify inject), static-data Vite build
+deploy/blob.mjs          Blob REST over fetch with a SAS token: settings, PUT/DELETE/list, retries
+.env                     git-ignored: Azure account, container, SAS token, site URL (placeholders)
 web/                     React + Vite SPA: vite.config.mjs, index.html,
                          src/{App,main}.jsx, src/components/*,
                          src/lib/{filters,format,api,spread,shortlist}.js,
                          src/styles/{tokens,app}.css, public/postal-areas.geojson
-data/ reports/ dist/ web/dist/      git-ignored
+data/ reports/ dist/ web/dist/ .env      git-ignored
 ```
 
 **npm scripts**
@@ -75,6 +79,7 @@ data/ reports/ dist/ web/dist/      git-ignored
 | `ui` | `vite build --config web/vite.config.mjs && node server/index.mjs`: builds `web/` and serves it plus the API on `http://localhost:3000`. Options after `--`: `--no-photos` (placeholders instead of Oikotie photos; used for agent previews), `--port N` |
 | `ui:build` | Only the Vite build (into `web/dist`) |
 | `ui:dev` | `node server/dev.mjs`: API on 127.0.0.1:3001 plus Vite with hot reload on `http://localhost:5173`, `/api` proxied to the API |
+| `deploy` | `node deploy/index.mjs`: builds the hosted copy into `dist/site` and uploads it to Azure Storage (§8.4). `-- --dry-run` builds only. Named `deploy`, not `publish`, so it is never confused with `npm publish` |
 
 `node:sqlite` in Node 26.13.0 prints no experimental warning, so no flag is needed.
 
@@ -341,6 +346,8 @@ React + Vite. Components: `App`, `BootSequence`, `Header`, `Filters` (the missio
 
 **Hover sync:** row hover (or keyboard focus) → its marker grows, highlights, comes to the front and shows its tooltip. Marker hover → its row highlights and scrolls into view (instant, so it keeps up with the pointer). Click on either → target profile and lock. The map then pans the target towards the middle of the part of the map the profile leaves visible: into its central 40 % (30 % margins; `CENTRE_MARGIN` in MapView), with at least 240 px on the right for the lock label when there is room. Not fully centred on purpose: a target already in that zone does not move, and one outside moves only to its edge. This also happens when the target comes from the URL, once the markers exist.
 
+**Phone layout (stacked, ≤ 900 px; `STACKED_QUERY` in App.jsx):** the list sits under the map, so tapping a marker does **not** scroll the list to its row (neither the tap's hover nor the selection), because that would drag the whole page away from the map. The tap opens the full-screen target profile; closing it (× or Esc) scrolls the map back to the top of the screen and drops the marker tooltip a tap leaves behind. A target opened from a list row keeps the list where it was. App tracks where the selection came from (`selectSource`: map, list or URL; ‹ › keep it). Wider layouts are unchanged.
+
 **Mission parameters** (`Filters.jsx`; all ranges are dual-handle sliders plus typed inputs, bounds from the data). Groups, each under a `// TITLE`: **Structure** (build year, its track coloured by era with ticks at ’60 / ’90 / ’10 / ’20), **Logistics** (cost per month, area, rooms), **Timing** (move-in window plus "include targets with no move-in date"), **Sectors** (postal codes as a two-column grid of chips with names and counts, plus "All sectors"), **Flags** (new contacts only, priority targets only, hide withdrawn). A footer **Clear params** button resets them (the sort is kept). A range is `[min, max]` with `null` meaning "no limit"; dragging an end back to its data bound clears it. Numbers commit on Enter or leaving the field; dates when complete. URL keys: `year=2010..2026` (either side may be empty), `rent`, `size`, `rooms`, `avail=2026-12-01..2027-01-15`, `nodate=0|1`, `zip=33100,33200`, `new=1`, `saved=1`, `removed=show`, `sort=…`, and `listing=<id>` for an open profile; only values that differ from the defaults are written, and bad values are ignored.
 
 | Filter | Default |
@@ -378,6 +385,16 @@ _Redesigned 2026-11-11 for 1.1.0 at the user's request: "Tampere Targets", a TAC
 
 **UI dependencies** (pinned exact): `dependencies` fastify 5.12.8 and @fastify/static 10.1.10 (the server); `devDependencies` react and react-dom 19.3.1, leaflet 1.9.4, react-leaflet 5.0.0, vite 8.3.7, @vitejs/plugin-react 6.3.0, @fontsource/barlow, @fontsource/rajdhani and @fontsource/jetbrains-mono 5.3.0 (the build). Cinzel, Noto Sans Runic and Barlow Condensed were removed in 1.1.0. The range slider is hand-built from two native range inputs, so there is no slider library.
 
+### 8.4 Hosted copy (`npm run deploy`)
+_Added 2026-11-11 at the user's request. The local database stays the master; the hosted copy is a read-only snapshot that changes only when the user runs the deploy by hand. Allowed since the user removed the "data never leaves this PC" rule the same day; personal use only (NFR-03, `docs/02-data-source.md` §10)._
+
+- **Where:** Azure Storage **static website hosting** (the `$web` container) in the user's own storage account. It has **no sign-in**: anyone with the URL can open it (the user's decision: they are the only user and the URL is not shared). The page carries `<meta name="robots" content="noindex, nofollow">` and the deploy uploads a `robots.txt` that disallows everything. Oikotie photos and links keep `referrerPolicy="no-referrer"`; tile servers get only the origin (the browser default).
+- **No server in the cloud:** `deploy/site.mjs` asks the local Fastify app (`buildApp`, via `inject`, no port) for `/api/meta`, `/api/listings` and `/api/listings/<id>` for every listing (removed ones too) and writes the answers to `api/meta.json`, `api/listings.json` and `api/listings/<id>.json`, so the hosted copy shows exactly what `npm run ui` shows (with photos, `noPhotos: false`). The web app is built by Vite with `import.meta.env.VITE_STATIC_DATA = "1"`, which makes `lib/api.js` fetch `<path>.json` instead of the API (`staticPath`). Output: `dist/site/` (git-ignored; about 450 files, 24 MB for 381 listings, most of it the detail JSON with the raw data).
+- **Upload** (`deploy/blob.mjs`): the Blob REST API over plain `fetch` (no Azure SDK), authenticated by a container **SAS token** from `.env` (git-ignored; placeholders for `AZURE_STORAGE_ACCOUNT`, `AZURE_STORAGE_CONTAINER` (default `$web`), `AZURE_STORAGE_SAS` and `SITE_URL`; read with Node's `process.loadEnvFile`). Settings are checked first (placeholders, account-name format, `sig=` present, `se=` expiry not passed). Files go up 8 at a time as `PUT Blob` (`BlockBlob`, `x-ms-version` 2023-11-03) with their content type and `Cache-Control` (`assets/*` immutable for a year, everything else `no-cache`): hashed assets first, then data, `index.html` last, so a visitor never gets a page whose files are missing. Then blobs the new build no longer has (old assets, exports of listings that are gone) are deleted, if the container could be listed. 5xx and network errors are retried twice; errors name the operation, the blob and Azure's error code, never the token, and a 403 explains which SAS permissions are needed (Read, Add, Create, Write, Delete, List).
+- **`--dry-run`** builds and exports into `dist/site` and uploads nothing (works with placeholder settings).
+- **One-time setup by the user** (Azure Portal): a storage account; *Static website* enabled with index document `index.html`; a SAS token for the `$web` container with the permissions above, HTTPS only, with an expiry date; the values in `.env`.
+- **The boot log** names the real host (`window.location.hostname`) on the "secure channel" line, so it stays true on the hosted copy.
+
 ## 9. Testing
 `npm test` (`node:test`, no network, synthetic fixtures only):
 
@@ -392,6 +409,7 @@ _Redesigned 2026-11-11 for 1.1.0 at the user's request: "Tampere Targets", a TAC
 | Rebuild | Columns identical after rebuild; works with `fetch` disabled |
 | API (`test/api.test.mjs`) | Through Fastify `inject` on an in-memory DB with two synthetic runs: `is_new` only for the second run's additions, `removed` flag, thumbnails, distances, flags as booleans, no `*_json`/`*_hash` in the list route; detail photos sorted by `ordernr`, raw JSON, 404/400; `noPhotos` hides every photo URL; meta counts and cutoff; 503 without a database |
 | UI helpers (`test/ui-lib.test.mjs`) | Shared-point grouping and ring layout (no overlaps up to 20 markers); shortlist store round trip, bad data, blocked storage; "only shortlist" filter and `saved=1`; theme store (only "nv" switches NV on, blocked storage falls back to RECON, `data-theme` set and cleared); median |
+| Deploy (`test/deploy.test.mjs`) | `.env` settings (placeholders, account format, missing `sig=`, expired token, dry run); blob URLs, content types, caching; List Blobs parsing with paging; the client against a fake `fetch`: PUT headers, DELETE 404 accepted, 5xx retried, 403 explained without the token; bounded parallelism; upload order and stale blobs; `staticPath`; the static export from a synthetic DB (removed and new listings, raw JSON, robots.txt) |
 | UI logic (`test/filters.test.mjs`) | `web/src/lib/filters.js` and `format.js`: defaults (cutoff, no-date, unknown years, removed), both ends of every range, postal codes, only new, sorting with unknowns last, URL round trip and bad URL values, bounds snapping, formatting |
 
 After the first real capture (user step), verify by hand:
@@ -399,7 +417,7 @@ After the first real capture (user step), verify by hand:
 - 3 listings spot-checked against Oikotie (rent, size, available date, lease text);
 - `v_window` is a sensible subset.
 
-The UI is checked in the browser against FR-26…38. Animations can only be checked with the browser pane visible: in a hidden pane `requestAnimationFrame` does not run, so Leaflet zooms never finish. Agent previews use `npm run ui -- --no-photos --port 3005` (`.claude/launch.json` entry `ui-no-photos`; port 3005 so it never collides with the user's own `npm run ui` on 3000). The New tag, halo and "Only new" are checked against a temporary synthetic DB with a seeded second run (`TCB_DB=<temp file> node server/index.mjs --port 3100`, launch entry `ui-test-db`), never by editing `data/listings.db`.
+The UI is checked in the browser against FR-26…38. Animations can only be checked with the browser pane visible: in a hidden pane `requestAnimationFrame` does not run, so Leaflet zooms never finish. Agent previews use `npm run ui -- --no-photos --port 3005` (`.claude/launch.json` entry `ui-no-photos`; port 3005 so it never collides with the user's own `npm run ui` on 3000). The static build is checked the same way, never with the real export (it would load Oikotie photos): `TCB_DB=<synthetic file> node deploy/index.mjs --dry-run`, then serve `dist/site` with launch entry `site-static` (Vite preview, port 3006). The New tag, halo and "Only new" are checked against a temporary synthetic DB with a seeded second run (`TCB_DB=<temp file> node server/index.mjs --port 3100`, launch entry `ui-test-db`), never by editing `data/listings.db`.
 
 ## 10. Build order
 1. `package.json`, `config.json`.

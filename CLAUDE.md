@@ -1,6 +1,8 @@
 # CLAUDE.md
 
-A personal tool that collects Oikotie rental listings for Tampere into a local SQLite database and browses them in a local map and list web app. Single user, runs on their Windows 11 PC. Everything stays local.
+A personal tool that collects Oikotie rental listings for Tampere into a local SQLite database and browses them in a local map and list web app. Single user, runs on their Windows 11 PC. The local database is the master; the user may push a copy to a hosted site for their own use.
+
+This codebase is yours: what it's for and how it's built are your call, and you'll keep building on it.
 
 ## Read first
 1. [HANDOFF.md](HANDOFF.md): current state, open items and what is planned next.
@@ -28,7 +30,7 @@ When code and docs disagree, fix whichever is wrong in the same change. A change
 - The user accepted the terms-of-service risk for **personal use** only.
 
 ## Privacy
-Listing data never leaves this PC: not in hosted artifacts, commits, issues or tests. Tests use **synthetic** fixtures only. `data/`, `reports/`, `dist/`, `web/dist/`, `*.db` and `oikotie-*.json` are git-ignored. The server binds to 127.0.0.1 and has no write routes.
+Listing data may leave this PC for the user's own use (a hosted copy of the app; the old "never leaves this PC" rule was removed by the user on 2026-11-11), but it is personal use only: never in commits, issues, tests or anything shared with others. Tests use **synthetic** fixtures only. `data/`, `reports/`, `dist/`, `web/dist/`, `*.db` and `oikotie-*.json` are git-ignored. The server binds to 127.0.0.1 and has no write routes.
 
 ## Platform notes (Windows, PowerShell 5.1)
 - Read and write UTF-8 files with `-Encoding UTF8` or .NET; `Get-Content -Raw` mangles `—`, `ä` and runes.

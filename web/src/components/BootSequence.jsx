@@ -28,7 +28,7 @@ export default function BootSequence({ meta, count, error, saved, onDone }) {
     const out = [
       { text: 'Tampere Targets · tactical console v1.1.0', kind: 'head' },
       { text: 'Initializing tactical uplink', status: 'OK' },
-      { text: 'Establishing secure channel · 127.0.0.1', status: 'OK' },
+      { text: `Establishing secure channel · ${window.location.hostname || '127.0.0.1'}`, status: 'OK' },
       { text: 'Encrypting session', status: 'OK' },
       { text: `Acquiring GPS coordinates · ${coord(centre.lat, 'N', 'S')} ${coord(centre.lon, 'E', 'W')}`, status: 'LOCK' },
       error

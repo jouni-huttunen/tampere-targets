@@ -214,5 +214,5 @@ https://geo.stat.fi/geoserver/postialue/wfs?service=WFS&version=2.0.0&request=Ge
 2. **The user runs the capture,** in their own browser, when they choose. An AI agent never runs the bulk capture through its own browser. A smoke test of at most 2 detail requests is allowed only with the user's OK.
 3. **Polite pacing.** One request at a time, about 2 s apart plus jitter.
 4. **Stop when blocked.** A 403 or 429 ends the run; nothing tries to get around it.
-5. **Local only.** Data is never shared, published or placed in hosted pages. Aggregate numbers (counts) are fine.
+5. **Personal use only.** The data is for the user alone: never shared with or published for others. The user may host a copy for their own use (decided 2026-11-11; this replaced "local only", which also forbade hosted pages). Aggregate numbers (counts) are fine.
 6. **No images stored.** Only URLs.

@@ -283,7 +283,7 @@ function ListingMarkers({ listings, hoverId, selectedId, saved, onHover, onSelec
       marker.bindTooltip(textNode(tip, 'tip-text'), { direction: 'top', offset: [0, -8], className: 'map-tip' });
       marker.on('mouseover', () => handlers.current.onHover(id, 'map'));
       marker.on('mouseout', () => handlers.current.onHover(null, 'map'));
-      marker.on('click', () => handlers.current.onSelect(id));
+      marker.on('click', () => handlers.current.onSelect(id, 'map'));
       if (halo) halo.addTo(g);
       marker.addTo(g);
       layers.current.set(id, { marker, halo, listing: l });

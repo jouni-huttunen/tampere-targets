@@ -22,6 +22,8 @@ import { applyTheme, loadTheme, saveTheme } from './lib/theme.js';
 
 // Three columns (parameters | map | targets) from this width; same value as tokens.css notes.
 const WIDE_QUERY = '(min-width: 1360px)';
+// The stacked (phone) layout: the list under the map. Same value as app.css (max-width: 900px).
+const STACKED_QUERY = '(max-width: 900px)';
 // The boot sequence plays once per browser tab; a reload goes straight to the deploy animation.
 const BOOT_KEY = 'tcb.boot.v1';
 const DEPLOY_MS = 1300;
@@ -72,6 +74,10 @@ export default function App() {
   const [saved, setSaved] = useState(() => loadShortlist());
   const [phase, setPhase] = useState(firstPhase);
   const wide = useMediaQuery(WIDE_QUERY);
+  const stacked = useMediaQuery(STACKED_QUERY);
+  // Where the open target was picked: 'map', 'list' or null (from the URL).
+  const [selectSource, setSelectSource] = useState(null);
+  const mapRef = useRef(null);
   const [paramsOpen, setParamsOpen] = useState(false);
   const paramsButtonRef = useRef(null);
 
@@ -201,8 +207,19 @@ export default function App() {
     (id, source) => setHover((h) => (h.id === id && h.source === source ? h : { id, source })),
     [],
   );
-  const onSelect = useCallback((id) => setSelectedId(id), []);
-  const onClose = useCallback(() => setSelectedId(null), []);
+  const onSelect = useCallback((id, source = 'list') => {
+    setSelectedId(id);
+    setSelectSource(source);
+  }, []);
+  // Phone layout: a target picked on the map goes back to the map when its profile closes (after
+  // the profile has handed focus back), not to wherever the page happened to be.
+  const onClose = useCallback(() => {
+    setSelectedId(null);
+    if (stacked && selectSource === 'map') {
+      setHover({ id: null, source: null }); // a tap never sends "pointer left": drop the marker tooltip
+      requestAnimationFrame(() => mapRef.current?.scrollIntoView({ block: 'start', behavior: 'auto' }));
+    }
+  }, [stacked, selectSource]);
 
   const selectedSummary = useMemo(
     () => listings?.find((l) => l.card_id === selectedId) ?? null,
@@ -257,7 +274,7 @@ export default function App() {
             onClose={closeParams}
           />
         )}
-        <section className="map-wrap frame" aria-label="Tactical map">
+        <section className="map-wrap frame" aria-label="Tactical map" ref={mapRef}>
           {!listings && !error && phase !== 'boot' && <Radar />}
           <MapView
             listings={shown}
@@ -288,6 +305,8 @@ export default function App() {
           onlySaved={filters?.onlySaved ?? false}
           onOnlySaved={(onlySaved) => update({ onlySaved })}
           animateIn={phase !== 'boot'}
+          stacked={stacked}
+          selectSource={selectSource}
         />
       </main>
       {selectedId != null && (

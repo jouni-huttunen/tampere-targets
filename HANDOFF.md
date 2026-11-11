@@ -1,15 +1,16 @@
 # Handoff: Tampere Targets
 
-_Last updated 2026-11-11, at release 1.1.0. The rules and the read order are in [CLAUDE.md](CLAUDE.md); the spec is in [docs/](docs/). This file holds the **current state, open items and things that are true but aren't in the spec**. It is meant to stay short: when something is finished, move it to [CHANGELOG.md](CHANGELOG.md) or the spec and delete it here._
+_Last updated 2026-11-11, at release 1.2.0. The rules and the read order are in [CLAUDE.md](CLAUDE.md); the spec is in [docs/](docs/). This file holds the **current state, open items and things that are true but aren't in the spec**. It is meant to stay short: when something is finished, move it to [CHANGELOG.md](CHANGELOG.md) or the spec and delete it here._
 
 ## 1. State
-- **Released:** `v1.1.0` "Tampere Targets" on `main` (private GitHub repo `jouni-huttunen/tampere-city-boy`, `main` tracks `origin/main`): the tactical UI (boot sequence, RECON and NV themes, zoom strike, target lock, layout parameters | map | targets), approved by the user in their own browser. `npm test`: 87 passing. The GitHub repo and the folder keep the name `tampere-city-boy` unless the user asks.
+- **Released:** `v1.2.0` on `main` (private GitHub repo `jouni-huttunen/tampere-city-boy`, `main` tracks `origin/main`): the tactical UI of 1.1.0 plus `npm run deploy` (hosted copy) and the phone-layout fix. `npm test`: 95 passing. The GitHub repo and the folder keep the name `tampere-city-boy` unless the user asks.
 - **Data:** `data/listings.db` (git-ignored) holds 381 listings from two real captures (2026-11-10/11), all with details; the second run found nothing new, so the "New" tag has only ever been tested on synthetic databases.
 - **Environment:** Windows 11, Node 26.13.0 from the official nodejs.org MSI (no version manager; `.nvmrc` only records the version). The user dislikes winget and nvm-windows (see CLAUDE.md). An empty `C:\nvm4w` folder is left over from the old nvm install; it is harmless.
 - **PATH gotcha:** terminal tabs started by a process that predates a PATH change keep the old PATH, so `node` may be missing. Restart the app, or per shell: `$env:Path = "C:\Program Files\nodejs;$env:APPDATA\npm;$env:Path"`.
 - **Git:** the user's approved workflow is a short-lived branch → commit → fast-forward `main` → push; commit and push only when asked. `git config user.name` is "Anonymous" (the user knows). In PowerShell 5.1, pass multi-line commit messages with `git commit -F <file>` (a here-string with `-F -` silently lost the message once), and read UTF-8 files with `-Encoding UTF8` or .NET (`Get-Content -Raw` mangles `—` and `ä`).
 
 ## 2. Next
+- **Hosted copy:** live on Azure Storage static website hosting (the user's storage account, index document `index.html`), deployed with `npm run deploy` after each import; last deployed 2026-11-11 with the 1.2.0 build (451 files, 381 listings). An agent should not read `.env` (it holds the SAS token) and should not open the hosted site in its own browser (it loads Oikotie photos): check it with HTTP status and headers only. The SAS token has an expiry date; the deploy says when it has expired.
 - **Do not change** `format: "tampere-city-boy/oikotie-capture@1"` in the capture files (old capture files would stop importing) or the `tcb.*` localStorage keys (the shortlist would be lost) without a migration.
 - **Agent checks of animations need the browser pane visible:** while it is hidden, `requestAnimationFrame` does not run, so Leaflet zooms (and the strike) only happen when a screenshot pumps a frame, and CSS animations are measured mid-way.
 - **Improvements the user has in mind:** not yet written down. Ask, then record them here and in the spec before building (explain-before-implementing, see CLAUDE.md).
@@ -33,4 +34,4 @@ Useful for sanity checks, not for spec:
 - Building-type codes: 1 (359), 256 (19), 2 (3).
 
 ## 5. Privacy
-Listing data stays on this PC (NFR-03): never in hosted artifacts, commits or issues. `data/`, `reports/`, `dist/`, `web/dist/`, `*.db` and `oikotie-*.json` are git-ignored. This file names 3 listing ids; remove them if the repo is ever made public.
+Since 2026-11-11 listing data may leave the PC for the user's own hosted copy (NFR-03; the "stays on this PC" rule was removed), but it stays personal: never in commits, issues or anything shared. `data/`, `reports/`, `dist/`, `web/dist/`, `*.db` and `oikotie-*.json` are git-ignored. This file names 3 listing ids; remove them if the repo is ever made public.

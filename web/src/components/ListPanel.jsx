@@ -15,7 +15,7 @@ function loadView() {
 
 export default function ListPanel({
   listings, loading, error, sort, onSort, hover, selectedId, onHover, onSelect, onReset, noPhotos,
-  saved, onToggleSaved, onlySaved, onOnlySaved, animateIn = true,
+  saved, onToggleSaved, onlySaved, onOnlySaved, animateIn = true, stacked = false, selectSource = null,
 }) {
   const registry = useRef(new Map());
   // Rows (compact, the default) or cards (large photos); remembered in this browser.
@@ -30,15 +30,19 @@ export default function ListPanel({
 
   // Hovering a marker scrolls its card into view. Instant on purpose: a smooth scroll across
   // hundreds of cards lags behind the pointer as it moves from marker to marker.
+  // Not in the stacked (phone) layout: the list sits under the map there, so scrolling a row into
+  // view would drag the whole page away from the map (a tap on a marker also counts as a hover).
   useEffect(() => {
-    if (hover.source !== 'map' || hover.id == null) return;
+    if (stacked || hover.source !== 'map' || hover.id == null) return;
     registry.current.get(hover.id)?.scrollIntoView({ block: 'nearest', behavior: 'auto' });
-  }, [hover]);
+  }, [hover, stacked]);
 
-  // Keep the selected card in view (e.g. when stepping through homes in the drawer).
+  // Keep the selected card in view (e.g. when stepping through targets in the profile), except
+  // in the stacked layout when the target was picked on the map.
   useEffect(() => {
-    if (selectedId != null) registry.current.get(selectedId)?.scrollIntoView({ block: 'nearest', behavior: 'auto' });
-  }, [selectedId]);
+    if (selectedId == null || (stacked && selectSource === 'map')) return;
+    registry.current.get(selectedId)?.scrollIntoView({ block: 'nearest', behavior: 'auto' });
+  }, [selectedId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const busy = loading || !!error;
 

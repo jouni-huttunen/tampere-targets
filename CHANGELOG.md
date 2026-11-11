@@ -1,5 +1,20 @@
 # Changelog
 
+## 1.2.0 — 2026-11-11: hosted copy on Azure, phone fix
+
+A read-only copy of the app on Azure Storage, deployed by hand from the local database, and a fix for the phone layout. Deployed and in use.
+
+**Added**
+- `npm run deploy`: publishes a read-only copy of the UI with the current local data to Azure Storage static website hosting (`$web`), by hand only. The API answers are exported as static JSON through the local server's own routes; the upload uses the Blob REST API with a SAS token from a git-ignored `.env` (placeholders included), no Azure SDK. Hashed assets first, `index.html` last, stale files removed. `--dry-run` builds only.
+- `noindex` meta tag and a deny-all `robots.txt` on the hosted copy; the boot log names the real host.
+- Tests for the deploy (95 in total).
+
+**Fixed**
+- Phone layout: tapping a map target no longer scrolls the page down to its list row; the profile opens, and closing it brings the map back into view. Desktop is unchanged.
+
+**Changed**
+- The "listing data never leaves this PC" rule is removed (the user's decision): a hosted copy for the user's own use is allowed; personal use only, nothing shared, nothing in Git.
+
 ## 1.1.0 — 2026-11-11: Tampere Targets (tactical UI)
 
 Renamed to **Tampere Targets** and restyled as a tactical / spec-ops targeting console, at the user's request. Same data, filters and behaviour; new look, language and effects. Reviewed and approved by the user.

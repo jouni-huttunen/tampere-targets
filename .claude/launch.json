@@ -4,12 +4,35 @@
     {
       "name": "ui-no-photos",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "ui", "--", "--no-photos", "--port", "3005"],
+      "runtimeArgs": [
+        "run",
+        "ui",
+        "--",
+        "--no-photos",
+        "--port",
+        "3005"
+      ],
       "port": 3005
     },
     {
       "name": "ui-test-db",
       "url": "http://localhost:3100"
+    },
+    {
+      "name": "site-static",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": [
+        "vite",
+        "preview",
+        "--config",
+        "web/vite.config.mjs",
+        "--outDir",
+        "../dist/site",
+        "--port",
+        "3006",
+        "--strictPort"
+      ],
+      "port": 3006
     }
   ]
 }
