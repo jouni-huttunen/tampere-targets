@@ -2,6 +2,8 @@
 
 ## 1.6.2 — 2026-11-12: Fit beside the target profile
 
+Deployed.
+
 **Fixed**
 - "Fit N targets" with a target profile open (desktop): the targets now fit in the part of the map the profile leaves visible, instead of partly under the profile, so after a fit they are all in view.
 
