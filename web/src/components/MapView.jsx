@@ -55,6 +55,8 @@ const R = { base: 6.5, hover: 10, halo: 12 };
 const EDGE_MARGIN = 48;
 // The map's own pan to a selection counts as its own (it never releases the lock) for at most this.
 const SELF_MOVE_MS = 1500;
+// "Fit N targets" keeps the targets this far inside the visible map.
+const FIT_PAD = 48;
 
 export default memo(MapView);
 
@@ -67,10 +69,17 @@ function MapView({ listings, places, areas, infra, nv, hoverId, selectedId, save
   const readoutRef = useRef(null);
   const located = useMemo(() => listings.filter((l) => l.lat != null && l.lon != null), [listings]);
 
+  // Fit to the visible map: an open target profile covers the map's right side on desktop, so the
+  // targets go in the part it leaves visible (the same part that counts as "in view", FR-41).
   const fit = () => {
     if (!map || located.length === 0) return;
     const bounds = L.latLngBounds(located.map((l) => [l.lat, l.lon]));
-    map.fitBounds(bounds, { padding: [48, 48], maxZoom: 16 });
+    const view = visibleArea(map);
+    map.fitBounds(bounds, {
+      paddingTopLeft: [FIT_PAD, FIT_PAD],
+      paddingBottomRight: [view.mapWidth - view.width + FIT_PAD, FIT_PAD],
+      maxZoom: 16,
+    });
   };
 
   return (
@@ -152,6 +161,20 @@ function SizeWatcher() {
     return () => observer.disconnect();
   }, [map]);
   return null;
+}
+
+/**
+ * The part of the map the target profile leaves visible, in container pixels from the left:
+ * { width, height, mapWidth, hidden }. The profile docks over the map's right edge (offsetLeft:
+ * its resting place, not where its slide-in animation is now). When it would leave less than
+ * 120 px (the full-screen profile on phones), the whole map counts and `hidden` is true.
+ */
+function visibleArea(map) {
+  const box = map.getContainer().getBoundingClientRect();
+  const drawer = document.querySelector('.drawer');
+  const covered = drawer ? Math.max(0, box.right - drawer.offsetLeft) : 0;
+  const hidden = box.width - covered < 120;
+  return { width: hidden ? box.width : box.width - covered, height: box.height, mapWidth: box.width, hidden };
 }
 
 function textNode(text, className) {
@@ -374,7 +397,7 @@ function ListingMarkers({ listings, hoverId, selectedId, saved, onHover, onSelec
     // No lock under a profile that covers the whole map (phones): nobody sees it, and its
     // animation would compete with the profile's slide-in. A relayout (a phone turned to
     // landscape) draws it once the map shows beside the profile.
-    if (!entry || visibleArea().hidden) {
+    if (!entry || visibleArea(map).hidden) {
       lock.current?.remove();
       lock.current = null;
       lockId.current = null;
@@ -414,26 +437,12 @@ function ListingMarkers({ listings, hoverId, selectedId, saved, onHover, onSelec
   }
 
   /**
-   * The part of the map the target profile leaves visible, in container pixels from the left:
-   * { width, height, mapWidth, hidden }. The profile docks over the map's right edge (offsetLeft:
-   * its resting place, not where its slide-in animation is now). When it would leave less than
-   * 120 px (the full-screen profile on phones), the whole map counts and `hidden` is true.
-   */
-  function visibleArea() {
-    const box = map.getContainer().getBoundingClientRect();
-    const drawer = document.querySelector('.drawer');
-    const covered = drawer ? Math.max(0, box.right - drawer.offsetLeft) : 0;
-    const hidden = box.width - covered < 120;
-    return { width: hidden ? box.width : box.width - covered, height: box.height, mapWidth: box.width, hidden };
-  }
-
-  /**
    * Tell the app which targets have their marker (at its spread position) on the visible map:
    * inside the map and not under the target profile (the user's rule: hidden by the profile is
    * outside the map view).
    */
   function reportView() {
-    const { width, height } = visibleArea();
+    const { width, height } = visibleArea(map);
     const ids = new Set();
     for (const [id, entry] of layers.current) {
       const p = map.latLngToContainerPoint(entry.marker.getLatLng());
@@ -588,7 +597,7 @@ function ListingMarkers({ listings, hoverId, selectedId, saved, onHover, onSelec
     const entry = id != null ? layers.current.get(id) : null;
     if (!entry) return false;
     pannedFor.current = id;
-    const view = visibleArea();
+    const view = visibleArea(map);
     if (view.hidden) return false; // nothing sensible to show beside the profile
     const at = entry.marker.getLatLng();
     const p = map.latLngToContainerPoint(at);
