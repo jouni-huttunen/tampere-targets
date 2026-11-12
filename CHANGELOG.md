@@ -2,6 +2,8 @@
 
 ## 1.6.4 — 2026-11-12: touch changes reverted
 
+Deployed.
+
 **Reverted**
 - The 1.6.3 touch-screen changes: on the phone, taps on map markers no longer registered as easily. Touch screens behave as in 1.6.2 again (hover on tap, tooltip, lock on tablets, marker growth). The issue and the options for next time are in [docs/issue-touch-markers.md](docs/issue-touch-markers.md).
 
