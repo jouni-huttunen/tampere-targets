@@ -4,7 +4,7 @@
 
 Deployed.
 
-**Fixed** (phone stability; checked in the browser pane at phone sizes, not yet on the S24+)
+**Fixed** (phone stability; checked in the browser pane at phone sizes, and by the user on the S24+)
 - The page could become wider than the phone and scroll sideways (408 px on a 384 px screen in the Cards view): the layout's grid columns took their width from the widest card text. They now take the screen's width; long text ends in "…".
 - Scrolling past either end of the full-screen target profile scrolled the page hidden behind it (over 1,600 px), which then jumped on close. The page now stays put while the profile is open.
 - A target opened from under "Outside map view" on a phone had no ‹ › and no swipe. The hidden map now centres it (instantly) as it does on desktop, so it is in view and can be stepped from; after closing, its row is scrolled into view.

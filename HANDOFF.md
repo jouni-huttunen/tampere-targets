@@ -19,7 +19,6 @@ _Last updated 2026-11-12, at release 1.8.1. The rules and the read order are in 
 - **Improvements the user has in mind:** not written down. Ask, then record them here and in the spec before building (explain-before-implementing, see CLAUDE.md).
 
 ## 3. Open items
-- **Phone stability fixes (1.8.1; physical-device verification pending):** sideways overflow, the page scrolling behind the profile, no ‹ › for targets outside the map view, raw JSON loaded on demand (CHANGELOG "1.8.1"). Checked in the browser pane at 360/384/412/430 px, 915 × 412 sideways and desktop, with photos off; **not yet on the user's S24+** (touch swipes, real scroll momentum, photo decoding and frame rate unverified there), so the original stutter is not confirmed fixed.
 - **Phone rotation zoom-out** (parked by the user): portrait → landscape → portrait can leave the page looking smaller. Not reproducible in the pane (the page stays screen-width). The page could be wider than the screen in the Cards view (fixed above), a likely cause: re-check on the phone before trying the other proposed fixes (`minimum-scale=1` in the viewport tag, `overflow-x: clip` on the page, a zoom reset after rotation).
 - The user's own check of 3 listings against Oikotie (ids 24760731, 24705365, 24716849: rent, size, available date, lease text) is pending.
 - Real Oikotie photos are never seen by an agent (by design); only the user's browser loads them. The gallery and photo cards are tested with generated images.
