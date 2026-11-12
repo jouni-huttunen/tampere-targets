@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.8.0 — 2026-11-12: move-in months
+
+Deployed.
+
+**Changed**
+- Mission parameters: the move-in date range and "include no date" are replaced by **move-in month chips**: November, December, January, Later and Unknown, each with its count (FR-48). The month comes from the date field, or from the text: "heti" means the month the listing was fetched, and explicit dates or Finnish month names in the text are read too; a date already past counts as the fetch month. Later (from February 2027 on) is off by default, so those listings are out of view but still counted. With today's data: November 202, December 144, January 28, Later 1, Unknown 6.
+
 ## 1.7.0 — 2026-11-12: phone breakpoints, desktop keys, leaner profile
 
 Deployed.
@@ -16,7 +23,7 @@ Deployed.
 Deployed.
 
 **Reverted**
-- The 1.6.3 touch-screen changes: on the phone, taps on map markers no longer registered as easily. Touch screens behave as in 1.6.2 again (hover on tap, tooltip, lock on tablets, marker growth). The issue and the options for next time are in [docs/issue-touch-markers.md](docs/issue-touch-markers.md).
+- The 1.6.3 touch-screen changes: on the phone, taps on map markers no longer registered as easily. Touch screens behave as in 1.6.2 again (hover on tap, tooltip, lock on tablets, marker growth).
 
 ## 1.6.3 — 2026-11-12: no hover glitches on touch screens
 

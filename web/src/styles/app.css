@@ -982,8 +982,26 @@ input[type='date'].range-field {
   color: var(--ink-faint);
 }
 
-.zip-set legend {
+.zip-set legend,
+.move-set legend {
   margin-bottom: var(--sp-3);
+}
+
+/* Move-in chips: the month name in the console's display face, the count at the right. */
+.chip-month {
+  min-width: 0;
+  overflow: hidden;
+  font-family: var(--font-display);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-bold);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.chip-move .chip-count {
+  font-size: var(--fs-2xs);
 }
 
 .chips {

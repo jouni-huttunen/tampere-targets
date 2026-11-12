@@ -6,7 +6,7 @@ This codebase is yours: what it's for and how it's built are your call, and you'
 
 ## Read first
 1. [HANDOFF.md](HANDOFF.md): current state, open items and what is planned next.
-2. [docs/](docs/): the spec and the single source of truth: `01-requirements.md` (what, with acceptance criteria), `02-data-source.md` (Oikotie API facts, field map, other sources), `03-design.md` (architecture, schema, UI). `docs/archive/PLAN.md` is historical; don't build from it.
+2. [docs/](docs/): the spec and the single source of truth: `01-requirements.md` (what, with acceptance criteria), `02-data-source.md` (Oikotie API facts, field map, other sources), `03-design.md` (architecture, schema, UI).
 3. [CHANGELOG.md](CHANGELOG.md) for what each release contains. [README.md](README.md) for the commands.
 
 When code and docs disagree, fix whichever is wrong in the same change. A change is not done until `npm test` passes and the matching doc is updated.
@@ -17,10 +17,10 @@ When code and docs disagree, fix whichever is wrong in the same change. A change
 ## Working agreements (the user's standing rules)
 - **Explain before implementing.** Describe the user-facing flow (what they run, what they see, how it behaves, which dependencies you add) and get an explicit go-ahead before writing code for anything new. An ambiguous "ok" is not approval.
 - **No commits or pushes unless asked.** Workflow: short-lived branch → commit → fast-forward `main` → push. Releases are tagged `vX.Y.Z`. "Release" is that ask, and always includes a deploy (see Release and deploy).
-- **Deploy after every change** so the user can test it on the hosted copy (often on their phone), without asking first (the user's rule, 2026-11-12). See Release and deploy.
+- **Deploy after every change** so the user can test it on the hosted copy (often on their phone), without asking first (the user's rule). See Release and deploy.
 - **Read answers literally.** The user decides fast and changes scope in short messages; they prefer simple mechanisms and local filtering over clever rules.
 - **No winget, no nvm-windows.** Install tools from official installers and verify checksums. Ask before introducing a version manager.
-- **UI quality matters a lot to this user.** The look has been rejected once as boring and cheap. Weigh UI and UX heavily, keep all styling in `web/src/styles/tokens.css` (no raw colours elsewhere), keep text contrast at WCAG AA, and respect `prefers-reduced-motion`.
+- **UI quality matters a lot to this user.** The user rejects anything that looks boring or cheap. Weigh UI and UX heavily, keep all styling in `web/src/styles/tokens.css` (no raw colours elsewhere), keep text contrast at WCAG AA, and respect `prefers-reduced-motion`.
 
 ## Release and deploy
 `npm run deploy` builds the app from the **working tree** (committed or not) with the current local data and uploads it to the user's Azure static website (about a minute; `.env` holds the SAS token: never read it).
@@ -45,7 +45,7 @@ When code and docs disagree, fix whichever is wrong in the same change. A change
 - The user accepted the terms-of-service risk for **personal use** only.
 
 ## Privacy
-Listing data may leave this PC for the user's own use (a hosted copy of the app; the old "never leaves this PC" rule was removed by the user on 2026-11-11), but it is personal use only: never in commits, issues, tests or anything shared with others. Tests use **synthetic** fixtures only. `data/`, `reports/`, `dist/`, `web/dist/`, `*.db` and `oikotie-*.json` are git-ignored. The server binds to 127.0.0.1 and has no write routes.
+Listing data may leave this PC for the user's own use (a hosted copy of the app), but it is personal use only: never in commits, issues, tests or anything shared with others. Tests use **synthetic** fixtures only. `data/`, `reports/`, `dist/`, `web/dist/`, `*.db` and `oikotie-*.json` are git-ignored. The server binds to 127.0.0.1 and has no write routes.
 
 ## Platform notes (Windows, PowerShell 5.1)
 - Read and write UTF-8 files with `-Encoding UTF8` or .NET; `Get-Content -Raw` mangles `—`, `ä` and runes.

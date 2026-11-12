@@ -23,20 +23,18 @@ export const SORTS = [
 
 const OPEN = [null, null];
 
-/** Day before a YYYY-MM-DD date ("2027-02-01" → "2027-01-31"). */
-export function dayBefore(date) {
-  const ms = Date.parse(date + 'T00:00:00Z') - 86400000;
-  return new Date(ms).toISOString().slice(0, 10);
-}
+// Move-in chips that are off: month keys ("2026-12"), "later" or "unknown" (lib/movein.js).
+// Stored as the chips switched off, so months that appear with new data start switched on.
+export const DEFAULT_MOVE_OFF = ['later'];
+const MOVE_KEY = /^(\d{4}-\d{2}|later|unknown)$/;
 
-export function defaultFilters(meta) {
+export function defaultFilters() {
   return {
     year: OPEN,
     rent: OPEN,
     size: OPEN,
     rooms: OPEN,
-    avail: [null, meta?.windowCutoff ? dayBefore(meta.windowCutoff) : null],
-    noDate: true,
+    moveOff: DEFAULT_MOVE_OFF,
     zips: [],
     onlyNew: false,
     onlySaved: false,
@@ -58,7 +56,6 @@ export function dataBounds(listings) {
     rent: rent && [Math.floor(rent[0] / 10) * 10, Math.ceil(rent[1] / 10) * 10],
     size: size && [Math.floor(size[0]), Math.ceil(size[1])],
     rooms: span(listings.map((l) => l.rooms)),
-    avail: span(listings.map((l) => l.available_date)),
   };
 }
 
@@ -93,11 +90,7 @@ export function matches(l, f, saved = null) {
     const v = l[FIELD[key]];
     if (v === null || v === undefined || !inRange(v, range)) return false;
   }
-  if (l.available_date == null) {
-    if (!f.noDate) return false;
-  } else if (!inRange(l.available_date, f.avail)) {
-    return false;
-  }
+  if (f.moveOff.includes(l.move_in ?? 'unknown')) return false;
   if (f.zips.length && !f.zips.includes(l.zip)) return false;
   if (f.onlyNew && !l.is_new) return false;
   if (f.onlySaved && !saved?.has(l.card_id)) return false;
@@ -140,16 +133,16 @@ export function sortListings(listings, sort) {
 }
 
 // ---- URL query ----------------------------------------------------------------------
-// year=2010..2026, year=2010.. , rent=..900, from/to as one "avail" key, zip=33100,33200,
-// nodate=0, new=1, removed=show, sort=size. Only values that differ from the defaults are written.
+// year=2010..2026, year=2010.. , rent=..900, moveoff=2026-11,later (the move-in chips switched
+// off; empty = all on), zip=33100,33200, new=1, removed=show, sort=size. Only values that differ
+// from the defaults are written.
 
 const rangeText = ([a, b]) => `${a ?? ''}..${b ?? ''}`;
-function parseRange(text, kind) {
+function parseRange(text) {
   if (typeof text !== 'string' || !text.includes('..')) return null;
   const [a, b] = text.split('..');
   const read = (s) => {
     if (s === '') return null;
-    if (kind === 'date') return /^\d{4}-\d{2}-\d{2}$/.test(s) ? s : undefined;
     const n = Number(s);
     return Number.isFinite(n) ? n : undefined;
   };
@@ -158,12 +151,12 @@ function parseRange(text, kind) {
 }
 
 const sameRange = (x, y) => x[0] === y[0] && x[1] === y[1];
+const sameSet = (x, y) => x.length === y.length && x.every((k) => y.includes(k));
 
 export function toQuery(f, defaults) {
   const q = new URLSearchParams();
   for (const key of RANGE_KEYS) if (!sameRange(f[key], defaults[key])) q.set(key, rangeText(f[key]));
-  if (!sameRange(f.avail, defaults.avail)) q.set('avail', rangeText(f.avail));
-  if (f.noDate !== defaults.noDate) q.set('nodate', f.noDate ? '1' : '0');
+  if (!sameSet(f.moveOff, defaults.moveOff)) q.set('moveoff', f.moveOff.join(','));
   if (f.zips.length) q.set('zip', f.zips.join(','));
   if (f.onlyNew) q.set('new', '1');
   if (f.onlySaved) q.set('saved', '1');
@@ -176,13 +169,10 @@ export function fromQuery(search, defaults, validZips = null) {
   const q = new URLSearchParams(search);
   const f = structuredClone(defaults);
   for (const key of RANGE_KEYS) {
-    const r = q.has(key) ? parseRange(q.get(key), 'number') : null;
+    const r = q.has(key) ? parseRange(q.get(key)) : null;
     if (r) f[key] = r;
   }
-  const avail = q.has('avail') ? parseRange(q.get('avail'), 'date') : null;
-  if (avail) f.avail = avail;
-  if (q.get('nodate') === '0') f.noDate = false;
-  if (q.get('nodate') === '1') f.noDate = true;
+  if (q.has('moveoff')) f.moveOff = [...new Set(q.get('moveoff').split(',').filter((k) => MOVE_KEY.test(k)))];
   if (q.get('zip')) {
     f.zips = q
       .get('zip')
@@ -200,8 +190,8 @@ export function fromQuery(search, defaults, validZips = null) {
 /** How many filters differ from their defaults (sort is not a filter). */
 export function activeFilterCount(f, defaults) {
   let n = 0;
-  for (const key of [...RANGE_KEYS, 'avail']) if (!sameRange(f[key], defaults[key])) n++;
-  if (f.noDate !== defaults.noDate) n++;
+  for (const key of RANGE_KEYS) if (!sameRange(f[key], defaults[key])) n++;
+  if (!sameSet(f.moveOff, defaults.moveOff)) n++;
   if (f.zips.length) n++;
   if (f.onlyNew) n++;
   if (f.onlySaved) n++;

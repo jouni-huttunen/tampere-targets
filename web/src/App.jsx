@@ -24,6 +24,7 @@ import { listingFromSearch, profileState, searchWithListing, stepsToMain } from 
 import { applyTheme, loadTheme, saveTheme } from './lib/theme.js';
 import { loadPanels, savePanels } from './lib/panels.js';
 import { PHONE_QUERY, STACKED_QUERY, WIDE_QUERY } from './lib/layout.js';
+import { moveInBucket } from './lib/movein.js';
 
 // The boot sequence plays once per browser tab; a reload goes straight to the deploy animation.
 const BOOT_KEY = 'tcb.boot.v1';
@@ -217,7 +218,8 @@ export default function App() {
       .then(([m, rows]) => {
         if (cancelled) return;
         setMeta(m);
-        setListings(rows);
+        // The inferred move-in month (or "later" / "unknown") once per listing, for the chips.
+        setListings(rows.map((l) => ({ ...l, move_in: moveInBucket(l, m.windowCutoff) })));
         setFilters(fromQuery(window.location.search, defaultFilters(m), m.zips));
       })
       .catch((err) => !cancelled && setError(err instanceof ApiError ? err : new ApiError('http', String(err))));
@@ -435,11 +437,11 @@ export default function App() {
           <Filters
             overlay={!wide}
             filters={filters}
-            defaults={defaults}
             bounds={bounds}
             zips={meta?.zips ?? NO_ZIPS}
             zipNames={zipNames}
             listings={listings}
+            windowCutoff={meta?.windowCutoff}
             saved={saved}
             activeCount={paramCount}
             onChange={update}

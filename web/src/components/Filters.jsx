@@ -1,5 +1,9 @@
 import { memo, useEffect, useMemo } from 'react';
+import { LATER, UNKNOWN, monthLabel, moveInChips } from '../lib/movein.js';
 import { YEAR_DECADES } from '../lib/stops.js';
+
+/** "2027-02-01" → "February 2027". */
+const fmtMonth = (date) => `${monthLabel(date.slice(0, 7))} ${date.slice(0, 4)}`;
 import { PanelChevron } from './PanelRail.jsx';
 import RangeFilter from './RangeFilter.jsx';
 
@@ -20,18 +24,18 @@ const YEAR_ERAS = [
 export default memo(Filters);
 
 function Filters({
-  overlay, filters, defaults, bounds, zips, zipNames, listings, saved, activeCount, onChange, onReset, onClose, onHide, hideRef,
+  overlay, filters, bounds, zips, zipNames, listings, windowCutoff, saved, activeCount, onChange, onReset, onClose, onHide, hideRef,
 }) {
   const counts = useMemo(() => {
-    const c = { new: 0, removed: 0, noDate: 0, zip: {} };
+    const c = { new: 0, removed: 0, zip: {} };
     for (const l of listings ?? []) {
       if (l.is_new && !l.removed) c.new++;
       if (l.removed) c.removed++;
-      if (!l.removed && l.available_date == null) c.noDate++;
       if (!l.removed) c.zip[l.zip] = (c.zip[l.zip] ?? 0) + 1;
     }
     return c;
   }, [listings]);
+  const moveChips = useMemo(() => moveInChips(listings ?? [], windowCutoff), [listings, windowCutoff]);
 
   // The overlay sits on top of the target profile: Esc closes the overlay first.
   useEffect(() => {
@@ -45,6 +49,12 @@ function Filters({
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [overlay, onClose]);
+
+  const toggleMove = (key) => {
+    const off = new Set(filters.moveOff);
+    off.has(key) ? off.delete(key) : off.add(key);
+    onChange({ moveOff: [...off] });
+  };
 
   const toggleZip = (zip) => {
     const set = new Set(filters.zips);
@@ -109,18 +119,18 @@ function Filters({
             <RangeFilter label="Rooms" bounds={bounds?.rooms} value={filters.rooms} onChange={(rooms) => onChange({ rooms })} />
           </section>
 
-          <section className="param-group" aria-label="Timing">
-            <h3 className="group-title">Timing</h3>
-            <RangeFilter
-              label="Move-in window"
-              kind="date"
-              hint={defaults && filters.avail[1] === defaults.avail[1] ? 'Default: by end of Jan' : null}
-              bounds={bounds?.avail}
-              value={filters.avail}
-              onChange={(avail) => onChange({ avail })}
-            />
-            <Switch label="Include targets with no move-in date" count={counts.noDate} checked={filters.noDate} onChange={(noDate) => onChange({ noDate })} />
-          </section>
+          <fieldset className="param-group move-set">
+            <legend className="group-title">Move-in</legend>
+            <div className="chips">
+              {moveChips.map((c) => (
+                <button key={c.key} type="button" className="chip chip-move" aria-pressed={!filters.moveOff.includes(c.key)} onClick={() => toggleMove(c.key)}
+                  title={c.key === LATER ? `Move-in from ${windowCutoff ? fmtMonth(windowCutoff) : 'later'} on` : c.key === UNKNOWN ? 'No move-in date in the listing' : `${c.label} ${c.year}`}>
+                  <span className="chip-month">{c.label}</span>
+                  <span className="chip-count">{c.count}</span>
+                </button>
+              ))}
+            </div>
+          </fieldset>
 
           <fieldset className="param-group zip-set">
             <legend className="group-title">Sectors</legend>
