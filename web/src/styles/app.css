@@ -2115,8 +2115,12 @@ input[type='date'].range-field {
 
 /* Gallery: full-bleed hero photo fading into the panel, thumbnails below. Natural colours
    here (also in NV): this is where the operator actually inspects the target. */
+/* One column exactly as wide as the profile: minmax(0, 1fr), so the thumbnail strip (which can
+   be far wider, and scrolls) never widens the column and with it the photo (broke in 1.6.0,
+   when the strip got the .gallery-under wrapper). */
 .gallery {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--sp-2);
   margin: calc(-1 * var(--sp-6)) calc(-1 * var(--sp-6)) 0;
 }
@@ -2134,6 +2138,7 @@ input[type='date'].range-field {
    thumbnail row's height, also while the details load: the profile never jumps when they
    arrive. 50 px thumbnails + their bottom padding. */
 .gallery-under {
+  min-width: 0;
   min-height: calc(50px + var(--sp-1));
 }
 

@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.6.1 — 2026-11-12: profile photo size fix
+
+Deployed.
+
+**Fixed**
+- The photo in the target profile grew with the number of photos (up to many times the screen width on phones, 1.6.0 regression): the thumbnail strip widened the gallery's column. The gallery is now one column exactly as wide as the profile, and the strip scrolls inside it.
+
 ## 1.6.0 — 2026-11-12: hideable side panels, smoother phone profile
 
 Deployed.
