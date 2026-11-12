@@ -106,6 +106,9 @@ input {
   --list-col: var(--list-w);
   height: 100dvh;
   display: grid;
+  /* minmax(0, …): the column is the window's width. An implicit (auto) column would grow to the
+     widest content's min-content (a card's facts line) and make the page scroll sideways. */
+  grid-template-columns: minmax(0, 1fr);
   grid-template-rows: var(--header-h) minmax(0, 1fr);
   background: var(--texture-grid), var(--bg-deep);
   overflow: hidden;
@@ -1344,6 +1347,7 @@ input[type='date'].range-field {
   min-height: 0;
   overflow: auto;
   display: grid;
+  grid-template-columns: minmax(0, 1fr); /* rows and cards take the list's width, not their content's */
   align-content: start;
   margin: 0;
   padding: 0;
@@ -4172,6 +4176,18 @@ input[type='date'].range-field {
     animation-name: profile-in-phone;
   }
 
+  /* The page behind the full-screen profile stays where it was: the profile's own scroll never
+     runs on into the page (a gesture past either end, or one on the profile's top bar), and the
+     page cannot be scrolled while it is covered. DetailDrawer sets the class while it is open. */
+  html.profile-open {
+    overflow: hidden;
+    overscroll-behavior: none;
+  }
+
+  .drawer-scroll {
+    overscroll-behavior: contain;
+  }
+
   .drawer-top {
     padding-left: var(--sp-4);
   }
@@ -4267,7 +4283,7 @@ input[type='date'].range-field {
   }
 
   .main {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
     grid-template-areas: 'map' 'list';
   }
 

@@ -158,7 +158,13 @@ export default function DetailDrawer({
   useEffect(() => {
     returnFocus.current = document.activeElement;
     closeRef.current?.focus();
+    // Phones: the page behind the full-screen profile does not scroll (app.css, html.profile-open;
+    // the rule applies only in the phone layout, so turning the phone or widening the window
+    // needs nothing here). Removed when the profile closes, however it closes.
+    const root = document.documentElement;
+    root.classList.add('profile-open');
     return () => {
+      root.classList.remove('profile-open');
       const el = returnFocus.current;
       if (el && document.contains(el)) el.focus();
     };
@@ -330,16 +336,44 @@ export default function DetailDrawer({
               </p>
             )}
 
-            {detail && (
-              <details className="raw">
-                <summary>Raw intel (JSON)</summary>
-                <pre>{JSON.stringify(detail.raw, null, 2)}</pre>
-              </details>
-            )}
+            {detail && <RawIntel key={id} id={id} />}
           </>
         )}
       </div>
     </aside>
+  );
+}
+
+/**
+ * "Raw intel": the stored search card and detail JSON, fetched and formatted only when opened
+ * (GET /api/raw/:id). Keyed by target, so a new target starts closed and empty and never shows
+ * the previous one's data; a failed load can be retried by closing and opening it again.
+ */
+function RawIntel({ id }) {
+  const [state, setState] = useState({ status: 'idle' }); // idle | loading | ready | error
+  const controller = useRef(null);
+  useEffect(() => () => controller.current?.abort(), []);
+
+  const onToggle = (e) => {
+    if (!e.currentTarget.open || state.status === 'loading' || state.status === 'ready') return;
+    controller.current = new AbortController();
+    setState({ status: 'loading' });
+    getJson(`/api/raw/${id}`, { signal: controller.current.signal })
+      .then((raw) => setState({ status: 'ready', text: JSON.stringify({ search: raw.search, detail: raw.detail }, null, 2) }))
+      .catch((err) => err.name !== 'AbortError' && setState({ status: 'error', message: err.message }));
+  };
+
+  return (
+    <details className="raw" onToggle={onToggle}>
+      <summary>Raw intel (JSON)</summary>
+      {state.status === 'ready' && <pre>{state.text}</pre>}
+      {state.status === 'loading' && <p className="prose quiet">Loading…</p>}
+      {state.status === 'error' && (
+        <p className="prose quiet" role="alert">
+          Couldn’t load the raw data: {state.message} Close and open this section to try again.
+        </p>
+      )}
+    </details>
   );
 }
 

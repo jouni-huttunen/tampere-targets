@@ -14,20 +14,23 @@ async function getOk(app, url) {
 }
 
 /**
- * Writes api/meta.json, api/listings.json and api/listings/<id>.json (every listing, removed
- * ones too, as the list route returns them) plus robots.txt into outDir. Returns the counts.
+ * Writes api/meta.json, api/listings.json, api/listings/<id>.json and api/raw/<id>.json (every
+ * listing, removed ones too, as the list route returns them) plus robots.txt into outDir.
+ * Returns the counts.
  */
 export async function exportData({ db, config, outDir }) {
   const app = buildApp({ db, config, noPhotos: false });
   try {
     const api = path.join(outDir, 'api');
     mkdirSync(path.join(api, 'listings'), { recursive: true });
+    mkdirSync(path.join(api, 'raw'), { recursive: true });
     writeFileSync(path.join(api, 'meta.json'), await getOk(app, '/api/meta'));
     const listBody = await getOk(app, '/api/listings');
     writeFileSync(path.join(api, 'listings.json'), listBody);
     const ids = JSON.parse(listBody).map((l) => l.card_id);
     for (const id of ids) {
       writeFileSync(path.join(api, 'listings', `${id}.json`), await getOk(app, `/api/listings/${id}`));
+      writeFileSync(path.join(api, 'raw', `${id}.json`), await getOk(app, `/api/raw/${id}`));
     }
     writeFileSync(path.join(outDir, 'robots.txt'), ROBOTS);
     return { listings: ids.length };

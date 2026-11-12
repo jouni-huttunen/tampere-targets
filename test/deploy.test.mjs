@@ -155,6 +155,7 @@ test('staticPath maps API routes to the exported JSON files', () => {
   assert.equal(staticPath('/api/listings'), '/api/listings.json');
   assert.equal(staticPath('/api/listings/24760731'), '/api/listings/24760731.json');
   assert.equal(staticPath('/api/listings/'), '/api/listings.json');
+  assert.equal(staticPath('/api/raw/24760731'), '/api/raw/24760731.json');
 });
 
 test('exportData writes meta, the list, one file per listing (removed ones too) and robots.txt', async () => {
@@ -180,13 +181,18 @@ test('exportData writes meta, the list, one file per listing (removed ones too) 
     assert.equal(list.find((l) => l.card_id === 3).is_new, true);
     const detail = JSON.parse(readFileSync(path.join(out, 'api', 'listings', '1.json'), 'utf8'));
     assert.equal(detail.card_id, 1);
-    assert.ok(detail.raw, 'the detail keeps its raw JSON, as the local server sends it');
+    assert.ok(!('raw' in detail), 'the detail has no raw JSON, as the local server sends it');
+    const raw = JSON.parse(readFileSync(path.join(out, 'api', 'raw', '1.json'), 'utf8'));
+    assert.equal(raw.detail.cardId, 1, 'the raw JSON is a file of its own, loaded on request');
     const meta = JSON.parse(readFileSync(path.join(out, 'api', 'meta.json'), 'utf8'));
     assert.equal(meta.noPhotos, false);
     assert.equal(readFileSync(path.join(out, 'robots.txt'), 'utf8'), 'User-agent: *\nDisallow: /\n');
     assert.deepEqual(
       listFiles(out).map((f) => f.name).sort(),
-      ['api/listings.json', 'api/listings/1.json', 'api/listings/2.json', 'api/listings/3.json', 'api/meta.json', 'robots.txt'],
+      [
+        'api/listings.json', 'api/listings/1.json', 'api/listings/2.json', 'api/listings/3.json', 'api/meta.json',
+        'api/raw/1.json', 'api/raw/2.json', 'api/raw/3.json', 'robots.txt',
+      ],
     );
     assert.ok(existsSync(path.join(out, 'api', 'listings', '3.json')));
   } finally {

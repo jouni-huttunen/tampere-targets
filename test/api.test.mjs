@@ -67,20 +67,32 @@ test('list route: is_new, removed, thumbnails, distances and no raw JSON', async
   await app.close();
 });
 
-test('detail route: photos sorted by ordernr, raw JSON, 404 and 400', async () => {
+test('detail route: photos sorted by ordernr, no raw JSON, 404 and 400', async () => {
   const { db, config } = seeded();
   const app = buildApp({ db, config });
   const { status, body } = await get(app, '/api/listings/1');
   assert.equal(status, 200);
   assert.deepEqual(body.photos.map((p) => p.large), ['l1', 'l2']);
   assert.equal(body.photo_count, 2);
-  assert.equal(body.raw.detail.cardId, 1);
-  assert.equal(body.raw.search.cardId, 1);
+  for (const key of ['raw', 'search_json', 'detail_json']) assert.ok(!(key in body), `detail has no ${key}`);
   assert.equal(body.lease_text, 'Toistaiseksi voimassa oleva');
   assert.equal(body.description, 'Valoisa kaksio.');
   assert.equal((await get(app, '/api/listings/999')).status, 404);
   assert.equal((await get(app, '/api/listings/abc')).status, 400);
   assert.equal((await get(app, '/api/nope')).status, 404);
+  await app.close();
+});
+
+test('raw route: the stored search card and detail JSON on request, 404 and 400', async () => {
+  const { db, config } = seeded();
+  const app = buildApp({ db, config });
+  const { status, body } = await get(app, '/api/raw/1');
+  assert.equal(status, 200);
+  assert.equal(body.card_id, 1);
+  assert.equal(body.search.cardId, 1);
+  assert.equal(body.detail.cardId, 1);
+  assert.equal((await get(app, '/api/raw/999')).status, 404);
+  assert.equal((await get(app, '/api/raw/abc')).status, 400);
   await app.close();
 });
 

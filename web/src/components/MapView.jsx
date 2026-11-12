@@ -595,7 +595,8 @@ function ListingMarkers({ listings, hoverId, selectedId, saved, onHover, onSelec
   /**
    * Keep the selected marker on the visible map (the part the target profile does not cover).
    * A target off the map (outside its bounds: one picked under the "outside map view"
-   * separator, or from a link) is centred in that part. Otherwise a target at least EDGE_MARGIN
+   * separator, or from a link) is centred in that part, also under the full-screen profile on
+   * phones (otherwise it would never be in view and would have no ‹ › or swipe). Otherwise a target at least EDGE_MARGIN
    * px inside it does not move the map at all (the user's choice: every pan reorders the list,
    * FR-41); one nearer an edge or under the profile moves only far enough to sit EDGE_MARGIN px
    * inside.
@@ -608,15 +609,18 @@ function ListingMarkers({ listings, hoverId, selectedId, saved, onHover, onSelec
     if (!entry) return false;
     pannedFor.current = id;
     const view = visibleArea(map);
-    if (view.hidden) return false; // nothing sensible to show beside the profile
     const at = entry.marker.getLatLng();
     const p = map.latLngToContainerPoint(at);
     if (p.x < 0 || p.y < 0 || p.x > view.mapWidth || p.y > view.height) {
-      // Off the map: centre it in the part the profile leaves visible.
+      // Off the map: centre it in the part the profile leaves visible (the whole map under a
+      // full-screen profile). That puts it in view, so ‹ › and the swipe work from it (FR-41/44);
+      // under a full-screen profile the jump is instant: nobody sees it, and an animated pan
+      // would compete with the profile's slide-in.
       selfMove.current = performance.now() + SELF_MOVE_MS;
-      map.panBy(L.point(p.x - view.width / 2, p.y - view.height / 2));
+      map.panBy(L.point(p.x - view.width / 2, p.y - view.height / 2), { animate: !view.hidden });
       return true;
     }
+    if (view.hidden) return false; // on the map already: in view, and nothing to show beside the profile
     const inside = p.x >= EDGE_MARGIN && p.x <= view.width - EDGE_MARGIN && p.y >= EDGE_MARGIN && p.y <= view.height - EDGE_MARGIN;
     if (inside) return false;
     // Near an edge or under the profile: move only far enough to sit EDGE_MARGIN px inside.

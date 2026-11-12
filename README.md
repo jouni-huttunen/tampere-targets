@@ -2,7 +2,7 @@
 
 A personal tool for finding a rental in Tampere. It collects Oikotie rental listings into a local SQLite database (through a script you run in your own browser) and lets you browse them on a local map and list. The local database is the master.
 
-_Version 1.8.0 (shown after the title). The UI is a tactical console: press **N** for night vision, which also shows stops and grocery stores._
+_Version 1.8.1 (shown after the title). The UI is a tactical console: press **N** for night vision, which also shows stops and grocery stores._
 
 ## Setup
 

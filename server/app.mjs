@@ -65,7 +65,10 @@ export function listRow(row, { newIds, places, noPhotos = false }) {
   return out;
 }
 
-/** GET /api/listings/:id: the list row plus title, description, photos and the raw JSON. */
+/**
+ * GET /api/listings/:id: the list row plus title, description and photos. The raw JSON is not
+ * part of it (three quarters of the bytes, and the profile shows it only on request): see rawRow.
+ */
 export function detailRow(row, opts) {
   const search = parseJson(row.search_json);
   const detail = parseJson(row.detail_json);
@@ -77,8 +80,12 @@ export function detailRow(row, opts) {
     description: ad.description ?? search?.data?.description ?? null,
     photo_count: photos.length,
     photos: opts.noPhotos ? [] : photos,
-    raw: { search, detail },
   };
+}
+
+/** GET /api/raw/:id: the stored search card and detail JSON, for the profile's "Raw intel". */
+export function rawRow(row) {
+  return { card_id: row.card_id, search: parseJson(row.search_json), detail: parseJson(row.detail_json) };
 }
 
 function newIdSet(db) {
@@ -144,6 +151,13 @@ export function buildApp({ db, config, noPhotos = false, staticDir = null, logge
     const row = db.prepare('SELECT * FROM listings WHERE card_id = ?').get(Number(req.params.id));
     if (!row) return reply.code(404).send({ error: 'not-found' });
     return detailRow(row, opts());
+  });
+
+  app.get('/api/raw/:id', { preHandler: needDb }, async (req, reply) => {
+    if (!/^\d{1,12}$/.test(req.params.id)) return reply.code(400).send({ error: 'bad-id' });
+    const row = db.prepare('SELECT card_id, search_json, detail_json FROM listings WHERE card_id = ?').get(Number(req.params.id));
+    if (!row) return reply.code(404).send({ error: 'not-found' });
+    return rawRow(row);
   });
 
   app.all('/api/*', async (req, reply) => reply.code(404).send({ error: 'not-found' }));

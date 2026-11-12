@@ -47,6 +47,19 @@ function ListPanel({
     registry.current.get(selectedId)?.scrollIntoView({ block: 'nearest', behavior: 'auto' });
   }, [selectedId]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Stacked (phone) layout: when a profile opened from the list closes, the last target viewed is
+  // on screen. Its row may have moved while the profile was open (a target picked outside the map
+  // view is centred on the map, which reorders the list), so returning to the old scroll offset
+  // alone could show other targets. In the next frame: the browser restores the scroll position
+  // of the history entry after Back's popstate (× goes back too), which would undo it.
+  const lastSelected = useRef(selectedId);
+  useEffect(() => {
+    const was = lastSelected.current;
+    lastSelected.current = selectedId;
+    if (!stacked || selectedId != null || was == null || selectSource === 'map') return;
+    requestAnimationFrame(() => registry.current.get(was)?.scrollIntoView({ block: 'nearest', behavior: 'auto' }));
+  }, [selectedId]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const busy = loading || !!error;
   // Targets on the visible map come first; null: all of them are in view (no separator).
   const split = inViewCount != null && inViewCount < listings.length;
