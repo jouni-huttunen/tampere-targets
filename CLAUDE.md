@@ -16,10 +16,25 @@ When code and docs disagree, fix whichever is wrong in the same change. A change
 
 ## Working agreements (the user's standing rules)
 - **Explain before implementing.** Describe the user-facing flow (what they run, what they see, how it behaves, which dependencies you add) and get an explicit go-ahead before writing code for anything new. An ambiguous "ok" is not approval.
-- **No commits or pushes unless asked.** Workflow: short-lived branch → commit → fast-forward `main` → push. Releases are tagged `vX.Y.Z`.
+- **No commits or pushes unless asked.** Workflow: short-lived branch → commit → fast-forward `main` → push. Releases are tagged `vX.Y.Z`. "Release" is that ask, and always includes a deploy (see Release and deploy).
+- **Deploy after every change** so the user can test it on the hosted copy (often on their phone), without asking first (the user's rule, 2026-11-12). See Release and deploy.
 - **Read answers literally.** The user decides fast and changes scope in short messages; they prefer simple mechanisms and local filtering over clever rules.
 - **No winget, no nvm-windows.** Install tools from official installers and verify checksums. Ask before introducing a version manager.
 - **UI quality matters a lot to this user.** The look has been rejected once as boring and cheap. Weigh UI and UX heavily, keep all styling in `web/src/styles/tokens.css` (no raw colours elsewhere), keep text contrast at WCAG AA, and respect `prefers-reduced-motion`.
+
+## Release and deploy
+`npm run deploy` builds the app from the **working tree** (committed or not) with the current local data and uploads it to the user's Azure static website (about a minute; `.env` holds the SAS token: never read it).
+- **After a change** that shows in the app: once `npm test` passes (and the preview check, for UI work), run `npm run deploy`, check it by HTTP (below) and tell the user it is live to test. The header still shows the last released version, so say that the hosted copy runs unreleased work. Update the Hosted copy line in HANDOFF (what is deployed, when).
+- **When the user says "release"**, in this order, so one commit holds it all:
+  1. Version: patch for fixes and reverts, minor for features. Set it in `package.json`, `package-lock.json` (2 places), the `_Version X_` line in README, the CHANGELOG heading (`## Unreleased` → `## X — YYYY-MM-DD: short title`, then a `Deployed.` line) and HANDOFF (the "at release X" header line, the Released line, the Hosted copy line).
+  2. `npm test`.
+  3. `npm run deploy`, then the HTTP check.
+  4. Branch `release-X` → `git add` the files by name → `git commit -F <file>` → `git switch main` → `git merge --ff-only` → delete the branch → `git tag -a vX -m "Release X: title"` → `git push origin main` and `git push origin vX`.
+- **HTTP check only:** never open the hosted site in the agent's browser (it loads Oikotie photos). The index is gzipped, so use `--compressed`. The site URL is printed by the deploy (`Done: …`). Check that the index answers 200, names the same `assets/index-*.js` as `dist/site/assets/`, and that the script carries the version:
+  ```bash
+  base=<site url>; v=$(node -p "require('./package.json').version"); js=$(curl -s --compressed "$base/" | grep -o 'assets/index-[^"]*\.js' | head -1); ls dist/site/assets/index-*.js; echo "$js"; curl -s --compressed "$base/$js" | grep -oF "$v" | head -1
+  ```
+- **If the deploy fails** (most often an expired SAS token; the deploy says so), stop and tell the user; don't commit a release marked "Deployed".
 
 ## Hard guardrails for Oikotie (don't change without asking the user)
 - Oikotie answers 403 to every non-browser client, so data is captured by a **DevTools console script the user pastes into their own browser** and imported from a downloaded file.
