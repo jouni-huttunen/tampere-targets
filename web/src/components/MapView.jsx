@@ -4,6 +4,7 @@ import { createPortal } from 'react-dom';
 import { GeoJSON, LayerGroup, LayersControl, MapContainer, Marker, Pane, ScaleControl, TileLayer, Tooltip, useMap } from 'react-leaflet';
 import { fmtM2, yearBin } from '../lib/format.js';
 import { sameIds } from '../lib/inview.js';
+import { CAN_HOVER } from '../lib/pointer.js';
 import { groupByPosition, ringOffsets, ringRadius } from '../lib/spread.js';
 import InfraLayer from './InfraLayer.jsx';
 import Legend from './Legend.jsx';
@@ -394,10 +395,11 @@ function ListingMarkers({ listings, hoverId, selectedId, saved, onHover, onSelec
   function syncLock(restart = false) {
     const id = state.current.selectedId;
     const entry = id != null ? layers.current.get(id) : null;
-    // No lock under a profile that covers the whole map (phones): nobody sees it, and its
-    // animation would compete with the profile's slide-in. A relayout (a phone turned to
-    // landscape) draws it once the map shows beside the profile.
-    if (!entry || visibleArea(map).hidden) {
+    // No lock on touch screens (the selected marker only lights up), and none under a
+    // profile that covers the whole map (a narrow mouse window): nobody sees it there, and its
+    // animation would compete with the profile's slide-in. A resize draws it once the map shows
+    // beside the profile.
+    if (!entry || !CAN_HOVER || visibleArea(map).hidden) {
       lock.current?.remove();
       lock.current = null;
       lockId.current = null;
@@ -494,10 +496,14 @@ function ListingMarkers({ listings, hoverId, selectedId, saved, onHover, onSelec
           fillOpacity: 1,
           bubblingMouseEvents: false,
         });
-        const tip = `${l.build_year ?? 'Year unknown'} · ${fmtM2(l.size_m2)} · ${l.address ?? l.district ?? ''}${l.location_approx ? ' (approximate location)' : ''}`;
-        marker.bindTooltip(textNode(tip, 'tip-text'), { direction: 'top', offset: [0, -8], className: 'map-tip' });
-        marker.on('mouseover', () => !dragging.current && handlers.current.onHover(id, 'map'));
-        marker.on('mouseout', () => handlers.current.onHover(null, 'map'));
+        // Hover and its tooltip only with a real hover (mouse): a touch screen fakes a hover on
+        // every tap, which grew the marker, re-rendered the list and left a tooltip behind.
+        if (CAN_HOVER) {
+          const tip = `${l.build_year ?? 'Year unknown'} · ${fmtM2(l.size_m2)} · ${l.address ?? l.district ?? ''}${l.location_approx ? ' (approximate location)' : ''}`;
+          marker.bindTooltip(textNode(tip, 'tip-text'), { direction: 'top', offset: [0, -8], className: 'map-tip' });
+          marker.on('mouseover', () => !dragging.current && handlers.current.onHover(id, 'map'));
+          marker.on('mouseout', () => handlers.current.onHover(null, 'map'));
+        }
         marker.on('click', () => handlers.current.onSelect(id, 'map'));
         entry = { marker, halo, listing: l };
         cache.current.set(id, entry);
@@ -553,7 +559,8 @@ function ListingMarkers({ listings, hoverId, selectedId, saved, onHover, onSelec
     el?.classList.toggle('is-hover', id === h);
     el?.classList.toggle('is-selected', id === s);
     el?.classList.toggle('is-saved', !!sv?.has(id));
-    const radius = hot ? R.hover : R.base;
+    // Touch screens: no size change (the user's choice, against markers left big after a profile).
+    const radius = hot && CAN_HOVER ? R.hover : R.base;
     if (entry.marker.getRadius() !== radius) entry.marker.setRadius(radius);
     if (hot) {
       entry.halo?.bringToFront();
@@ -578,7 +585,7 @@ function ListingMarkers({ listings, hoverId, selectedId, saved, onHover, onSelec
     if (hoverId != null) {
       paint(hoverId);
       const entry = layers.current.get(hoverId);
-      if (entry && !entry.marker.isTooltipOpen()) entry.marker.openTooltip();
+      if (entry?.marker.getTooltip() && !entry.marker.isTooltipOpen()) entry.marker.openTooltip();
     }
   }, [hoverId]); // eslint-disable-line react-hooks/exhaustive-deps
 

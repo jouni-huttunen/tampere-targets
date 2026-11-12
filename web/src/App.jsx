@@ -341,7 +341,6 @@ export default function App() {
     const was = prevSelected.current;
     prevSelected.current = selectedId;
     if (was == null || selectedId != null || !stackedRef.current || sourceRef.current !== 'map') return;
-    setHover({ id: null, source: null }); // a tap never sends "pointer left": drop the marker tooltip
     requestAnimationFrame(() => mapRef.current?.scrollIntoView({ block: 'start', behavior: 'auto' }));
   }, [selectedId]);
   const onSort = useCallback((sort) => update({ sort }), [update]);

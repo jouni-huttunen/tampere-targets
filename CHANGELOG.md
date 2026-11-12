@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.6.3 — 2026-11-12: no hover glitches on touch screens
+
+**Changed**
+- Touch screens (phones, tablets): a tap on a map marker or a list row only opens the target profile. No more fake hover on each tap (the marker growing, the list re-rendering, a tooltip left behind on the map) and no "Target locked" reticle. Markers keep their size, also when selected (one could stay big and white after closing a profile); the selected marker only lights up. Mouse and trackpad are unchanged.
+
 ## 1.6.2 — 2026-11-12: Fit beside the target profile
 
 Deployed.

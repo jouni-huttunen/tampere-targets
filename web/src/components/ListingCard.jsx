@@ -1,6 +1,9 @@
 import { memo, useCallback } from 'react';
 import { rentPerM2 } from '../lib/filters.js';
 import { availabilityText, fmtEur, fmtKm, fmtM2, fmtPerM2, roomsText, yearBin } from '../lib/format.js';
+// Touch screens: no hover sync with the map (a tap fakes a hover and a focus just before it opens
+// the profile).
+import { CAN_HOVER } from '../lib/pointer.js';
 import Photo from './Photo.jsx';
 import StarButton from './StarButton.jsx';
 
@@ -37,10 +40,12 @@ function ListingCard({ l, index = 0, view, outside = false, active, selected, sa
       <button
         type="button"
         className={cls.join(' ')}
-        onMouseEnter={() => onHover(id, 'list')}
-        onMouseLeave={() => onHover(null, 'list')}
-        onFocus={() => onHover(id, 'list')}
-        onBlur={() => onHover(null, 'list')}
+        {...(CAN_HOVER && {
+          onMouseEnter: () => onHover(id, 'list'),
+          onMouseLeave: () => onHover(null, 'list'),
+          onFocus: () => onHover(id, 'list'),
+          onBlur: () => onHover(null, 'list'),
+        })}
         onClick={() => onSelect(id)}
         aria-current={selected ? 'true' : undefined}
       >
