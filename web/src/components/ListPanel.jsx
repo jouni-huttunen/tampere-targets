@@ -34,7 +34,7 @@ function ListPanel({
   // Hovering a marker scrolls its card into view. Instant on purpose: a smooth scroll across
   // hundreds of cards lags behind the pointer as it moves from marker to marker.
   // Not in the stacked (phone) layout: the list sits under the map there, so scrolling a row into
-  // view would drag the whole page away from the map. (Touch screens send no hovers at all.)
+  // view would drag the whole page away from the map (a tap on a marker also counts as a hover).
   useEffect(() => {
     if (stacked || hover.source !== 'map' || hover.id == null) return;
     registry.current.get(hover.id)?.scrollIntoView({ block: 'nearest', behavior: 'auto' });

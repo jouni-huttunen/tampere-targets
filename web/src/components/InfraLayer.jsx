@@ -3,7 +3,6 @@ import { useEffect } from 'react';
 import { useMap } from 'react-leaflet';
 import { fmtDate } from '../lib/format.js';
 import { helsinkiClock, openState, parseOpeningHours, statusText, weekRows } from '../lib/hours.js';
-import { CAN_HOVER } from '../lib/pointer.js'; // tooltips only with a real hover; a tap opens the card
 
 // Ground intel (FR-43), shown only in night vision: tram and bus stops (Nysse GTFS) and grocery
 // stores (OpenStreetMap) from web/public/infra.json. Stores and tram stops from zoom 13, bus
@@ -20,6 +19,8 @@ const LETTER = { kesko: 'K', s: 'S', lidl: 'L' };
 const GROUP = { kesko: 'Kesko', s: 'S-ryhmä', lidl: 'Lidl' };
 const STORE_PX = { 1: 18, 2: 22, 3: 26 }; // glyph size by store size class
 const TRAM_PX = 16;
+// Tooltips only where there is a real hover (mouse); a tap opens the card directly.
+const CAN_HOVER = typeof window !== 'undefined' && window.matchMedia('(hover: hover) and (pointer: fine)').matches;
 const COARSE = typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches;
 // A card near an edge pans the map so it clears the map controls (zoom, Fit, layers: ~64 px at
 // the top) and the attribution line at the bottom.
