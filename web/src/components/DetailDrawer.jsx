@@ -359,9 +359,11 @@ function Fact({ label, value }) {
 /**
  * Gallery: a hero carousel that fades into the panel, ‹ › over it, a counter, and a row of
  * thumbnails below. The hero is a scroll-snap track, so a finger (or a trackpad) swipes between
- * photos natively; ‹ ›, the thumbnails and ←/→ inside the gallery jump the track. Each photo links
- * to its full-size image. Only the photos next to the one shown (and ones already seen) load.
- * The drawer's own ←/→ and its target swipe ignore the gallery.
+ * photos natively; ‹ ›, the thumbnails and ←/→ inside the gallery jump the track. It loops: a copy
+ * of the last photo sits before the first and a copy of the first after the last, and when a
+ * swipe comes to rest on a copy the track jumps (invisibly) to the real photo. Each photo links
+ * to its full-size image. Only the photos next to the one shown (round the loop) and ones already
+ * seen load. The drawer's own ←/→ and its target swipe ignore the gallery.
  */
 function Gallery({ detail, noPhotos }) {
   const [index, setIndex] = useState(0);
@@ -370,7 +372,42 @@ function Gallery({ detail, noPhotos }) {
   const frame = useRef(0);
   const shown = useRef(0);
   const loaded = useRef(new Set());
-  useEffect(() => () => cancelAnimationFrame(frame.current), []);
+  const settleTimer = useRef(0);
+  const count = !detail || noPhotos ? 0 : detail.photos.length;
+  const looped = count > 1;
+  const pad = looped ? 1 : 0; // the copy of the last photo before the first
+
+  // Start on the first real photo (slot 1, after the copy), once the photos are there.
+  useLayoutEffect(() => {
+    const track = trackRef.current;
+    if (track && looped) track.scrollLeft = (shown.current + pad) * track.clientWidth;
+  }, [looped, pad]);
+
+  // When a swipe comes to rest on a copy, jump to the photo it copies. 'scrollend' where the
+  // browser has it, else a short pause in scrolling (onScroll).
+  const settle = () => {
+    const track = trackRef.current;
+    if (!track || !looped || !track.clientWidth) return;
+    const slot = Math.round(track.scrollLeft / track.clientWidth);
+    if (slot === 0) track.scrollLeft = count * track.clientWidth;
+    else if (slot === count + 1) track.scrollLeft = track.clientWidth;
+  };
+  const settleRef = useRef(settle);
+  settleRef.current = settle;
+  useEffect(() => {
+    const track = trackRef.current;
+    if (!track || !looped) return undefined;
+    const onEnd = () => settleRef.current();
+    track.addEventListener('scrollend', onEnd);
+    return () => track.removeEventListener('scrollend', onEnd);
+  }, [looped]);
+  useEffect(
+    () => () => {
+      cancelAnimationFrame(frame.current);
+      clearTimeout(settleTimer.current);
+    },
+    [],
+  );
 
   if (!detail) return <div className="gallery gallery-loading" aria-hidden="true" />;
   const photos = detail.photos;
@@ -386,7 +423,7 @@ function Gallery({ detail, noPhotos }) {
   }
   const n = photos.length;
   const i = Math.min(index, n - 1);
-  for (const k of [i - 1, i, i + 1]) if (k >= 0 && k < n) loaded.current.add(k);
+  for (const k of [i - 1, i, i + 1]) loaded.current.add((k + n) % n);
 
   const showThumb = (j) => {
     const strip = thumbsRef.current;
@@ -400,18 +437,21 @@ function Gallery({ detail, noPhotos }) {
   const go = (next) => {
     const j = (next + n) % n;
     const track = trackRef.current;
-    if (track) track.scrollLeft = j * track.clientWidth;
+    if (track) track.scrollLeft = (j + pad) * track.clientWidth;
     shown.current = j;
     setIndex(j);
     showThumb(j);
   };
   const onScroll = () => {
+    clearTimeout(settleTimer.current);
+    settleTimer.current = setTimeout(() => settleRef.current(), 150);
     if (frame.current) return;
     frame.current = requestAnimationFrame(() => {
       frame.current = 0;
       const track = trackRef.current;
       if (!track || !track.clientWidth) return;
-      const j = Math.min(n - 1, Math.max(0, Math.round(track.scrollLeft / track.clientWidth)));
+      const slot = Math.round(track.scrollLeft / track.clientWidth);
+      const j = (((slot - pad) % n) + n) % n; // a copy counts as the photo it shows
       if (j === shown.current) return;
       shown.current = j;
       setIndex(j);
@@ -434,24 +474,28 @@ function Gallery({ detail, noPhotos }) {
     >
       <div className="gallery-hero">
         <div className="gallery-track" ref={trackRef} onScroll={onScroll}>
-          {photos.map((p, k) => (
-            <a
-              key={k}
-              href={p.full ?? p.large ?? p.thumb}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="gallery-slide gallery-link"
-              title="Open the full-size photo"
-              tabIndex={k === i ? 0 : -1}
-              aria-hidden={k === i ? undefined : true}
-            >
-              {loaded.current.has(k) ? (
-                <Photo className="gallery-photo" src={p.large ?? p.full ?? p.thumb} alt={`Photo ${k + 1} of ${n}`} eager />
-              ) : (
-                <span className="gallery-photo gallery-wait" />
-              )}
-            </a>
-          ))}
+          {(looped ? [n - 1, ...photos.keys(), 0] : [0]).map((k, slot) => {
+            const p = photos[k];
+            const copy = looped && (slot === 0 || slot === n + 1);
+            return (
+              <a
+                key={copy ? `copy-${slot}` : k}
+                href={p.full ?? p.large ?? p.thumb}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="gallery-slide gallery-link"
+                title="Open the full-size photo"
+                tabIndex={k === i && !copy ? 0 : -1}
+                aria-hidden={k === i && !copy ? undefined : true}
+              >
+                {loaded.current.has(k) ? (
+                  <Photo className="gallery-photo" src={p.large ?? p.full ?? p.thumb} alt={`Photo ${k + 1} of ${n}`} eager />
+                ) : (
+                  <span className="gallery-photo gallery-wait" />
+                )}
+              </a>
+            );
+          })}
         </div>
         {n > 1 && (
           <>

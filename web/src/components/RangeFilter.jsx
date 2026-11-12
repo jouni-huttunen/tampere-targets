@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { normalizeRange } from '../lib/filters.js';
 import { fmtDate } from '../lib/format.js';
+import { moveEnd, nextStop, rangePos, stopsWithin } from '../lib/stops.js';
 
 // Dual-handle range: two native range inputs over one track (keyboard and screen-reader
 // support come from the browser), plus two typed inputs. An end at its data bound means
@@ -13,8 +14,13 @@ const fromDay = (day) => new Date(day * DAY).toISOString().slice(0, 10);
 /**
  * eras (optional): [{ from, cls }] — colour the track by era (cls sets --mk, e.g. "mk-y3")
  * and mark each era boundary with a labelled notch; the unselected part of the track is dimmed.
+ * stops (optional, numbers only): the handles snap to these values and each step between them
+ * gets the same width (lib/stops.js); the notches then mark the stops. The upper handle at a stop
+ * means "up to the year before it". The typed fields still take any value.
  */
-export default function RangeFilter({ label, hint, bounds, value, onChange, step = 1, kind = 'number', unit = '', prominent = false, eras = null }) {
+export default function RangeFilter({
+  label, hint, bounds, value, onChange, step = 1, kind = 'number', unit = '', prominent = false, eras = null, stops = null,
+}) {
   const id = useId();
   if (!bounds) {
     return (
@@ -33,10 +39,36 @@ export default function RangeFilter({ label, hint, bounds, value, onChange, step
   const a = value[0] == null ? lo : clamp(toNum(value[0]));
   const b = value[1] == null ? hi : clamp(toNum(value[1]));
   const span = hi - lo || 1;
-  const pct = (n) => `${((n - lo) / span) * 100}%`;
+  const steps = stops && !isDate ? stopsWithin(stops, [lo, hi]) : null;
+  const last = steps ? steps.length - 1 : 0;
+  // Where a value sits on the track, 0…1: by step when stepped, linear otherwise.
+  const frac = (n) => (steps ? rangePos([n, hi], steps)[0] / last : (n - lo) / span);
+  const pct = (n) => `${frac(n) * 100}%`;
+  const [posA, posB] = steps ? rangePos([a, b], steps) : [a, b];
   const show = (n) => (isDate ? fmtDate(fromNum(n)) : `${n}${unit ? ' ' + unit : ''}`);
   const emit = (na, nb) => onChange(normalizeRange([fromNum(na), fromNum(nb)], bounds));
-  const minOnTop = a > lo + span / 2;
+  const moveTo = (end, to) => emit(...moveEnd([a, b], end, to, steps));
+  const minOnTop = steps ? posA > last / 2 : a > lo + span / 2;
+  // Stepped: the inputs run over step positions with free values (a typed year sits between
+  // stops); a drag snaps to a stop and the arrow keys go stop to stop.
+  const stepKeys = (end, pos) => (e) => {
+    const to = { ArrowRight: nextStop(pos, 1, last), ArrowUp: nextStop(pos, 1, last), PageUp: nextStop(pos, 1, last),
+      ArrowLeft: nextStop(pos, -1, last), ArrowDown: nextStop(pos, -1, last), PageDown: nextStop(pos, -1, last),
+      Home: 0, End: last }[e.key];
+    if (to === undefined) return;
+    e.preventDefault();
+    moveTo(end, to);
+  };
+  const inputA = steps
+    ? { min: 0, max: last, step: 'any', value: posA, onChange: (e) => moveTo(0, Number(e.target.value)), onKeyDown: stepKeys(0, posA) }
+    : { min: lo, max: hi, step: isDate ? 1 : step, value: a, onChange: (e) => emit(Math.min(Number(e.target.value), b), b) };
+  const inputB = steps
+    ? { min: 0, max: last, step: 'any', value: posB, onChange: (e) => moveTo(1, Number(e.target.value)), onKeyDown: stepKeys(1, posB) }
+    : { min: lo, max: hi, step: isDate ? 1 : step, value: b, onChange: (e) => emit(a, Math.max(Number(e.target.value), a)) };
+  const notches = steps
+    ? steps.slice(1, -1)
+    : (eras ?? []).map((era) => era.from).filter((from) => from != null && from > lo && from < hi);
+  const bStyle = steps ? `${(posB / last) * 100}%` : pct(b);
 
   return (
     <div className={`range-filter ${prominent ? 'is-prominent' : ''}`} role="group" aria-labelledby={`${id}-label`}>
@@ -46,7 +78,7 @@ export default function RangeFilter({ label, hint, bounds, value, onChange, step
         </span>
         {hint && <span className="range-hint">{hint}</span>}
       </div>
-      <div className={`range ${eras ? 'range-eras' : ''}`} style={{ '--a': pct(a), '--b': pct(b) }}>
+      <div className={`range ${eras ? 'range-eras' : ''}`} style={{ '--a': pct(a), '--b': bStyle }}>
         <div className="range-track" aria-hidden="true">
           {eras ? (
             <>
@@ -54,7 +86,7 @@ export default function RangeFilter({ label, hint, bounds, value, onChange, step
                 const from = Math.max(lo, era.from ?? lo);
                 const to = Math.min(hi, eras[i + 1]?.from ?? hi);
                 if (to <= from) return null;
-                return <span key={i} className={`range-era ${era.cls}`} style={{ left: pct(from), width: `${((to - from) / span) * 100}%` }} />;
+                return <span key={i} className={`range-era ${era.cls}`} style={{ left: pct(from), width: `${(frac(to) - frac(from)) * 100}%` }} />;
               })}
               <span className="range-mask range-mask-left" />
               <span className="range-mask range-mask-right" />
@@ -65,36 +97,26 @@ export default function RangeFilter({ label, hint, bounds, value, onChange, step
         </div>
         {eras && (
           <div className="range-notches" aria-hidden="true">
-            {eras
-              .filter((era) => era.from != null && era.from > lo && era.from < hi)
-              .map((era) => (
-                <span key={era.from} className="range-notch" style={{ left: pct(era.from) }} title={String(era.from)}>
-                  ’{String(era.from).slice(2)}
-                </span>
-              ))}
+            {notches.map((at) => (
+              <span key={at} className="range-notch" style={{ left: pct(at) }} title={String(at)}>
+                ’{String(at).slice(2)}
+              </span>
+            ))}
           </div>
         )}
         <input
           type="range"
           className={`range-input ${minOnTop ? 'is-top' : ''}`}
-          min={lo}
-          max={hi}
-          step={isDate ? 1 : step}
-          value={a}
+          {...inputA}
           aria-label={`${label}, from`}
           aria-valuetext={show(a)}
-          onChange={(e) => emit(Math.min(Number(e.target.value), b), b)}
         />
         <input
           type="range"
           className="range-input"
-          min={lo}
-          max={hi}
-          step={isDate ? 1 : step}
-          value={b}
+          {...inputB}
           aria-label={`${label}, to`}
           aria-valuetext={show(b)}
-          onChange={(e) => emit(a, Math.max(Number(e.target.value), a))}
         />
       </div>
       <div className="range-fields">

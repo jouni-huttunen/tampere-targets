@@ -1,4 +1,5 @@
 import { memo, useEffect, useMemo } from 'react';
+import { YEAR_DECADES } from '../lib/stops.js';
 import RangeFilter from './RangeFilter.jsx';
 
 // Same bins as the map markers and the legend (format.js YEAR_BINS).
@@ -90,6 +91,7 @@ function Filters({
               value={filters.year}
               onChange={(year) => onChange({ year })}
               eras={YEAR_ERAS}
+              stops={YEAR_DECADES}
             />
           </section>
 

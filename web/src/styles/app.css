@@ -3737,6 +3737,11 @@ input[type='date'].range-field {
     padding-left: var(--sp-4);
   }
 
+  /* Phones: the header reads just "TARGET PROFILE"; the id is not vital there. */
+  .kicker-id {
+    display: none;
+  }
+
   .drawer-scroll {
     padding: var(--sp-5) var(--sp-4);
   }

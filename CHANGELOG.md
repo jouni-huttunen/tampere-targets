@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.4.3 — 2026-11-12: decade build-year slider, phone profile
+
+Deployed.
+
+**Changed**
+- Build-year slider: the handles snap to decades ('60, '70 … '20; everything before 1960 is one step) and every step has the same width, so the recent decades are no longer squeezed into a sliver. '90 → '10 means 1990–2009. The typed year fields still take any year.
+- Phones: the target profile header shows only "TARGET PROFILE"; the TGT id is hidden there.
+- The photo carousel loops: past the last photo comes the first, before the first the last.
+
 ## 1.4.2 — 2026-11-12: phone fixes (map controls, swipe)
 
 Fixes for phones. Deployed.

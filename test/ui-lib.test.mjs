@@ -184,3 +184,33 @@ test('the app version shown on the boot screen comes from package.json, not a li
     assert.doesNotMatch(readFileSync(file, 'utf8'), /\bv\d+\.\d+\.\d+\b/, `${file} has a hard-coded version`);
   }
 });
+
+test('stepped build-year slider: decade stops, equal steps, upper stop means the year before', async () => {
+  const { YEAR_DECADES, moveEnd, nextStop, rangePos, stopPos, stopsWithin } = await import('../web/src/lib/stops.js');
+  const steps = stopsWithin(YEAR_DECADES, [1905, 2026]);
+  assert.deepEqual(steps, [1905, 1960, 1970, 1980, 1990, 2000, 2010, 2020, 2026]);
+  assert.deepEqual(stopsWithin(YEAR_DECADES, [1960, 2020]), [1960, 1970, 1980, 1990, 2000, 2010, 2020]);
+  // Every step has the same width, whatever its length in years; a typed year sits inside its step.
+  assert.equal(stopPos(1905, steps), 0);
+  assert.equal(stopPos(1960, steps), 1);
+  assert.equal(stopPos(1995, steps), 4.5);
+  assert.equal(stopPos(2026, steps), 8);
+  assert.equal(stopPos(1800, steps), 0);
+  // The upper handle shows max + 1: 1990–2009 runs from the '90 notch to the '10 notch.
+  assert.deepEqual(rangePos([1990, 2009], steps), [4, 6]);
+  assert.deepEqual(rangePos([1905, 2026], steps), [0, 8]);
+  // Dragging snaps to a stop; the upper end becomes the year before its stop, the ends the bounds.
+  assert.deepEqual(moveEnd([1905, 2026], 0, 4.4, steps), [1990, 2026]);
+  assert.deepEqual(moveEnd([1990, 2026], 1, 6.2, steps), [1990, 2009]);
+  assert.deepEqual(moveEnd([1990, 2009], 1, 8, steps), [1990, 2026]);
+  assert.deepEqual(moveEnd([1990, 2009], 0, 0, steps), [1905, 2009]);
+  // The handles keep one step apart.
+  assert.deepEqual(moveEnd([1990, 2009], 0, 7, steps), [2000, 2009]);
+  assert.deepEqual(moveEnd([1990, 2009], 1, 2, steps), [1990, 1999]);
+  // Arrow keys go stop to stop, also from a typed year between stops.
+  assert.equal(nextStop(4, 1, 8), 5);
+  assert.equal(nextStop(4.5, 1, 8), 5);
+  assert.equal(nextStop(4.5, -1, 8), 4);
+  assert.equal(nextStop(0, -1, 8), 0);
+  assert.equal(nextStop(8, 1, 8), 8);
+});
