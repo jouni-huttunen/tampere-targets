@@ -15,11 +15,8 @@ When code and docs disagree, fix whichever is wrong in the same change. A change
 `npm test` · `npm run capture` · `npm run import` · `npm run rebuild` · `npm run report` · `npm run list` · `npm run ui` (builds `web/`, serves http://localhost:3000) · `npm run ui:dev` (hot reload). Node ≥ 26; the capture, import, database and CLI code use only Node built-ins (`node:sqlite`, `node:test`); npm dependencies are for the UI only.
 
 ## Working agreements (the user's standing rules)
-- **Explain before implementing.** Describe the user-facing flow (what they run, what they see, how it behaves, which dependencies you add) and get an explicit go-ahead before writing code for anything new. An ambiguous "ok" is not approval.
-- **No commits or pushes unless asked.** Workflow: short-lived branch → commit → fast-forward `main` → push. Releases are tagged `vX.Y.Z`. "Release" is that ask, and always includes a deploy (see Release and deploy).
+- **Explain before implementing.** Describe the user-facing flow (what they run, what they see, how it behaves, which dependencies you add) and get an explicit go-ahead before writing code for anything new.
 - **Deploy after every change** so the user can test it on the hosted copy (often on their phone), without asking first (the user's rule). See Release and deploy.
-- **Read answers literally.** The user decides fast and changes scope in short messages; they prefer simple mechanisms and local filtering over clever rules.
-- **No winget, no nvm-windows.** Install tools from official installers and verify checksums. Ask before introducing a version manager.
 - **UI quality matters a lot to this user.** The user rejects anything that looks boring or cheap. Weigh UI and UX heavily, keep all styling in `web/src/styles/tokens.css` (no raw colours elsewhere), keep text contrast at WCAG AA, and respect `prefers-reduced-motion`.
 
 ## Release and deploy
@@ -30,16 +27,11 @@ When code and docs disagree, fix whichever is wrong in the same change. A change
   2. `npm test`.
   3. `npm run deploy`, then the HTTP check.
   4. Branch `release-X` → `git add` the files by name → `git commit -F <file>` → `git switch main` → `git merge --ff-only` → delete the branch → `git tag -a vX -m "Release X: title"` → `git push origin main` and `git push origin vX`.
-- **HTTP check only:** never open the hosted site in the agent's browser (it loads Oikotie photos). The index is gzipped, so use `--compressed`. The site URL is printed by the deploy (`Done: …`). Check that the index answers 200, names the same `assets/index-*.js` as `dist/site/assets/`, and that the script carries the version:
-  ```bash
-  base=<site url>; v=$(node -p "require('./package.json').version"); js=$(curl -s --compressed "$base/" | grep -o 'assets/index-[^"]*\.js' | head -1); ls dist/site/assets/index-*.js; echo "$js"; curl -s --compressed "$base/$js" | grep -oF "$v" | head -1
-  ```
 - **If the deploy fails** (most often an expired SAS token; the deploy says so), stop and tell the user; don't commit a release marked "Deployed".
 
-## Hard guardrails for Oikotie (don't change without asking the user)
+## Hard guardrails for Oikotie
 - Oikotie answers 403 to every non-browser client, so data is captured by a **DevTools console script the user pastes into their own browser** and imported from a downloaded file.
-- **Never build a crawler that disguises itself as a browser** (no spoofed User-Agent, no Playwright/Puppeteer stealth, no headless workaround).
-- **Don't run the bulk capture yourself**, and don't load Oikotie pages or photos in the agent's browser pane: Oikotie's robots.txt opts out of Anthropic agents and `Disallow: /api*` for all bots. A smoke test of at most 2 detail requests is allowed only with the user's OK.
+- **Don't run the bulk capture yourself**, and don't load Oikotie pages or photos in the agent's browser pane: Oikotie's robots.txt opts out of Anthropic agents and `Disallow: /api*` for all bots. A smoke test of at most 2 detail requests is allowed.
 - One request at a time, about 2 s apart plus jitter; stop on 403 or 429. `config.json` refuses a delay under 2000 ms.
 - **Preview the UI with `npm run ui -- --no-photos --port 3005`** (launch entry `ui-no-photos`; the user often has their own `npm run ui` on 3000). The photo CDN is the only Oikotie traffic the UI causes. Test "New" listings and photos against a temporary synthetic database (`TCB_DB=<file>`, built with `test/helpers.mjs`), never by editing `data/listings.db`.
 - The user accepted the terms-of-service risk for **personal use** only.
