@@ -112,6 +112,16 @@
   --postal-fill: rgb(56 200 255 / 0.04);
   --marker-glow: drop-shadow(0 0 4px rgb(56 200 255 / 0.6));
   --lock-glow: drop-shadow(0 0 6px rgb(255 164 58 / 0.7));
+  /* Ground intel (FR-43; shown in NV only): hollow glyphs on a dark fill, so the filled
+     target markers stay the brightest things on the map. */
+  --poi-store: var(--accent-strong);
+  --poi-tram: var(--ink-soft);
+  --poi-bus: var(--ink-quiet);
+  --poi-fill: var(--glass-strong);
+  --poi-hover: var(--ink);
+  --poi-open: var(--accent);
+  --poi-closed: var(--danger);
+  --poi-glow: drop-shadow(0 0 3px var(--accent-a40));
 
   /* Map tile tints per base map (see MapView BASE_MAPS) */
   --tiles-night: sepia(0.6) hue-rotate(170deg) saturate(2.4) brightness(0.95) contrast(1.1);

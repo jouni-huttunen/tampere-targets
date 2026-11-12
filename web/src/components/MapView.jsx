@@ -5,6 +5,7 @@ import { GeoJSON, LayerGroup, LayersControl, MapContainer, Marker, Pane, ScaleCo
 import { fmtM2, yearBin } from '../lib/format.js';
 import { sameIds } from '../lib/inview.js';
 import { groupByPosition, ringOffsets, ringRadius } from '../lib/spread.js';
+import InfraLayer from './InfraLayer.jsx';
 import Legend from './Legend.jsx';
 
 const CENTER = [61.4978, 23.761];
@@ -61,7 +62,7 @@ export default memo(MapView);
 // per view and no full-map blend, which is costly on phone GPUs. Desktop keeps it.
 const LIGHT_GRAPHICS = typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches;
 
-function MapView({ listings, places, areas, hoverId, selectedId, saved, onHover, onSelect, onViewChange, onLockLost }) {
+function MapView({ listings, places, areas, infra, nv, hoverId, selectedId, saved, onHover, onSelect, onViewChange, onLockLost }) {
   const [map, setMap] = useState(null);
   const readoutRef = useRef(null);
   const located = useMemo(() => listings.filter((l) => l.lat != null && l.lon != null), [listings]);
@@ -81,6 +82,8 @@ function MapView({ listings, places, areas, hoverId, selectedId, saved, onHover,
         <MapLayers areas={areas} />
         <ScaleControl position="bottomright" imperial={false} maxWidth={140} />
         <PlacePinsLayer places={places} />
+        {/* Ground intel (FR-43): only through the night-vision goggles. */}
+        <InfraLayer data={nv ? infra : null} />
         <ListingMarkers
           listings={located}
           hoverId={hoverId}
@@ -102,7 +105,7 @@ function MapView({ listings, places, areas, hoverId, selectedId, saved, onHover,
       <p className="map-readout" ref={readoutRef} aria-hidden="true">
         &nbsp;
       </p>
-      <LegendPanel />
+      <LegendPanel intel={nv && !!infra} />
     </>
   );
 }
@@ -329,9 +332,16 @@ function ListingMarkers({ listings, hoverId, selectedId, saved, onHover, onSelec
       lockLostFor.current = id;
       handlers.current.onLockLost?.();
     };
+    // An intel card (FR-43) near the edge pans the map to fit: the map's own move, which never
+    // releases the lock.
+    const onAutoPan = () => {
+      selfMove.current = performance.now() + SELF_MOVE_MS;
+    };
     map.on('movestart', onMoveStart);
     map.on('moveend', onMoveEnd);
+    map.on('autopanstart', onAutoPan);
     return () => {
+      map.off('autopanstart', onAutoPan);
       map.off('zoomend', relayout);
       map.off('dragstart', onDragStart);
       map.off('dragend moveend', onDragEnd);

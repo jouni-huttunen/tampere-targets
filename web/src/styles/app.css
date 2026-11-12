@@ -2525,6 +2525,297 @@ input[type='date'].range-field {
   display: none;
 }
 
+/* ---------- Ground intel (FR-43, night vision only): stores, tram and bus stops ---------- */
+
+.leaflet-div-icon.poi {
+  background: transparent;
+  border: 0;
+}
+
+.poi {
+  display: grid;
+  place-items: center;
+}
+
+.leaflet-marker-icon.poi {
+  filter: var(--poi-glow);
+}
+
+/* Stores: a hollow hexagon with the group letter (K, S, L); bigger stores get a bigger glyph. */
+/* z-index 0: Leaflet gives every SVG in the map z-index 200 (.leaflet-map-pane svg), which
+   would cover the letter; two classes outrank that rule. */
+.poi .poi-hex {
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.poi-hex path {
+  fill: var(--poi-fill);
+  stroke: var(--poi-store);
+  stroke-width: 1.8;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+}
+
+/* Monospace bold reads better than the condensed display face at 10–13 px. */
+.poi-letter {
+  position: relative;
+  z-index: 1;
+  font-family: var(--font-mono);
+  font-size: var(--fs-3xs);
+  font-weight: var(--fw-bold);
+  line-height: 1;
+  color: var(--poi-store);
+}
+
+.poi-t2 .poi-letter {
+  font-size: var(--fs-2xs);
+}
+
+.poi-t3 .poi-letter {
+  font-size: var(--fs-sm);
+}
+
+.poi-t3 .poi-hex path {
+  stroke-width: 2.2;
+}
+
+/* Tram stops: a small square with a T. */
+.poi-tram {
+  border: 1.5px solid var(--poi-tram);
+  border-radius: var(--r-sm);
+  background: var(--poi-fill);
+}
+
+.poi-tram .poi-letter {
+  color: var(--poi-tram);
+}
+
+/* Bus stops: a small hollow ring (an SVG circle). */
+.poi-bus {
+  fill: var(--poi-fill);
+  fill-opacity: 1;
+  stroke: var(--poi-bus);
+}
+
+.leaflet-marker-icon.poi:hover .poi-hex path,
+.leaflet-marker-icon.poi-tram:hover {
+  stroke: var(--poi-hover);
+  border-color: var(--poi-hover);
+}
+
+.leaflet-marker-icon.poi:hover .poi-letter {
+  color: var(--poi-hover);
+}
+
+.poi-bus:hover {
+  stroke: var(--poi-hover);
+}
+
+/* Fingers: a larger, invisible tap area round the glyph. */
+@media (pointer: coarse) {
+  .leaflet-marker-icon.poi::before {
+    content: '';
+    position: absolute;
+    inset: -8px;
+  }
+}
+
+/* The intel card: a framed glass card on the point, opened by a click or tap. */
+.leaflet-popup.intel-pop .leaflet-popup-content-wrapper {
+  position: relative;
+  padding: 0;
+  border: 1px solid var(--hairline-strong);
+  border-radius: var(--r-xs);
+  background: var(--texture-scan), var(--glass-strong);
+  color: var(--ink);
+  box-shadow: var(--shadow-2);
+}
+
+.leaflet-popup.intel-pop .leaflet-popup-content-wrapper::before {
+  --bc: var(--accent);
+  --bracket: 8px;
+  content: '';
+  position: absolute;
+  inset: -1px;
+  pointer-events: none;
+  background:
+    linear-gradient(var(--bc), var(--bc)) top left / var(--bracket) var(--bracket-w),
+    linear-gradient(var(--bc), var(--bc)) top left / var(--bracket-w) var(--bracket),
+    linear-gradient(var(--bc), var(--bc)) top right / var(--bracket) var(--bracket-w),
+    linear-gradient(var(--bc), var(--bc)) top right / var(--bracket-w) var(--bracket),
+    linear-gradient(var(--bc), var(--bc)) bottom left / var(--bracket) var(--bracket-w),
+    linear-gradient(var(--bc), var(--bc)) bottom left / var(--bracket-w) var(--bracket),
+    linear-gradient(var(--bc), var(--bc)) bottom right / var(--bracket) var(--bracket-w),
+    linear-gradient(var(--bc), var(--bc)) bottom right / var(--bracket-w) var(--bracket);
+  background-repeat: no-repeat;
+}
+
+.leaflet-popup.intel-pop .leaflet-popup-content {
+  margin: var(--sp-3) var(--sp-4) var(--sp-3) var(--sp-3);
+  font-family: var(--font-sans);
+  font-size: var(--fs-sm);
+  line-height: var(--lh-snug);
+}
+
+.leaflet-popup.intel-pop .leaflet-popup-tip {
+  border: 1px solid var(--hairline-strong);
+  background: var(--glass-strong);
+  box-shadow: none;
+}
+
+.leaflet-popup.intel-pop a.leaflet-popup-close-button {
+  top: 2px;
+  right: 2px;
+  width: 28px;
+  height: 28px;
+  font: var(--fw-regular) var(--fs-lg) / 28px var(--font-mono);
+  color: var(--ink-quiet);
+}
+
+.leaflet-popup.intel-pop a.leaflet-popup-close-button:hover,
+.leaflet-popup.intel-pop a.leaflet-popup-close-button:focus-visible {
+  color: var(--ink);
+}
+
+.intel p {
+  margin: 0;
+}
+
+.intel-kicker {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding-right: var(--sp-5);
+  font-family: var(--font-mono);
+  font-size: var(--fs-3xs);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.intel-badge {
+  display: inline-grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  border: 1px solid var(--poi-store);
+  border-radius: var(--r-xs);
+  font-family: var(--font-display);
+  font-size: var(--fs-2xs);
+  font-weight: var(--fw-bold);
+  letter-spacing: 0;
+  color: var(--poi-store);
+}
+
+.intel .intel-title {
+  margin-top: var(--sp-1);
+  padding-right: var(--sp-4);
+  font-family: var(--font-display);
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-semibold);
+  line-height: var(--lh-tight);
+  color: var(--ink);
+}
+
+.intel-sub {
+  font-size: var(--fs-xs);
+  color: var(--ink-quiet);
+}
+
+.intel .intel-code {
+  margin-top: var(--sp-1);
+  font-family: var(--font-mono);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
+  color: var(--accent-strong);
+}
+
+.intel .intel-status {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  margin: var(--sp-2) 0 var(--sp-1);
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-semibold);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+
+.intel-status::before {
+  content: '';
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.intel-status.is-open {
+  color: var(--poi-open);
+}
+
+.intel-status.is-open::before {
+  box-shadow: 0 0 6px currentColor;
+}
+
+.intel-status.is-closed {
+  color: var(--poi-closed);
+}
+
+.intel-hours {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+}
+
+.intel-hours th,
+.intel-hours td {
+  padding: 1px 0;
+  font-weight: var(--fw-regular);
+  color: var(--ink-soft);
+}
+
+.intel-hours th {
+  width: 1%;
+  padding-right: var(--sp-4);
+  padding-left: var(--sp-2);
+  text-align: left;
+  white-space: nowrap;
+  color: var(--ink-quiet);
+}
+
+.intel-hours tr.is-today th,
+.intel-hours tr.is-today td {
+  font-weight: var(--fw-semibold);
+  color: var(--ink);
+}
+
+.intel-hours tr.is-today th {
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+
+.intel .intel-raw {
+  margin-top: var(--sp-2);
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  color: var(--ink-soft);
+}
+
+.intel .intel-note {
+  margin-top: var(--sp-2);
+  font-family: var(--font-mono);
+  font-size: var(--fs-3xs);
+  color: var(--ink-faint);
+}
+
 .leaflet-control-scale-line {
   border: 1px solid var(--hairline-strong);
   border-top: 0;
@@ -3090,6 +3381,43 @@ input[type='date'].range-field {
   margin: 0 1px;
   transform: rotate(45deg);
   border: 2px solid var(--place);
+}
+
+.legend-list .legend-wide {
+  grid-column: 1 / -1;
+}
+
+.legend-section {
+  margin-top: var(--sp-1);
+  font-family: var(--font-mono);
+  font-size: var(--fs-3xs);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.legend-poi {
+  position: relative;
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  width: 14px;
+  height: 14px;
+}
+
+.legend-poi.poi-tram {
+  width: 12px;
+  height: 12px;
+  margin: 0 1px;
+}
+
+.legend-bus {
+  width: 8px;
+  height: 8px;
+  margin: 0 3px;
+  border-radius: 50%;
+  border: 1.5px solid var(--poi-bus);
+  background: var(--poi-fill);
 }
 
 /* ---------- Boot sequence ---------- */

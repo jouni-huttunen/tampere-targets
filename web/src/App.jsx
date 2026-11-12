@@ -32,6 +32,9 @@ const DEPLOY_MS = 1300;
 const NV_SWAP_MS = 190; // the theme flips while the effect is at its brightest
 const NV_FX_MS = 720;
 
+// Next / previous target (FR-44): the WASD keys by position, D and S forward, A and W back.
+const STEP_KEYS = { KeyD: 1, KeyS: 1, KeyA: -1, KeyW: -1 };
+
 const NO_PLACES = [];
 const NO_ZIPS = [];
 
@@ -74,6 +77,7 @@ export default function App() {
   const [listings, setListings] = useState(null);
   const [error, setError] = useState(null);
   const [areas, setAreas] = useState(null);
+  const [infra, setInfra] = useState(null); // ground intel for NV (FR-43), loaded on first use
   const [filters, setFilters] = useState(null);
   const [hover, setHover] = useState({ id: null, source: null });
   const [selectedId, setSelectedId] = useState(selectedFromUrl);
@@ -117,11 +121,41 @@ export default function App() {
     ];
   }, []);
 
-  // N toggles night vision (not while typing, and not during the boot sequence).
+  // The ground intel (stops and stores) is only shown in NV: fetch it the first time NV is on.
+  const nv = theme === 'nv';
+  useEffect(() => {
+    if (!nv || infra) return undefined;
+    let cancelled = false;
+    fetch('/infra.json')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => !cancelled && d && setInfra(d))
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [nv, infra]);
+
+  // Keys (not while typing, and not during the boot sequence): N toggles night vision; D or S
+  // opens the next target and A or W the previous one (FR-44), like › and ‹ in the profile; with
+  // no profile open, D/S opens the first target in the list and A/W the last. By key position
+  // (e.code), so they sit under the left hand on any layout.
+  const keyState = useRef(null);
   useEffect(() => {
     const onKey = (e) => {
       if (phase === 'boot' || e.altKey || e.ctrlKey || e.metaKey || isTyping(e.target)) return;
-      if (e.key === 'n' || e.key === 'N') toggleNv();
+      if (e.key === 'n' || e.key === 'N') {
+        toggleNv();
+        return;
+      }
+      const dir = STEP_KEYS[e.code];
+      if (!dir) return;
+      const k = keyState.current;
+      e.preventDefault();
+      if (k.selectedId != null) k.step(dir);
+      else {
+        const target = dir > 0 ? k.stepList[0] : k.stepList[k.stepList.length - 1];
+        if (target) k.openTarget(target.card_id, 'list');
+      }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -301,6 +335,7 @@ export default function App() {
     },
     [stepList, position, openTarget],
   );
+  keyState.current = { selectedId, step, stepList, openTarget };
 
   const showParams = wide || paramsOpen;
 
@@ -346,6 +381,8 @@ export default function App() {
             listings={shown}
             places={meta?.places ?? NO_PLACES}
             areas={areas}
+            infra={infra}
+            nv={nv}
             hoverId={hover.id}
             selectedId={selectedId}
             saved={saved}

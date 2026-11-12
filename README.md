@@ -2,7 +2,7 @@
 
 A personal tool for finding a rental in Tampere. It collects Oikotie rental listings into a local SQLite database (through a script you run in your own browser) and lets you browse them on a local map and list. The local database is the master.
 
-_Version 1.1.0 (called "Tampere homes" up to 1.0.0). The UI is a tactical console: press **N** for night vision._
+_Version 1.5.0 (called "Tampere homes" up to 1.0.0; the version is shown after the title). The UI is a tactical console: press **N** for night vision, which also shows stops and grocery stores._
 
 ## Setup
 
@@ -25,6 +25,10 @@ npm install
 
 Filters are kept in the address bar, so any view can be bookmarked. Back closes a target profile (or goes to the target before it). The shortlist is saved in the browser only.
 
+**Keys:** D or S opens the next target, A or W the previous one; N toggles night vision; Esc closes.
+
+**Night vision** (N) also shows tram stops, bus stops (zoom in) and Kesko, S-ryhmä and Lidl grocery stores; hover or tap one for its card with the stop number or the store's opening hours. The data is in `web/public/infra.json`; refresh it now and then with `npm run infra` (it downloads the Nysse timetable feed and asks OpenStreetMap; then rebuild the UI or deploy).
+
 ## Hosted copy (Azure)
 
 The local database is the master. `npm run deploy` uploads a read-only snapshot (the web app plus the data as JSON files) to Azure Storage static website hosting; it changes only when you run it again.
@@ -44,6 +48,7 @@ Then `npm run deploy` after each import. `npm run deploy -- --dry-run` builds in
 | `npm run list` | Listings in the move-in window, in the terminal |
 | `npm run report` | Re-writes the latest run's report |
 | `npm run rebuild` | Recomputes every column from the stored JSON (offline) |
+| `npm run infra` | Refreshes the night-vision stops and stores (`-- --dry-run` to only show the counts) |
 | `npm run ui:dev` | The UI with hot reload at http://localhost:5173 |
 | `npm run ui -- --port 3001` | The UI on another port |
 | `npm run ui -- --no-photos` | The UI with photo placeholders |

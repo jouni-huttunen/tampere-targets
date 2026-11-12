@@ -188,6 +188,15 @@ https://geo.stat.fi/geoserver/postialue/wfs?service=WFS&version=2.0.0&request=Ge
   &CQL_FILTER=<url-encoded: kunta='837'>
 ```
 
+**Ground intel for NV (FR-43, checked 2026-11-12).** Fetched by `npm run infra` into `web/public/infra.json`; the browser never calls these services.
+
+| Data | Source | Terms | What is kept |
+|---|---|---|---|
+| Tram and bus stops | Nysse GTFS, `https://data.itsfactory.fi/journeys/files/gtfs/latest/gtfs_tampere.zip` (Tampere open data, ITS Factory; ~16 MB zip, updated daily, no key) | CC BY 4.0 (data.tampere.fi lists the dataset "Tampereen joukkoliikenteen aikataulut ja reitit (GTFS)" as CC-BY-4.0) | `stops.txt`: `stop_code` (4 digits, e.g. `0805`; equal to `stop_id` in every row), `stop_name` (with the platform letter, e.g. "Keskustori A"), position. Tram or bus comes from `route_type` (0 tram, 3 bus) of the routes whose trips stop there (`stop_times.txt` → `trips.txt` → `routes.txt`). Each direction is its own stop with its own number. Stops no trip calls at are dropped. In the area: 1,020 stops, 66 tram and 954 bus; none is served by both. |
+| Grocery stores | OpenStreetMap through Overpass, `https://overpass-api.de/api/interpreter`, `nwr["shop"~"^(supermarket\|convenience)$"]` in the box, `out center tags` | ODbL 1.0, "© OpenStreetMap contributors" | Only the chosen chains, by `brand` tag (else the name): Kesko 50 (K-Citymarket 4, K-Supermarket 10, K-Market 35, K-KoskiHerkku 1), S-ryhmä 29 (Prisma 6, S-market 8, Sale 15; there is no Alepa in Tampere), Lidl 11. Name = chain + `branch` tag; `opening_hours` (89 of 90 have it; all parse); `check_date:opening_hours` or `check_date` (46 have one, from 2022 to 2026). |
+
+Overpass answered 504 and 502 on the first tries (busy); the script waits 15 s and retries twice. It needs a User-Agent (curl's default got 406). Also in the area but **left out** by the user's choice: Tokmanni 7, ethnic and other independent food shops (~20), Stockmann and Sokos, Metro (wholesale), ABC (petrol station). **Chain sites are not usable** (checked 2026-11-12): s-kaupat.fi answers non-browser clients with a bot checkpoint (429) and k-ruoka.fi store pages with 403, the same situation as Oikotie, so they are not used (no disguised clients); lidl.fi's robots.txt allows its store pages, but OSM already has the hours of all 11 Lidls.
+
 ## 9. Unknowns
 | Unknown | How it is handled |
 |---|---|

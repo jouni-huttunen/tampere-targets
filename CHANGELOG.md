@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.5.0 — 2026-11-12: night-vision ground intel, step keys
+
+Deployed.
+
+**Added**
+- Night vision now shows ground intel on the map: tram stops (a T square), bus stops (small rings, from zoom 15) and Kesko, S-ryhmä and Lidl grocery stores (a hexagon with K, S or L; bigger store, bigger hexagon), all under the target markers. Hover for a one-line summary; click or tap for a card: stop type, name and number, or the store's chain, address, open or closed now (Helsinki time) and the week's hours with today marked. Esc or a click on the map closes the card. RECON shows none of it. The legend's "More" explains the glyphs.
+- `npm run infra` refreshes the data (`web/public/infra.json`, committed): 1,020 stops from the Nysse GTFS feed (CC BY 4.0) and 90 stores from OpenStreetMap (ODbL), in the postal areas plus 1 km.
+- Keys: D or S opens the next target, A or W the previous one (wrapping round, like ‹ ›); without an open profile, D opens the first target in the list and A the last.
+
 ## 1.4.4 — 2026-11-12: version in the title
 
 Deployed.

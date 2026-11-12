@@ -1,6 +1,6 @@
 {
   "name": "tampere-targets",
-  "version": "1.4.4",
+  "version": "1.5.0",
   "private": true,
   "description": "Personal Tampere rental finder: Oikotie capture, local SQLite database, map UI",
   "type": "module",
@@ -13,6 +13,7 @@
     "rebuild": "node src/rebuild.mjs",
     "list": "node src/cli.mjs list window",
     "report": "node src/report.mjs",
+    "infra": "node src/infra.mjs",
     "test": "node --test \"test/*.test.mjs\"",
     "ui": "vite build --config web/vite.config.mjs && node server/index.mjs",
     "ui:build": "vite build --config web/vite.config.mjs",

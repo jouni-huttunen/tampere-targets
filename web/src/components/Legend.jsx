@@ -7,8 +7,9 @@ const startHidden = () => typeof window !== 'undefined' && window.matchMedia('(m
 /**
  * Build-year colours always; the other marker styles and reference points behind "More".
  * "Hide" folds it into a small chip with the colour strip; the chip opens it again.
+ * In night vision (`intel`) "More" also explains the ground-intel glyphs (FR-43).
  */
-export default function Legend() {
+export default function Legend({ intel = false }) {
   const [hidden, setHidden] = useState(startHidden);
   const [open, setOpen] = useState(false);
   const bins = YEAR_BINS.slice().reverse();
@@ -85,6 +86,30 @@ export default function Legend() {
             <span className="legend-pin" aria-hidden="true" />
             RAIL · railway station
           </li>
+          {intel && (
+            <>
+              <li className="legend-section legend-wide">Ground intel · NV</li>
+              <li className="legend-wide">
+                <span className="legend-poi poi poi-store poi-t2" aria-hidden="true">
+                  <svg className="poi-hex" viewBox="-12 -12 24 24" focusable="false">
+                    <path d="M-11 0L-5.5 -9.5H5.5L11 0L5.5 9.5H-5.5Z" />
+                  </svg>
+                  <span className="poi-letter">K</span>
+                </span>
+                grocery: K Kesko · S S-ryhmä · L Lidl (larger = bigger store)
+              </li>
+              <li>
+                <span className="legend-poi poi poi-tram" aria-hidden="true">
+                  <span className="poi-letter">T</span>
+                </span>
+                tram stop
+              </li>
+              <li>
+                <span className="legend-poi legend-bus" aria-hidden="true" />
+                bus stop (zoom in)
+              </li>
+            </>
+          )}
         </ul>
       )}
     </div>
