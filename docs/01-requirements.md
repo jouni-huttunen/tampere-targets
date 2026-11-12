@@ -161,7 +161,7 @@ Each requirement has at least one acceptance criterion in Given / When / Then fo
 
 **FR-26 Local server.** `npm run ui` builds the UI and serves it with a read-only JSON API on `http://localhost:3000` (bound to 127.0.0.1 only; no write routes). `npm run ui:dev` runs it with hot reload. `--no-photos` replaces every Oikotie photo with a placeholder (used for agent previews); `--port N` changes the port. Without a database the UI says so and shows the commands to run.
 
-**FR-27 Map.** One marker per listing, coloured by build year in five eras plus "unknown", with a legend; pins for Keskustori and the railway station; an optional overlay of the 17 postal areas; at least three switchable keyless base maps; listings that share one coordinate (same building) are spread out so each stays selectable; a button fits the map to the current list.
+**FR-27 Map.** One marker per listing, coloured by build year in five eras plus "unknown", with a legend; pins for Keskustori and the railway station; an optional overlay of the 17 postal areas; at least three switchable keyless base maps; listings that share one coordinate (same building) are spread out so each stays selectable; a button beside the zoom buttons fits the map to the current list (on phones and windows up to 1100 px it shows the icon and the count only); the legend can be folded into a small chip ("Hide"), and starts folded on phones.
 - *Given* the UI is open with no filters, *when* markers are counted, *then* the count equals the number of active listings that have coordinates.
 - *Given* a listing has `location_approx = 1`, *then* its marker, card and detail say the location is approximate and its distances are marked "≈".
 
@@ -200,6 +200,12 @@ Each requirement has at least one acceptance criterion in Given / When / Then fo
 - *Given* a target under the separator, *when* the user opens it, *then* the map centres it and ‹ › then step through the targets in view.
 - *Given* no profile is open, *when* the user clicks a marker where the profile will dock, *then* the map moves it just beside the profile.
 - *Given* a profile is open, *when* the user drags or zooms the map so that the locked target leaves the visible map (or goes under the profile), *then* the lock is released, the profile closes and the list shows its top.
+
+**FR-42 Swipe on phones** (added 2026-11-12). In the full-screen target profile on a phone, the photo is a carousel: a sideways swipe on it moves to the next or previous photo (no wrap; the counter and the thumbnails follow), and it never changes the target ("photos stay photos", the user's choice over carrying on to the next target at the last photo). A sideways swipe anywhere else on the profile steps to the next (swipe left) or previous (swipe right) target exactly like ‹ ›: the targets in view, wrapping round, one history entry per step. A vertical drag still scrolls the profile. No swipe hints are shown (the user's wish). The ‹ › over the photo are hidden on touch phones.
+- *Given* a profile with several photos, *when* the user swipes left on the photo, *then* the next photo snaps in and the counter reads 2 / n; the target does not change.
+- *Given* a profile, *when* the user swipes left on the facts, *then* the next target in view slides in and Back returns to the previous one.
+- *Given* a short or slow sideways drag (under a quarter of the width, no flick), *then* the profile springs back and stays on the same target.
+- *Given* the user scrolls the profile up or down, *then* it scrolls and never changes target.
 
 **FR-39 Hosted copy** (added 2026-11-11). `npm run deploy` publishes a read-only copy of the UI with the current local data to Azure Storage static website hosting, by hand only; the local database stays the master. Settings and the SAS token live in a git-ignored `.env`. `--dry-run` builds without uploading. The copy is kept out of search engines (`noindex`, `robots.txt`). Details in [03-design.md §8.4](03-design.md#84-hosted-copy-npm-run-deploy).
 - *Given* a listing is gone from the local database export, *when* the deploy runs, *then* its old file is removed from the hosted copy.

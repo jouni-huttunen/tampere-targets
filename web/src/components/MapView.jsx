@@ -1,5 +1,6 @@
 import L from 'leaflet';
 import { memo, useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { GeoJSON, LayerGroup, LayersControl, MapContainer, Marker, Pane, ScaleControl, TileLayer, Tooltip, useMap } from 'react-leaflet';
 import { fmtM2, yearBin } from '../lib/format.js';
 import { sameIds } from '../lib/inview.js';
@@ -90,6 +91,7 @@ function MapView({ listings, places, areas, hoverId, selectedId, saved, onHover,
           onViewChange={onViewChange}
           onLockLost={onLockLost}
         />
+        <FitControl count={located.length} onFit={fit} />
         <ZoomStrike />
         <CursorReadout target={readoutRef} />
       </MapContainer>
@@ -100,22 +102,6 @@ function MapView({ listings, places, areas, hoverId, selectedId, saved, onHover,
       <p className="map-readout" ref={readoutRef} aria-hidden="true">
         &nbsp;
       </p>
-      {located.length > 0 && (
-      <button
-        type="button"
-        className="map-fit"
-        onClick={fit}
-        disabled={!map || located.length === 0}
-        title="Zoom the map to the targets in the list"
-      >
-        <svg className="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
-          <path d="M3 7V3h4M13 3h4v4M17 13v4h-4M7 17H3v-4" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
-        <span>
-          Fit {located.length} {located.length === 1 ? 'target' : 'targets'}
-        </span>
-      </button>
-      )}
       <LegendPanel />
     </>
   );
@@ -183,6 +169,48 @@ const PLACE_CODES = { centre: 'HQ', station: 'RAIL' };
 
 const PlacePinsLayer = memo(PlacePins);
 const LegendPanel = memo(Legend);
+
+/**
+ * "Fit N targets": a Leaflet control in the top-left corner, right of the zoom buttons, so it
+ * never covers the map itself. React renders the button into the control's box. Phones show
+ * only the icon and the count (CSS); the accessible name is always the full label.
+ */
+function FitControl({ count, onFit }) {
+  const map = useMap();
+  const [host, setHost] = useState(null);
+  useEffect(() => {
+    const Fit = L.Control.extend({
+      onAdd() {
+        const box = L.DomUtil.create('div', 'leaflet-control map-fit-control');
+        L.DomEvent.disableClickPropagation(box);
+        L.DomEvent.disableScrollPropagation(box);
+        return box;
+      },
+    });
+    const control = new Fit({ position: 'topleft' }).addTo(map);
+    setHost(control.getContainer());
+    return () => {
+      control.remove();
+      setHost(null);
+    };
+  }, [map]);
+  if (!host || count === 0) return null;
+  const label = `Fit ${count} ${count === 1 ? 'target' : 'targets'}`;
+  return createPortal(
+    <button type="button" className="map-fit" onClick={onFit} aria-label={label} title="Zoom the map to the targets in the list">
+      <svg className="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+        <path d="M3 7V3h4M13 3h4v4M17 13v4h-4M7 17H3v-4" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+      <span className="map-fit-long" aria-hidden="true">
+        {label}
+      </span>
+      <span className="map-fit-short" aria-hidden="true">
+        {count}
+      </span>
+    </button>,
+    host,
+  );
+}
 
 function PlacePins({ places }) {
   const icons = useMemo(

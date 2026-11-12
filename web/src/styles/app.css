@@ -2034,6 +2034,32 @@ input[type='date'].range-field {
   height: 100%;
 }
 
+/* The hero is a scroll-snap track: one photo per stop, swiped natively (no wrap, no chaining). */
+.gallery-track {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-snap-type: x mandatory;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+}
+
+.gallery-track::-webkit-scrollbar {
+  display: none;
+}
+
+.gallery-slide {
+  flex: 0 0 100%;
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
+}
+
+.gallery-wait {
+  background: var(--texture-grid), var(--surface-sunk);
+}
+
 .gallery-nav {
   position: absolute;
   top: 50%;
@@ -2855,16 +2881,17 @@ input[type='date'].range-field {
   animation: blink 1s steps(2, jump-none) infinite;
 }
 
-/* "Fit N targets" sits under Leaflet's zoom buttons. */
+/* "Fit N targets" is a Leaflet control right of the zoom buttons (top-left corner), level with "+". */
+.leaflet-left .leaflet-control.map-fit-control {
+  clear: none;
+  margin-left: var(--sp-2);
+}
+
 .map-fit {
-  position: absolute;
-  top: 84px;
-  left: 10px;
-  z-index: var(--z-map-ui);
   display: inline-flex;
   align-items: center;
   gap: var(--sp-2);
-  height: 30px;
+  height: 32px;
   padding: 0 var(--sp-3);
   border: 1px solid var(--hairline-strong);
   border-radius: var(--r-sm);
@@ -2886,9 +2913,10 @@ input[type='date'].range-field {
   box-shadow: var(--glow-accent);
 }
 
-.map-fit:disabled {
-  cursor: default;
-  opacity: 0.5;
+.map-fit-short {
+  display: none;
+  font-family: var(--font-mono);
+  letter-spacing: 0;
 }
 
 /* Legend */
@@ -2933,6 +2961,58 @@ input[type='date'].range-field {
 
 .legend-toggle:hover {
   color: var(--accent-strong);
+}
+
+.legend-actions {
+  display: inline-flex;
+  gap: var(--sp-3);
+}
+
+/* The folded legend: one small chip with the build-year colours, where the legend sits. */
+.legend-chip {
+  position: absolute;
+  left: var(--sp-3);
+  bottom: var(--sp-4);
+  z-index: var(--z-map-ui);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  height: 32px;
+  padding: 0 var(--sp-3);
+  border: 1px solid var(--hairline-strong);
+  background: var(--glass);
+  color: var(--ink);
+  box-shadow: var(--shadow-2);
+  backdrop-filter: blur(6px);
+  font-family: var(--font-display);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-bold);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.legend-chip.frame::before {
+  --bracket: 6px;
+}
+
+.legend-chip:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.legend-strip {
+  display: inline-flex;
+}
+
+.legend-strip .legend-dot {
+  width: 9px;
+  height: 9px;
+  border-width: 1px;
+}
+
+.legend-strip .legend-dot + .legend-dot {
+  margin-left: -2px;
 }
 
 .legend-title {
@@ -3511,6 +3591,7 @@ input[type='date'].range-field {
 
   .drawer,
   .legend,
+  .legend-chip,
   .map-fit,
   .leaflet-bar,
   .leaflet-control-layers {
@@ -3522,8 +3603,15 @@ input[type='date'].range-field {
   }
 
   .legend,
+  .legend-chip,
   .map-fit {
     background: var(--glass-strong);
+  }
+
+  /* More / Less / Hide: a finger-sized hit area around the same small label. */
+  .legend-toggle {
+    padding: var(--sp-2) var(--sp-1);
+    margin: calc(-1 * var(--sp-2)) calc(-1 * var(--sp-1));
   }
 }
 
@@ -3573,6 +3661,20 @@ input[type='date'].range-field {
   .brand-tag,
   .readout-clock {
     display: none;
+  }
+
+  /* Fit: icon and count only, so it stays clear of an open target profile and small on phones. */
+  .map-fit {
+    gap: var(--sp-1);
+    padding: 0 var(--sp-2);
+  }
+
+  .map-fit-long {
+    display: none;
+  }
+
+  .map-fit-short {
+    display: inline;
   }
 }
 
@@ -3653,6 +3755,11 @@ input[type='date'].range-field {
     opacity: 1;
   }
 
+  /* The swiped-out profile content must not show outside the full-screen profile. */
+  .drawer {
+    overflow: hidden;
+  }
+
   .drawer-title {
     font-size: var(--fs-xl);
   }
@@ -3661,6 +3768,11 @@ input[type='date'].range-field {
     left: var(--sp-2);
     bottom: var(--sp-6);
     padding: var(--sp-2) var(--sp-3);
+  }
+
+  .legend-chip {
+    left: var(--sp-2);
+    bottom: var(--sp-6);
   }
 
   .legend-list {
@@ -3679,5 +3791,12 @@ input[type='date'].range-field {
 
   .boot-log {
     font-size: var(--fs-2xs);
+  }
+}
+
+/* Phones: photos are swiped, so the ‹ › over the photo go (a mouse in a narrow window keeps them). */
+@media (max-width: 900px) and (pointer: coarse) {
+  .gallery-nav {
+    display: none;
   }
 }

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { getJson } from '../lib/api.js';
 import { availabilityText, fmtDate, fmtDay, fmtEur, fmtKm, fmtM2, fmtYesNo } from '../lib/format.js';
 import Photo from './Photo.jsx';
@@ -9,8 +9,146 @@ function isTypingTarget(el) {
   return !!el?.closest?.('input, select, textarea, [contenteditable="true"], .gallery, .leaflet-container');
 }
 
+/** A swipe that starts in these scrolls them (photos, thumbnails, raw JSON); it never changes target. */
+const NO_SWIPE = '.gallery, pre, input, select, textarea';
+const SLIDE_MS = 200;
+const reducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+/**
+ * Phones (full-screen profile): a sideways swipe on the profile steps to the next (swipe left) or
+ * previous (swipe right) target, like ‹ ›. The content follows the finger; a quarter of the width
+ * or a quick flick slides it out and the next target slides in, anything less springs back. The
+ * first few pixels decide between a swipe and a vertical scroll. Touch events (not pointer events)
+ * so the vertical scroll stays native and is cancelled only once the gesture is clearly sideways.
+ */
+function useSwipeStep(enabled, rootRef, paneRef, id, canStep, onStep) {
+  const latest = useRef({ canStep, onStep });
+  latest.current = { canStep, onStep };
+  const incoming = useRef(0); // the direction of a step started by a swipe, until the new target renders
+  const busy = useRef(false);
+
+  useEffect(() => {
+    const root = rootRef.current;
+    const pane = paneRef.current;
+    if (!enabled || !root || !pane) return;
+    let start = null;
+    let mode = null; // 'h' (swipe) or 'v' (scroll), decided on the first moves
+    let dx = 0;
+    const timers = [];
+    const place = (x, animate) => {
+      pane.style.transition = animate ? `transform ${SLIDE_MS}ms var(--ease-snap), opacity ${SLIDE_MS}ms var(--ease)` : 'none';
+      pane.style.transform = x ? `translate3d(${x}px, 0, 0)` : '';
+      pane.style.opacity = x ? String(1 - Math.min(0.6, Math.abs(x) / pane.clientWidth)) : '';
+    };
+    const onStart = (e) => {
+      start = null;
+      if (busy.current || e.touches.length !== 1 || e.target.closest?.(NO_SWIPE)) return;
+      start = { x: e.touches[0].clientX, y: e.touches[0].clientY, t: e.timeStamp };
+      mode = null;
+      dx = 0;
+    };
+    const onMove = (e) => {
+      if (!start || mode === 'v') return;
+      if (e.touches.length !== 1) {
+        start = null;
+        place(0, true);
+        return;
+      }
+      const mx = e.touches[0].clientX - start.x;
+      const my = e.touches[0].clientY - start.y;
+      if (!mode) {
+        const ax = Math.abs(mx);
+        const ay = Math.abs(my);
+        if (ax < 8 && ay < 8) {
+          if (ax > ay && e.cancelable) e.preventDefault(); // keep a sideways start from becoming a scroll
+          return;
+        }
+        mode = ax > ay ? 'h' : 'v';
+        if (mode === 'v') return;
+      }
+      if (e.cancelable) e.preventDefault();
+      dx = mx;
+      // With a single target there is nowhere to go: the content gives a little and springs back.
+      if (!reducedMotion()) place(latest.current.canStep ? dx : dx / 4, false);
+    };
+    const onEnd = (e) => {
+      if (!start || mode !== 'h') {
+        start = null;
+        return;
+      }
+      const width = pane.clientWidth;
+      const speed = Math.abs(dx) / Math.max(1, e.timeStamp - start.t);
+      start = null;
+      const { canStep: can, onStep: step } = latest.current;
+      const go = can && (Math.abs(dx) > width / 4 || (Math.abs(dx) > 40 && speed > 0.4));
+      const still = reducedMotion();
+      if (!go) {
+        place(0, !still);
+        return;
+      }
+      const delta = dx < 0 ? 1 : -1;
+      if (still) {
+        place(0, false);
+        step(delta);
+        return;
+      }
+      busy.current = true;
+      place(-delta * width, true);
+      timers.push(
+        setTimeout(() => {
+          incoming.current = delta;
+          step(delta);
+          // Safety net: if no new target renders, put the content back.
+          timers.push(
+            setTimeout(() => {
+              if (incoming.current) {
+                incoming.current = 0;
+                place(0, false);
+              }
+              busy.current = false;
+            }, SLIDE_MS * 2),
+          );
+        }, SLIDE_MS),
+      );
+    };
+    const onCancel = () => {
+      if (start && mode === 'h') place(0, true);
+      start = null;
+    };
+    root.addEventListener('touchstart', onStart, { passive: true });
+    root.addEventListener('touchmove', onMove, { passive: false });
+    root.addEventListener('touchend', onEnd);
+    root.addEventListener('touchcancel', onCancel);
+    return () => {
+      root.removeEventListener('touchstart', onStart);
+      root.removeEventListener('touchmove', onMove);
+      root.removeEventListener('touchend', onEnd);
+      root.removeEventListener('touchcancel', onCancel);
+      timers.forEach(clearTimeout);
+      busy.current = false;
+      incoming.current = 0;
+      place(0, false);
+    };
+  }, [enabled, rootRef, paneRef]);
+
+  // The new target slides in from the side the finger pushed towards.
+  useLayoutEffect(() => {
+    const pane = paneRef.current;
+    const delta = incoming.current;
+    if (!pane || !delta) return;
+    incoming.current = 0;
+    pane.style.transition = 'none';
+    pane.style.transform = `translate3d(${delta * pane.clientWidth}px, 0, 0)`;
+    pane.style.opacity = '0.4';
+    pane.getBoundingClientRect(); // commit the start position before animating
+    pane.style.transition = `transform ${SLIDE_MS}ms var(--ease-snap), opacity ${SLIDE_MS}ms var(--ease)`;
+    pane.style.transform = '';
+    pane.style.opacity = '';
+  }, [id, paneRef]);
+}
+
 export default function DetailDrawer({
-  id, summary, places, noPhotos, zipNames, onClose, position = -1, count = 0, onStep, isSaved = false, onToggleSaved,
+  id, summary, places, noPhotos, zipNames, onClose, position = -1, count = 0, onStep, isSaved = false, onToggleSaved, swipe = false,
 }) {
   const [detail, setDetail] = useState(null);
   const [error, setError] = useState(null);
@@ -56,11 +194,14 @@ export default function DetailDrawer({
     scrollRef.current?.scrollTo?.(0, 0);
   }, [id]);
 
+  const rootRef = useRef(null);
+  useSwipeStep(swipe, rootRef, scrollRef, id, position >= 0 && count >= 2, onStep);
+
   const l = detail ?? summary;
   const approx = l?.location_approx;
 
   return (
-    <aside className="drawer frame" role="dialog" aria-modal="false" aria-labelledby="drawer-title">
+    <aside ref={rootRef} className="drawer frame" role="dialog" aria-modal="false" aria-labelledby="drawer-title">
       <div className="drawer-top">
         <p className="drawer-kicker">
           <span className="kicker-tag">Target profile</span>
@@ -95,7 +236,7 @@ export default function DetailDrawer({
       </div>
 
       <div className="drawer-scroll" ref={scrollRef}>
-        <Gallery id={id} detail={detail} noPhotos={noPhotos} />
+        <Gallery key={id} detail={detail} noPhotos={noPhotos} />
 
         <header className="drawer-head">
           <p className="eyebrow">
@@ -216,14 +357,20 @@ function Fact({ label, value }) {
 }
 
 /**
- * Gallery: one large hero photo that fades into the panel, ‹ › over it, a counter, and a row
- * of thumbnails below. The hero links to the full-size image. Keys inside the gallery move
- * between photos (the drawer's own ←/→ for homes ignore it).
+ * Gallery: a hero carousel that fades into the panel, ‹ › over it, a counter, and a row of
+ * thumbnails below. The hero is a scroll-snap track, so a finger (or a trackpad) swipes between
+ * photos natively; ‹ ›, the thumbnails and ←/→ inside the gallery jump the track. Each photo links
+ * to its full-size image. Only the photos next to the one shown (and ones already seen) load.
+ * The drawer's own ←/→ and its target swipe ignore the gallery.
  */
-function Gallery({ id, detail, noPhotos }) {
+function Gallery({ detail, noPhotos }) {
   const [index, setIndex] = useState(0);
+  const trackRef = useRef(null);
   const thumbsRef = useRef(null);
-  useEffect(() => setIndex(0), [id]);
+  const frame = useRef(0);
+  const shown = useRef(0);
+  const loaded = useRef(new Set());
+  useEffect(() => () => cancelAnimationFrame(frame.current), []);
 
   if (!detail) return <div className="gallery gallery-loading" aria-hidden="true" />;
   const photos = detail.photos;
@@ -239,12 +386,38 @@ function Gallery({ id, detail, noPhotos }) {
   }
   const n = photos.length;
   const i = Math.min(index, n - 1);
+  for (const k of [i - 1, i, i + 1]) if (k >= 0 && k < n) loaded.current.add(k);
+
+  const showThumb = (j) => {
+    const strip = thumbsRef.current;
+    const thumb = strip?.children[j];
+    if (!thumb) return;
+    // Scroll the strip only (scrollIntoView would also scroll the profile).
+    const left = thumb.offsetLeft - strip.offsetLeft;
+    if (left < strip.scrollLeft) strip.scrollLeft = left;
+    else if (left + thumb.offsetWidth > strip.scrollLeft + strip.clientWidth) strip.scrollLeft = left + thumb.offsetWidth - strip.clientWidth;
+  };
   const go = (next) => {
     const j = (next + n) % n;
+    const track = trackRef.current;
+    if (track) track.scrollLeft = j * track.clientWidth;
+    shown.current = j;
     setIndex(j);
-    thumbsRef.current?.children[j]?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    showThumb(j);
   };
-  const hero = photos[i];
+  const onScroll = () => {
+    if (frame.current) return;
+    frame.current = requestAnimationFrame(() => {
+      frame.current = 0;
+      const track = trackRef.current;
+      if (!track || !track.clientWidth) return;
+      const j = Math.min(n - 1, Math.max(0, Math.round(track.scrollLeft / track.clientWidth)));
+      if (j === shown.current) return;
+      shown.current = j;
+      setIndex(j);
+      showThumb(j);
+    });
+  };
 
   return (
     <div
@@ -260,9 +433,26 @@ function Gallery({ id, detail, noPhotos }) {
       }}
     >
       <div className="gallery-hero">
-        <a href={hero.full ?? hero.large ?? hero.thumb} target="_blank" rel="noopener noreferrer" className="gallery-link" title="Open the full-size photo">
-          <Photo className="gallery-photo" src={hero.large ?? hero.full ?? hero.thumb} alt={`Photo ${i + 1} of ${n}`} eager />
-        </a>
+        <div className="gallery-track" ref={trackRef} onScroll={onScroll}>
+          {photos.map((p, k) => (
+            <a
+              key={k}
+              href={p.full ?? p.large ?? p.thumb}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="gallery-slide gallery-link"
+              title="Open the full-size photo"
+              tabIndex={k === i ? 0 : -1}
+              aria-hidden={k === i ? undefined : true}
+            >
+              {loaded.current.has(k) ? (
+                <Photo className="gallery-photo" src={p.large ?? p.full ?? p.thumb} alt={`Photo ${k + 1} of ${n}`} eager />
+              ) : (
+                <span className="gallery-photo gallery-wait" />
+              )}
+            </a>
+          ))}
+        </div>
         {n > 1 && (
           <>
             <button type="button" className="gallery-nav gallery-prev" onClick={() => go(i - 1)} aria-label="Previous photo">
@@ -290,7 +480,7 @@ function Gallery({ id, detail, noPhotos }) {
               className="gallery-thumb"
               aria-pressed={k === i}
               aria-label={`Photo ${k + 1}`}
-              onClick={() => setIndex(k)}
+              onClick={() => go(k)}
             >
               <Photo src={p.thumb ?? p.large} alt="" />
             </button>

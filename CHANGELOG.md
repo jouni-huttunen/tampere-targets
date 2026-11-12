@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.4.2 — 2026-11-12: phone fixes (map controls, swipe)
+
+Fixes for phones. Deployed.
+
+**Changed**
+- "Fit N targets" moved to the top of the map, beside the zoom buttons, so it no longer covers the map. On phones (and windows up to 1100 px) it shows the icon and the count only.
+- The legend has a "Hide" button that folds it into a small "Legend" chip with the colour strip; tap the chip to open it again. Phones start with the chip. "More" is unchanged.
+
+**Added**
+- Phones: the photo in the target profile is a swipeable carousel; the counter and the thumbnails follow, and the ‹ › over the photo are gone. Desktop also swipes with a trackpad; ‹ › and the keys there are unchanged.
+- Phones: swipe sideways on the profile to go to the next or previous target, like ‹ › (same order, wraps round, Back works). The profile follows the finger and slides; a short swipe springs back. Swipes on the photos only change the photo. No swipe hints.
+
 ## 1.4.1 — 2026-11-12: boot screen version
 
 A small fix. Deployed.

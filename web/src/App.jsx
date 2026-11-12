@@ -389,6 +389,7 @@ export default function App() {
           position={position}
           count={stepList.length}
           onStep={step}
+          swipe={stacked}
           isSaved={saved.has(selectedId)}
           onToggleSaved={() => toggleSaved(selectedId)}
         />
