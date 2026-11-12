@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.9.1 — 2026-11-13: mobile responsiveness
+
+Deployed.
+
+**Fixed**
+- Mobile profile gestures no longer cancel vertical scrolling after a small sideways wobble; passive pointer listeners keep scrolling native.
+- Previously loaded listing details reopen immediately from a bounded page-session cache, without flashing the previous target or loading skeletons.
+- Distant unloaded gallery slides use static placeholders instead of continuously animated loaders.
+
+**Validation**
+- Added regression coverage for touch direction, cancellation, multi-touch, gallery exclusion, cached revisits and retrying failed/aborted requests.
+
 ## 1.9.0 — 2026-11-12: housing filters and loaders
 
 Deployed.

@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { getJson } from '../lib/api.js';
+import { cachedDetail, loadDetail } from '../lib/details.js';
 import { availabilityText, fmtDate, fmtDay, fmtEur, fmtKm, fmtM2 } from '../lib/format.js';
 import Photo, { PhotoLoader } from './Photo.jsx';
 import RichText from './RichText.jsx';
@@ -37,8 +38,8 @@ function ProseSkeleton({ lines }) {
  * Phones (full-screen profile): a sideways swipe on the profile steps to the next (swipe left) or
  * previous (swipe right) target, like ‹ ›. The content follows the finger; a quarter of the width
  * or a quick flick slides it out and the next target slides in, anything less springs back. The
- * first few pixels decide between a swipe and a vertical scroll. Touch events (not pointer events)
- * so the vertical scroll stays native and is cancelled only once the gesture is clearly sideways.
+ * first few pixels decide between a swipe and a vertical scroll. Passive pointer events and
+ * touch-action keep vertical scrolling and pinch zoom native; the gallery scrolls independently.
  */
 function useSwipeStep(enabled, rootRef, paneRef, id, canStep, onStep) {
   const latest = useRef({ canStep, onStep });
@@ -61,36 +62,29 @@ function useSwipeStep(enabled, rootRef, paneRef, id, canStep, onStep) {
     };
     const onStart = (e) => {
       start = null;
-      if (busy.current || e.touches.length !== 1 || e.target.closest?.(NO_SWIPE)) return;
-      start = { x: e.touches[0].clientX, y: e.touches[0].clientY, t: e.timeStamp };
+      if (e.isPrimary === false) { place(0, false); return; }
+      if (busy.current || e.pointerType !== 'touch' || e.target.closest?.(NO_SWIPE)) return;
+      start = { x: e.clientX, y: e.clientY, t: e.timeStamp, pointer: e.pointerId };
       mode = null;
       dx = 0;
     };
     const onMove = (e) => {
-      if (!start || mode === 'v') return;
-      if (e.touches.length !== 1) {
-        start = null;
-        place(0, true);
-        return;
-      }
-      const mx = e.touches[0].clientX - start.x;
-      const my = e.touches[0].clientY - start.y;
+      if (!start || mode === 'v' || e.pointerId !== start.pointer) return;
+      const mx = e.clientX - start.x;
+      const my = e.clientY - start.y;
       if (!mode) {
         const ax = Math.abs(mx);
         const ay = Math.abs(my);
-        if (ax < 8 && ay < 8) {
-          if (ax > ay && e.cancelable) e.preventDefault(); // keep a sideways start from becoming a scroll
-          return;
-        }
-        mode = ax > ay ? 'h' : 'v';
+        if (ax < 8 && ay < 8) return;
+        mode = ax > ay * 1.5 ? 'h' : 'v';
         if (mode === 'v') return;
       }
-      if (e.cancelable) e.preventDefault();
       dx = mx;
       // With a single target there is nowhere to go: the content gives a little and springs back.
       if (!reducedMotion()) place(latest.current.canStep ? dx : dx / 4, false);
     };
     const onEnd = (e) => {
+      if (start && e.pointerId !== start.pointer) return;
       if (!start || mode !== 'h') {
         start = null;
         return;
@@ -134,15 +128,15 @@ function useSwipeStep(enabled, rootRef, paneRef, id, canStep, onStep) {
       if (start && mode === 'h') place(0, true);
       start = null;
     };
-    root.addEventListener('touchstart', onStart, { passive: true });
-    root.addEventListener('touchmove', onMove, { passive: false });
-    root.addEventListener('touchend', onEnd);
-    root.addEventListener('touchcancel', onCancel);
+    root.addEventListener('pointerdown', onStart, { passive: true });
+    root.addEventListener('pointermove', onMove, { passive: true });
+    root.addEventListener('pointerup', onEnd);
+    root.addEventListener('pointercancel', onCancel);
     return () => {
-      root.removeEventListener('touchstart', onStart);
-      root.removeEventListener('touchmove', onMove);
-      root.removeEventListener('touchend', onEnd);
-      root.removeEventListener('touchcancel', onCancel);
+      root.removeEventListener('pointerdown', onStart);
+      root.removeEventListener('pointermove', onMove);
+      root.removeEventListener('pointerup', onEnd);
+      root.removeEventListener('pointercancel', onCancel);
       timers.forEach(clearTimeout);
       busy.current = false;
       incoming.current = 0;
@@ -169,8 +163,10 @@ function useSwipeStep(enabled, rootRef, paneRef, id, canStep, onStep) {
 export default function DetailDrawer({
   id, summary, places, noPhotos, zipNames, onClose, position = -1, count = 0, onStep, isSaved = false, onToggleSaved, swipe = false,
 }) {
-  const [detail, setDetail] = useState(null);
-  const [error, setError] = useState(null);
+  const [result, setResult] = useState(null);
+  // Select by id during render, before effects: never flash the previous target's data.
+  const detail = cachedDetail(id) ?? (result?.id === id ? result.detail : null);
+  const error = result?.id === id ? result.error : null;
   const closeRef = useRef(null);
   const returnFocus = useRef(null);
 
@@ -190,12 +186,11 @@ export default function DetailDrawer({
   }, []);
 
   useEffect(() => {
+    if (cachedDetail(id)) return;
     const controller = new AbortController();
-    setDetail(null);
-    setError(null);
-    getJson(`/api/listings/${id}`, { signal: controller.signal })
-      .then(setDetail)
-      .catch((err) => err.name !== 'AbortError' && setError(err));
+    loadDetail(id, { signal: controller.signal })
+      .then((detail) => !controller.signal.aborted && setResult({ id, detail }))
+      .catch((error) => !controller.signal.aborted && setResult({ id, error }));
     return () => controller.abort();
   }, [id]);
 
@@ -571,7 +566,7 @@ function Gallery({ detail, photoCount = 0, noPhotos }) {
                 {loaded.current.has(k) ? (
                   <Photo className="gallery-photo" src={p.large ?? p.full ?? p.thumb} alt={`Photo ${k + 1} of ${n}`} eager />
                 ) : (
-                  <PhotoLoader className="gallery-photo" />
+                  <span className="gallery-photo gallery-placeholder" aria-hidden="true" />
                 )}
               </a>
             );

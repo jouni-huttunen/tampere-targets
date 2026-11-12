@@ -2170,6 +2170,10 @@ input[type='date'].range-field {
   filter: none;
 }
 
+.gallery-placeholder {
+  background: var(--texture-grid), var(--surface-sunk);
+}
+
 .gallery-loading {
   aspect-ratio: 16 / 10;
   background: var(--texture-grid), var(--surface-sunk);
@@ -4310,6 +4314,13 @@ input[type='date'].range-field {
 
   .drawer-scroll {
     overscroll-behavior: contain;
+  }
+
+  /* Leave the gallery and raw JSON free to scroll sideways. Other profile content
+     reserves horizontal gestures for stepping without blocking vertical scroll or zoom. */
+  .drawer-top,
+  .drawer-scroll > :not(.gallery):not(.raw) {
+    touch-action: pan-y pinch-zoom;
   }
 
   .drawer-top {
