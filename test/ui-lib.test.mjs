@@ -216,3 +216,19 @@ test('stepped build-year slider: decade stops, equal steps, upper stop means the
   assert.equal(nextStop(0, -1, 8), 0);
   assert.equal(nextStop(8, 1, 8), 8);
 });
+
+test('panels: both shown by default; hidden ones remembered; bad or blocked storage means shown', async () => {
+  const { PANELS_KEY, loadPanels, parsePanels, savePanels } = await import('../web/src/lib/panels.js');
+  const data = new Map();
+  const storage = { getItem: (k) => data.get(k) ?? null, setItem: (k, v) => data.set(k, String(v)) };
+  assert.deepEqual(loadPanels(storage), { params: true, list: true });
+  savePanels({ params: false, list: true }, storage);
+  assert.equal(data.get(PANELS_KEY), '{"params":false,"list":true}');
+  assert.deepEqual(loadPanels(storage), { params: false, list: true });
+  savePanels({ params: true, list: false }, storage);
+  assert.deepEqual(loadPanels(storage), { params: true, list: false });
+  for (const bad of ['not json', 'null', '42', '{"params":"no"}']) assert.deepEqual(parsePanels(bad), { params: true, list: true }, bad);
+  const blocked = { getItem() { throw new Error('blocked'); }, setItem() { throw new Error('blocked'); } };
+  assert.deepEqual(loadPanels(blocked), { params: true, list: true });
+  assert.doesNotThrow(() => savePanels({ params: false, list: false }, blocked));
+});

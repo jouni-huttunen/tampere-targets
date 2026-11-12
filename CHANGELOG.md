@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.6.0 — 2026-11-12: hideable side panels, smoother phone profile
+
+Deployed.
+
+**Added**
+- Mission parameters and the Target list can be hidden for more map: « / » in their title bars, or the two keys right of P ([ ], Å ¨ on a Finnish keyboard). A hidden panel leaves a slim rail with its count; click it to bring the panel back. Both are shown by default; the choice is remembered in the browser. On phones the list always shows.
+
+**Fixed**
+- Phones: the target profile no longer jumps while it opens. The space for the thumbnail row under the photo is kept while the details load, so the content stays put when they arrive (on the hosted copy that is often mid slide-in).
+- Phones: the profile slides and fades in instead of the desktop wipe, which repainted the whole screen on every frame and stuttered. Desktop keeps the wipe.
+- Phones: no "target locked" animation under the full-screen profile, where it could not be seen; it appears when the map shows beside the profile (a turned phone or a wider window).
+
 ## 1.5.0 — 2026-11-12: night-vision ground intel, step keys
 
 Deployed.

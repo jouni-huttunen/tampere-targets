@@ -286,6 +286,10 @@ function ListingMarkers({ listings, hoverId, selectedId, saved, onHover, onSelec
     haloPane.style.pointerEvents = 'none';
     haloRenderer.current = L.svg({ pane: 'halos' });
     const relayout = () => layout();
+    // A resize (a phone turned, a panel shown or hidden) can uncover the map beside a
+    // full-screen profile, or cover it: draw or drop the lock to match.
+    const onResize = () => syncLock();
+    map.on('resize', onResize);
     // While the map is dragged the pointer sweeps over many markers: no hovers then (each one
     // re-renders the list and opens a tooltip). Hover works again as soon as the drag ends.
     const container = map.getContainer();
@@ -341,6 +345,7 @@ function ListingMarkers({ listings, hoverId, selectedId, saved, onHover, onSelec
     map.on('moveend', onMoveEnd);
     map.on('autopanstart', onAutoPan);
     return () => {
+      map.off('resize', onResize);
       map.off('autopanstart', onAutoPan);
       map.off('zoomend', relayout);
       map.off('dragstart', onDragStart);
@@ -366,7 +371,10 @@ function ListingMarkers({ listings, hoverId, selectedId, saved, onHover, onSelec
   function syncLock(restart = false) {
     const id = state.current.selectedId;
     const entry = id != null ? layers.current.get(id) : null;
-    if (!entry) {
+    // No lock under a profile that covers the whole map (phones): nobody sees it, and its
+    // animation would compete with the profile's slide-in. A relayout (a phone turned to
+    // landscape) draws it once the map shows beside the profile.
+    if (!entry || visibleArea().hidden) {
       lock.current?.remove();
       lock.current = null;
       lockId.current = null;

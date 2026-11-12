@@ -409,7 +409,16 @@ function Gallery({ detail, noPhotos }) {
     [],
   );
 
-  if (!detail) return <div className="gallery gallery-loading" aria-hidden="true" />;
+  // While the details load, the gallery already takes its final height (the photo plus the row
+  // under it), so nothing below jumps when they arrive, often mid slide-in on a phone.
+  if (!detail) {
+    return (
+      <div className="gallery" aria-hidden="true">
+        <div className="gallery-hero gallery-loading" />
+        <div className="gallery-under" />
+      </div>
+    );
+  }
   const photos = detail.photos;
   if (noPhotos || photos.length === 0) {
     return (
@@ -417,7 +426,9 @@ function Gallery({ detail, noPhotos }) {
         <div className="gallery-hero">
           <Photo className="gallery-photo" noPhotos={noPhotos} />
         </div>
-        {noPhotos && detail.photo_count > 0 && <p className="strip-note">{detail.photo_count} visuals hidden in preview mode</p>}
+        <div className="gallery-under">
+          {noPhotos && detail.photo_count > 0 && <p className="strip-note">{detail.photo_count} visuals hidden in preview mode</p>}
+        </div>
       </div>
     );
   }
@@ -515,22 +526,24 @@ function Gallery({ detail, noPhotos }) {
           {i + 1} / {n}
         </span>
       </div>
-      {n > 1 && (
-        <div className="gallery-thumbs" ref={thumbsRef} role="group" aria-label="Photos">
-          {photos.map((p, k) => (
-            <button
-              key={k}
-              type="button"
-              className="gallery-thumb"
-              aria-pressed={k === i}
-              aria-label={`Photo ${k + 1}`}
-              onClick={() => go(k)}
-            >
-              <Photo src={p.thumb ?? p.large} alt="" />
-            </button>
-          ))}
-        </div>
-      )}
+      <div className="gallery-under">
+        {n > 1 && (
+          <div className="gallery-thumbs" ref={thumbsRef} role="group" aria-label="Photos">
+            {photos.map((p, k) => (
+              <button
+                key={k}
+                type="button"
+                className="gallery-thumb"
+                aria-pressed={k === i}
+                aria-label={`Photo ${k + 1}`}
+                onClick={() => go(k)}
+              >
+                <Photo src={p.thumb ?? p.large} alt="" />
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

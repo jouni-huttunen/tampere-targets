@@ -176,6 +176,7 @@
   --list-w: 420px;
   --params-w: 320px;
   --drawer-w: 520px;
+  --rail-w: 34px; /* a hidden side panel's rail (FR-46) */
   --row-thumb-w: 84px;
   --row-thumb-h: 60px;
   --photo-ratio: 16 / 10;

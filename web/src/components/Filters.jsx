@@ -1,5 +1,6 @@
 import { memo, useEffect, useMemo } from 'react';
 import { YEAR_DECADES } from '../lib/stops.js';
+import { PanelChevron } from './PanelRail.jsx';
 import RangeFilter from './RangeFilter.jsx';
 
 // Same bins as the map markers and the legend (format.js YEAR_BINS).
@@ -14,11 +15,12 @@ const YEAR_ERAS = [
 /**
  * MISSION PARAMETERS: every filter in one column on the left, always open in a wide window.
  * In narrow windows it slides out over the console (overlay) and Esc or Done closes it.
+ * In a wide window `onHide` (the « button) folds it into a rail for more map (FR-46).
  */
 export default memo(Filters);
 
 function Filters({
-  overlay, filters, defaults, bounds, zips, zipNames, listings, saved, activeCount, onChange, onReset, onClose,
+  overlay, filters, defaults, bounds, zips, zipNames, listings, saved, activeCount, onChange, onReset, onClose, onHide, hideRef,
 }) {
   const counts = useMemo(() => {
     const c = { new: 0, removed: 0, noDate: 0, zip: {} };
@@ -65,6 +67,11 @@ function Filters({
           <span className="badge" aria-label={`${activeCount} active`}>
             {activeCount}
           </span>
+        )}
+        {onHide && (
+          <button ref={hideRef} type="button" className="icon-btn panel-hide" onClick={onHide} aria-expanded="true" aria-label="Hide mission parameters" title="Hide for more map ([)">
+            <PanelChevron dir="left" />
+          </button>
         )}
         {overlay && (
           <button type="button" className="icon-btn panel-close" onClick={onClose} aria-label="Close mission parameters" title="Close (Esc)">

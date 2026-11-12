@@ -1,6 +1,7 @@
 import { Fragment, memo, useEffect, useMemo, useRef, useState } from 'react';
 import { SORTS } from '../lib/filters.js';
 import { Crosshair } from './Icons.jsx';
+import { PanelChevron } from './PanelRail.jsx';
 import ListingCard from './ListingCard.jsx';
 
 const VIEW_KEY = 'tcb.listView.v1';
@@ -17,7 +18,7 @@ export default memo(ListPanel);
 
 function ListPanel({
   listings, inViewCount = null, loading, error, sort, onSort, hover, selectedId, onHover, onSelect, onReset, noPhotos,
-  saved, onToggleSaved, onlySaved, onOnlySaved, animateIn = true, stacked = false, selectSource = null,
+  saved, onToggleSaved, onlySaved, onOnlySaved, animateIn = true, stacked = false, selectSource = null, onHide, hideRef,
 }) {
   const registry = useRef(new Map());
   // Rows (compact, the default) or cards (large photos); remembered in this browser.
@@ -102,6 +103,11 @@ function ListPanel({
               )
             )}
           </p>
+        {onHide && (
+          <button ref={hideRef} type="button" className="icon-btn panel-hide" onClick={onHide} aria-expanded="true" aria-label="Hide the target list" title="Hide for more map (])">
+            <PanelChevron dir="right" />
+          </button>
+        )}
       </div>
       <div className="list-bar">
         <div className="list-bar-row">

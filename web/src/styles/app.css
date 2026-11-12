@@ -101,6 +101,9 @@ input {
 /* ---------- Layout ---------- */
 
 .app {
+  /* The side columns' widths: a panel, or its rail when hidden (FR-46). */
+  --params-col: var(--params-w);
+  --list-col: var(--list-w);
   height: 100dvh;
   display: grid;
   grid-template-rows: var(--header-h) minmax(0, 1fr);
@@ -112,11 +115,108 @@ input {
    right, next to the map (hover sync and the profile work across that edge). */
 .main {
   display: grid;
-  grid-template-columns: var(--params-w) minmax(0, 1fr) var(--list-w);
+  grid-template-columns: var(--params-col) minmax(0, 1fr) var(--list-col);
   grid-template-areas: 'params map list';
   gap: 6px;
   padding: 6px;
   min-height: 0;
+  transition: grid-template-columns var(--dur) var(--ease);
+}
+
+.app.params-folded {
+  --params-col: var(--rail-w);
+}
+
+.app.list-folded {
+  --list-col: var(--rail-w);
+}
+
+/* A hidden side panel: a slim framed rail with its number, an upright label and a count.
+   The whole rail is the button that shows the panel again. */
+.panel-rail {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-3);
+  min-width: 0;
+  min-height: 0;
+  padding: var(--sp-3) 0;
+  border: 1px solid var(--hairline);
+  background: var(--texture-scan), var(--header-gradient);
+  color: var(--ink-soft);
+  font-family: var(--font-mono);
+  cursor: pointer;
+  transition:
+    border-color var(--dur-fast) var(--ease),
+    color var(--dur-fast) var(--ease);
+}
+
+.panel-rail.frame::before {
+  --bracket: 8px;
+}
+
+.panel-rail-left {
+  grid-area: params;
+}
+
+.panel-rail-right {
+  grid-area: list;
+}
+
+.panel-rail:hover {
+  border-color: var(--accent-mid);
+  color: var(--ink);
+}
+
+.panel-rail:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: -2px;
+}
+
+.panel-rail .icon {
+  width: 16px;
+  height: 16px;
+  color: var(--accent);
+}
+
+.panel-rail-label {
+  writing-mode: vertical-rl;
+  font-size: var(--fs-2xs);
+  font-weight: var(--fw-semibold);
+  letter-spacing: var(--tracking-display);
+  text-transform: uppercase;
+}
+
+.panel-rail-count {
+  writing-mode: vertical-rl;
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-semibold);
+  color: var(--accent);
+}
+
+/* The « » button in a panel's title bar that hides it: small, so the title and the counts
+   stay on one line. */
+.panel-hide.icon-btn {
+  flex: none;
+  width: 26px;
+  height: 26px;
+}
+
+.panel-hide .icon {
+  width: 16px;
+  height: 16px;
+}
+
+.params .panel-hide {
+  margin-left: auto;
+}
+
+.list-panel .panel-hide {
+  margin: 0 calc(-1 * var(--sp-2)) 0 calc(-1 * var(--sp-1));
+}
+
+.list-panel .panel-title {
+  white-space: nowrap;
 }
 
 /* isolation keeps Leaflet's own z-indexes (controls use 1000) below the header and panels. */
@@ -1840,11 +1940,11 @@ input[type='date'].range-field {
   position: fixed;
   top: calc(var(--header-h) + 7px);
   bottom: 7px;
-  right: calc(var(--list-w) + 13px);
+  right: calc(var(--list-col) + 13px);
   z-index: var(--z-drawer);
   display: flex;
   flex-direction: column;
-  width: min(var(--drawer-w), calc(100vw - var(--list-w) - var(--params-w) - 140px));
+  width: min(var(--drawer-w), calc(100vw - var(--list-col) - var(--params-col) - 140px));
   background: var(--texture-scan), var(--glass-strong);
   border: 1px solid var(--accent-a40);
   box-shadow: var(--shadow-3);
@@ -1864,6 +1964,13 @@ input[type='date'].range-field {
   }
   to {
     clip-path: inset(0);
+  }
+}
+
+@keyframes profile-in-phone {
+  from {
+    opacity: 0;
+    transform: translateX(32px);
   }
 }
 
@@ -2021,6 +2128,13 @@ input[type='date'].range-field {
 .gallery-loading {
   aspect-ratio: 16 / 10;
   background: var(--texture-grid), var(--surface-sunk);
+}
+
+/* The row under the photo (thumbnails, or the "visuals hidden" note) always takes the
+   thumbnail row's height, also while the details load: the profile never jumps when they
+   arrive. 50 px thumbnails + their bottom padding. */
+.gallery-under {
+  min-height: calc(50px + var(--sp-1));
 }
 
 .gallery-hero {
@@ -3983,12 +4097,12 @@ input[type='date'].range-field {
 /* Below 1360 px (App.jsx WIDE_QUERY): two columns; the parameters slide out from the header. */
 @media (max-width: 1359px) {
   .main {
-    grid-template-columns: minmax(0, 1fr) var(--list-w);
+    grid-template-columns: minmax(0, 1fr) var(--list-col);
     grid-template-areas: 'map list';
   }
 
   .drawer {
-    width: min(var(--drawer-w), calc(100vw - var(--list-w) - 120px));
+    width: min(var(--drawer-w), calc(100vw - var(--list-col) - 120px));
   }
 
   .readout-wide {
@@ -4066,10 +4180,14 @@ input[type='date'].range-field {
     grid-template-columns: 1fr;
   }
 
-  /* Full screen on phones, anchored to both edges (100vw can include a scrollbar). */
+  /* Full screen on phones, anchored to both edges (100vw can include a scrollbar). It slides
+     and fades in (transform and opacity only, which the GPU composites): the desktop wipe
+     animates clip-path, which repaints the whole screen-sized panel on every frame and
+     stutters on phones. */
   .drawer {
     inset: 0;
     width: auto;
+    animation-name: profile-in-phone;
   }
 
   .drawer-top {

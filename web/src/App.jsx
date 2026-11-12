@@ -5,6 +5,7 @@ import Filters from './components/Filters.jsx';
 import Header from './components/Header.jsx';
 import ListPanel from './components/ListPanel.jsx';
 import MapView from './components/MapView.jsx';
+import PanelRail from './components/PanelRail.jsx';
 import Radar from './components/Radar.jsx';
 import { ApiError, getJson } from './lib/api.js';
 import {
@@ -21,6 +22,7 @@ import { splitByView, stepIndex } from './lib/inview.js';
 import { SHORTLIST_KEY, loadShortlist, parseShortlist, saveShortlist, toggled } from './lib/shortlist.js';
 import { listingFromSearch, profileState, searchWithListing, stepsToMain } from './lib/history.js';
 import { applyTheme, loadTheme, saveTheme } from './lib/theme.js';
+import { loadPanels, savePanels } from './lib/panels.js';
 
 // Three columns (parameters | map | targets) from this width; same value as tokens.css notes.
 const WIDE_QUERY = '(min-width: 1360px)';
@@ -34,6 +36,9 @@ const NV_FX_MS = 720;
 
 // Next / previous target (FR-44): the WASD keys by position, D and S forward, A and W back.
 const STEP_KEYS = { KeyD: 1, KeyS: 1, KeyA: -1, KeyW: -1 };
+// Show or hide the side panels (FR-46): the two keys right of P by position ([ and ] on a US
+// layout, Å and ¨ on a Finnish one).
+const PANEL_KEYS = { BracketLeft: 'params', BracketRight: 'list' };
 
 const NO_PLACES = [];
 const NO_ZIPS = [];
@@ -147,9 +152,15 @@ export default function App() {
         toggleNv();
         return;
       }
+      const k = keyState.current;
+      const panel = PANEL_KEYS[e.code];
+      if (panel) {
+        e.preventDefault();
+        k.togglePanel(panel);
+        return;
+      }
       const dir = STEP_KEYS[e.code];
       if (!dir) return;
-      const k = keyState.current;
       e.preventDefault();
       if (k.selectedId != null) k.step(dir);
       else {
@@ -263,6 +274,31 @@ export default function App() {
     if (wide) setParamsOpen(false);
   }, [wide]);
   const toggleParams = useCallback(() => setParamsOpen((o) => !o), []);
+
+  // Side panels shown or folded into a rail (FR-46), remembered in this browser. They fold only
+  // where they are a column beside the map: the parameters in a wide window, the list above the
+  // stacked (phone) layout. A button click moves focus to its counterpart (rail ↔ hide button).
+  const [panels, setPanels] = useState(loadPanels);
+  useEffect(() => savePanels(panels), [panels]);
+  const paramsFolded = wide && !panels.params;
+  const listFolded = !stacked && !panels.list;
+  const paramsHideRef = useRef(null);
+  const paramsRailRef = useRef(null);
+  const listHideRef = useRef(null);
+  const listRailRef = useRef(null);
+  const focusNext = useRef(null);
+  useEffect(() => {
+    focusNext.current?.current?.focus();
+    focusNext.current = null;
+  }, [panels]);
+  const setPanel = useCallback((which, shown, focusRef) => {
+    focusNext.current = focusRef ?? null;
+    setPanels((p) => (p[which] === shown ? p : { ...p, [which]: shown }));
+  }, []);
+  const hideParams = useCallback(() => setPanel('params', false, paramsRailRef), [setPanel]);
+  const unfoldParams = useCallback(() => setPanel('params', true, paramsHideRef), [setPanel]);
+  const hideList = useCallback(() => setPanel('list', false, listRailRef), [setPanel]);
+  const unfoldList = useCallback(() => setPanel('list', true, listHideRef), [setPanel]);
   const closeParams = useCallback(() => {
     setParamsOpen(false);
     paramsButtonRef.current?.focus();
@@ -335,12 +371,22 @@ export default function App() {
     },
     [stepList, position, openTarget],
   );
-  keyState.current = { selectedId, step, stepList, openTarget };
+  // [ in a narrower window opens or closes the slide-out parameters instead; ] does nothing in
+  // the stacked layout, where the list is not a column.
+  const togglePanel = (which) => {
+    if (which === 'params') {
+      if (wide) setPanel('params', !panels.params);
+      else toggleParams();
+    } else if (!stacked) setPanel('list', !panels.list);
+  };
+  keyState.current = { selectedId, step, stepList, openTarget, togglePanel };
 
   const showParams = wide || paramsOpen;
 
   return (
-    <div className={`app phase-${phase} ${nvFx ? `nv-switching nv-switching-${nvFx}` : ''}`}>
+    <div
+      className={`app phase-${phase} ${nvFx ? `nv-switching nv-switching-${nvFx}` : ''} ${paramsFolded ? 'params-folded' : ''} ${listFolded ? 'list-folded' : ''}`}
+    >
       <Header
         meta={meta}
         shown={shown.length}
@@ -359,7 +405,20 @@ export default function App() {
         onReset={reset}
       />
       <main className="main">
-        {showParams && (
+        {paramsFolded && (
+          <PanelRail
+            ref={paramsRailRef}
+            side="left"
+            index="01"
+            label="mission parameters"
+            short="Params"
+            count={paramCount || null}
+            countLabel="active"
+            shortcut="["
+            onOpen={unfoldParams}
+          />
+        )}
+        {showParams && !paramsFolded && (
           <Filters
             overlay={!wide}
             filters={filters}
@@ -373,6 +432,8 @@ export default function App() {
             onChange={update}
             onReset={reset}
             onClose={closeParams}
+            onHide={wide ? hideParams : undefined}
+            hideRef={paramsHideRef}
           />
         )}
         <section className="map-wrap frame" aria-label="Tactical map" ref={mapRef}>
@@ -393,6 +454,19 @@ export default function App() {
           />
           {phase === 'deploy' && <div className="map-sweep" aria-hidden="true" />}
         </section>
+        {listFolded ? (
+          <PanelRail
+            ref={listRailRef}
+            side="right"
+            index="03"
+            label="the target list"
+            short="Targets"
+            count={inViewCount ?? ordered.length}
+            countLabel={inViewCount != null ? 'in view' : 'targets'}
+            shortcut="]"
+            onOpen={unfoldList}
+          />
+        ) : (
         <ListPanel
           listings={ordered}
           inViewCount={inViewCount}
@@ -413,7 +487,10 @@ export default function App() {
           animateIn={phase !== 'boot'}
           stacked={stacked}
           selectSource={selectSource}
+          onHide={stacked ? undefined : hideList}
+          hideRef={listHideRef}
         />
+        )}
       </main>
       {selectedId != null && (
         <DetailDrawer
