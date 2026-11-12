@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { getJson } from '../lib/api.js';
-import { availabilityText, fmtDate, fmtDay, fmtEur, fmtKm, fmtM2, fmtYesNo } from '../lib/format.js';
+import { availabilityText, fmtDate, fmtDay, fmtEur, fmtKm, fmtM2 } from '../lib/format.js';
 import Photo from './Photo.jsx';
 import StarButton from './StarButton.jsx';
 
@@ -283,18 +283,14 @@ export default function DetailDrawer({
               <Fact label="Move-in" value={availabilityText(l)} />
               {l.available_date && l.availability_text && <Fact label="Move-in note" value={l.availability_text} />}
               <Fact label="Cost" value={`${fmtEur(l.rent_eur)} / month`} />
-              <Fact label="Water" value={l.water_fee} />
-              <Fact label="Electricity" value={l.electric_fee} />
-              <Fact label="Deposit" value={l.deposit_eur != null ? fmtEur(l.deposit_eur) : null} />
-              <Fact label="Pets allowed" value={fmtYesNo(l.pets_allowed)} />
-              <Fact label="Furnished" value={fmtYesNo(l.furnished)} />
-              <Fact label="Building type" value={l.building_type != null ? `code ${l.building_type} (mapping unverified)` : 'unknown'} />
+              {l.water_fee != null && String(l.water_fee).trim() !== '' && <Fact label="Water" value={l.water_fee} />}
+              {l.deposit_eur != null && <Fact label="Deposit" value={fmtEur(l.deposit_eur)} />}
+              {l.furnished === true && <Fact label="Furnished" value="Yes" />}
               {places.map((p) => (
                 <Fact key={p.key} label={`Range to ${p.key === 'centre' ? 'HQ' : p.key === 'station' ? 'rail' : p.name} · ${p.name}`} value={fmtKm(l.dist?.[p.key], approx)} />
               ))}
               <Fact label="Landlord / agent" value={l.company_name} />
               <Fact label="Listed" value={l.published_at ? fmtDay(l.published_at) : null} />
-              <Fact label="First seen" value={fmtDay(l.first_seen_at)} />
               <Fact label="Details fetched" value={l.detail_fetched_at ? fmtDay(l.detail_fetched_at) : null} />
             </dl>
             {approx && (

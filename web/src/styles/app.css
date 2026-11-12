@@ -4099,7 +4099,7 @@ input[type='date'].range-field {
 
 /* ---------- Narrower windows ---------- */
 
-/* Below 1360 px (App.jsx WIDE_QUERY): two columns; the parameters slide out from the header. */
+/* Below 1360 px (lib/layout.js WIDE_QUERY): two columns; the parameters slide out from the header. */
 @media (max-width: 1359px) {
   .main {
     grid-template-columns: minmax(0, 1fr) var(--list-col);
@@ -4136,51 +4136,10 @@ input[type='date'].range-field {
   }
 }
 
-@media (max-width: 900px) {
-  .app {
-    height: auto;
-    min-height: 100dvh;
-    grid-template-rows: auto auto;
-    overflow: visible;
-  }
-
-  .header {
-    flex-wrap: wrap;
-    gap: var(--sp-3);
-    padding: var(--sp-3) var(--sp-4);
-  }
-
-  .brand {
-    flex: 1 1 180px;
-    min-width: 0;
-  }
-
-  .readouts {
-    order: 3;
-    flex-basis: 100%;
-    margin: 0;
-    overflow-x: auto;
-  }
-
-  .main {
-    grid-template-columns: 1fr;
-    grid-template-areas: 'map' 'list';
-  }
-
-  .map-wrap {
-    height: 52vh;
-  }
-
-  .cards {
-    overflow: visible;
-  }
-
-  .params-overlay {
-    top: 0;
-    width: auto;
-    right: 0;
-  }
-
+/* Phones, upright or sideways (lib/layout.js PHONE_QUERY): the full-screen profile and phone-sized
+   map furniture. 900 px is the phone / tablet line; a phone held sideways is caught by its height
+   instead (some are wider than 900 px then). */
+@media (max-width: 900px), (orientation: landscape) and (max-height: 500px) {
   .facts {
     grid-template-columns: 1fr;
   }
@@ -4261,8 +4220,207 @@ input[type='date'].range-field {
   }
 }
 
+/* The stacked layout (lib/layout.js STACKED_QUERY): a phone held upright. The list sits under
+   the map and the whole page scrolls. */
+@media (max-width: 900px) and (orientation: portrait), (max-width: 900px) and (min-height: 501px) {
+  .app {
+    height: auto;
+    min-height: 100dvh;
+    grid-template-rows: auto auto;
+    overflow: visible;
+  }
+
+  .header {
+    flex-wrap: wrap;
+    gap: var(--sp-3);
+    padding: var(--sp-3) var(--sp-4);
+  }
+
+  .brand {
+    flex: 1 1 180px;
+    min-width: 0;
+  }
+
+  .readouts {
+    order: 3;
+    flex-basis: 100%;
+    margin: 0;
+    overflow-x: auto;
+  }
+
+  .main {
+    grid-template-columns: 1fr;
+    grid-template-areas: 'map' 'list';
+  }
+
+  /* svh: the screen height while the browser's address bar shows, so the map and the top of the
+     list fit together on the first screen (vh is the taller height with the bar hidden). */
+  .map-wrap {
+    height: 52svh;
+  }
+
+  .cards {
+    overflow: visible;
+  }
+
+  .params-overlay {
+    top: 0;
+    width: auto;
+    right: 0;
+  }
+}
+
+/* Compact header, for narrow upright phones and phones held sideways: a smaller brand with the
+   version under the name, and Params and NV as square icon buttons (their names stay for screen
+   readers; the Params badge sits on the button's corner). */
+@media (max-width: 430px), (orientation: landscape) and (max-height: 500px) {
+  .brand {
+    gap: var(--sp-2);
+  }
+
+  .brand-mark {
+    width: 30px;
+    height: 30px;
+  }
+
+  .brand-title {
+    font-size: var(--fs-lg);
+  }
+
+  .brand-version {
+    display: block;
+    margin: 3px 0 0;
+  }
+
+  .readout {
+    height: 38px;
+  }
+
+  .readout-n {
+    font-size: var(--fs-lg);
+  }
+
+  .params-btn,
+  .nv-toggle {
+    position: relative;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    padding: 0;
+  }
+
+  .params-btn .icon {
+    width: 20px;
+    height: 20px;
+  }
+
+  .params-btn .btn-label,
+  .nv-text {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .params-btn .badge {
+    position: absolute;
+    top: -7px;
+    right: -7px;
+  }
+}
+
+/* A phone held sideways (lib/layout.js LANDSCAPE_PHONE_QUERY): one slim header row, then the map
+   and the list side by side at full height, each scrolling on its own (the tablet layout). */
+@media (orientation: landscape) and (max-height: 500px) {
+  .app {
+    --list-col: min(var(--list-w), 46vw);
+  }
+
+  .header {
+    gap: var(--sp-3);
+    padding: 0 var(--sp-4);
+  }
+
+  .main {
+    gap: 4px;
+    padding: 4px;
+  }
+
+  /* The profile's photo fits the screen height, whole (letterboxed), instead of a 16:10 frame
+     taller than the screen. */
+  .gallery-hero {
+    aspect-ratio: auto;
+    height: 72svh;
+  }
+
+  .gallery-hero .photo {
+    object-fit: contain;
+  }
+}
+
+/* Narrow phones held upright, 360–430 px wide (Galaxy S24+ in Chrome: 384; iPhones 390–430;
+   Pixels 412). Two header rows (brand and buttons, then the three readouts across), tighter list
+   heads, the order on a row of its own, and smaller row photos so more of the address shows. */
+@media (max-width: 430px) {
+  .header {
+    gap: var(--sp-2) var(--sp-3);
+    padding: var(--sp-3);
+  }
+
+  .brand {
+    flex: 1 1 0;
+  }
+
+  /* The parameters panel has its own "Clear params"; the Params badge shows that some are set. */
+  .header-clear {
+    display: none;
+  }
+
+  /* The three readouts share the row, so they always fit: no scroll box (it showed a stray bar). */
+  .readouts {
+    gap: 6px;
+    overflow: visible;
+  }
+
+  .readout {
+    flex: 1 1 0;
+    min-width: 0;
+    padding: 0 var(--sp-2);
+  }
+
+  .panel-head {
+    gap: var(--sp-2);
+    padding: 0 var(--sp-3);
+  }
+
+  .list-count {
+    letter-spacing: 0.06em;
+  }
+
+  .list-bar .segmented {
+    order: 2;
+    margin-left: auto;
+  }
+
+  .list-bar .sort {
+    order: 3;
+    flex: 1 1 100%;
+  }
+
+  .card-rows {
+    gap: var(--sp-2);
+    padding: 7px var(--sp-3);
+  }
+
+  .card-meta {
+    gap: 0 var(--sp-2);
+  }
+}
+
 /* Phones: photos are swiped, so the ‹ › over the photo go (a mouse in a narrow window keeps them). */
-@media (max-width: 900px) and (pointer: coarse) {
+@media (max-width: 900px) and (pointer: coarse), (orientation: landscape) and (max-height: 500px) and (pointer: coarse) {
   .gallery-nav {
     display: none;
   }

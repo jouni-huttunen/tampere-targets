@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.7.0 — 2026-11-12: phone breakpoints, desktop keys, leaner profile
+
+Deployed.
+
+**Changed**
+- Phones, tuned for the Galaxy S24+ in Chrome (384 px wide) and good from 360 to 430 px: a two-row header (Params and NV as icon buttons, the version under the name, the three readouts across), 177 → 115 px tall, so the map and the first list row fit on the first screen. The order select gets its own row and shows its full text; smaller row photos leave more room for the address.
+- The map's height on phones uses the screen height with the address bar showing, so it no longer runs under the bar.
+- A phone held sideways: map and list side by side at full height under a one-row header (the map was a 172 px strip, now 266 px on the S24+), the profile full screen with swipe, and its photo fitted to the screen height.
+- Desktop keys: **Q** and **E** show or hide the left and right panels (they replace [ and ]), **C** fits the map to the targets, **R** switches the base map, **X** closes the target profile and drops the lock marker. Tooltips show the keys.
+- Target profile: Electricity, Pets allowed, Building type and First seen are gone; Furnished shows only when it is yes; Water and Deposit show only when the listing gives them.
+
 ## 1.6.4 — 2026-11-12: touch changes reverted
 
 Deployed.

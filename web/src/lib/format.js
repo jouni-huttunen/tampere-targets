@@ -56,10 +56,6 @@ export function fmtKm(n, approx = false) {
   return `${approx ? '≈ ' : ''}${nf1.format(n)} km`;
 }
 
-export function fmtYesNo(v) {
-  return v === true ? 'Yes' : v === false ? 'No' : '—';
-}
-
 export function roomsText(l) {
   if (l.rooms == null) return '';
   return `${l.rooms} ${l.rooms === 1 ? 'room' : 'rooms'}`;

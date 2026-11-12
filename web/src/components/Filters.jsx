@@ -69,7 +69,7 @@ function Filters({
           </span>
         )}
         {onHide && (
-          <button ref={hideRef} type="button" className="icon-btn panel-hide" onClick={onHide} aria-expanded="true" aria-label="Hide mission parameters" title="Hide for more map ([)">
+          <button ref={hideRef} type="button" className="icon-btn panel-hide" onClick={onHide} aria-expanded="true" aria-label="Hide mission parameters" title="Hide for more map (Q)">
             <PanelChevron dir="left" />
           </button>
         )}

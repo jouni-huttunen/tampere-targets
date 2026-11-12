@@ -23,11 +23,8 @@ import { SHORTLIST_KEY, loadShortlist, parseShortlist, saveShortlist, toggled } 
 import { listingFromSearch, profileState, searchWithListing, stepsToMain } from './lib/history.js';
 import { applyTheme, loadTheme, saveTheme } from './lib/theme.js';
 import { loadPanels, savePanels } from './lib/panels.js';
+import { PHONE_QUERY, STACKED_QUERY, WIDE_QUERY } from './lib/layout.js';
 
-// Three columns (parameters | map | targets) from this width; same value as tokens.css notes.
-const WIDE_QUERY = '(min-width: 1360px)';
-// The stacked (phone) layout: the list under the map. Same value as app.css (max-width: 900px).
-const STACKED_QUERY = '(max-width: 900px)';
 // The boot sequence plays once per browser tab; a reload goes straight to the deploy animation.
 const BOOT_KEY = 'tcb.boot.v1';
 const DEPLOY_MS = 1300;
@@ -36,9 +33,8 @@ const NV_FX_MS = 720;
 
 // Next / previous target (FR-44): the WASD keys by position, D and S forward, A and W back.
 const STEP_KEYS = { KeyD: 1, KeyS: 1, KeyA: -1, KeyW: -1 };
-// Show or hide the side panels (FR-46): the two keys right of P by position ([ and ] on a US
-// layout, Å and ¨ on a Finnish one).
-const PANEL_KEYS = { BracketLeft: 'params', BracketRight: 'list' };
+// Show or hide the side panels (FR-46): Q the parameters (left), E the target list (right).
+const PANEL_KEYS = { KeyQ: 'params', KeyE: 'list' };
 
 const NO_PLACES = [];
 const NO_ZIPS = [];
@@ -90,6 +86,7 @@ export default function App() {
   const [phase, setPhase] = useState(firstPhase);
   const wide = useMediaQuery(WIDE_QUERY);
   const stacked = useMediaQuery(STACKED_QUERY);
+  const phone = useMediaQuery(PHONE_QUERY);
   // Where the open target was picked: 'map', 'list' or null (from the URL).
   const [selectSource, setSelectSource] = useState(null);
   // Card ids with a marker on the visible map, reported by the map after each pan or zoom (FR-41).
@@ -140,11 +137,14 @@ export default function App() {
     };
   }, [nv, infra]);
 
-  // Keys (not while typing, and not during the boot sequence): N toggles night vision; D or S
-  // opens the next target and A or W the previous one (FR-44), like › and ‹ in the profile; with
-  // no profile open, D/S opens the first target in the list and A/W the last. By key position
-  // (e.code), so they sit under the left hand on any layout.
+  // Keys (not while typing, not with Ctrl / Alt / Cmd, and not during the boot sequence): N toggles
+  // night vision; D or S opens the next target and A or W the previous one (FR-44), like › and ‹
+  // in the profile; with no profile open, D/S opens the first target in the list and A/W the last.
+  // Q / E show or hide the side panels, C fits the map to the targets, R switches the base map and
+  // X closes the profile like × (FR-47). By key position (e.code), so they sit under the left hand
+  // on any layout.
   const keyState = useRef(null);
+  const mapCommands = useRef(null); // { fit, nextBaseMap } from MapView, for the C and R keys
   useEffect(() => {
     const onKey = (e) => {
       if (phase === 'boot' || e.altKey || e.ctrlKey || e.metaKey || isTyping(e.target)) return;
@@ -157,6 +157,19 @@ export default function App() {
       if (panel) {
         e.preventDefault();
         k.togglePanel(panel);
+        return;
+      }
+      if (e.code === 'KeyC' || e.code === 'KeyR') {
+        e.preventDefault();
+        if (e.code === 'KeyC') mapCommands.current?.fit();
+        else mapCommands.current?.nextBaseMap();
+        return;
+      }
+      if (e.code === 'KeyX') {
+        if (k.selectedId != null) {
+          e.preventDefault();
+          k.onClose();
+        }
         return;
       }
       const dir = STEP_KEYS[e.code];
@@ -371,7 +384,7 @@ export default function App() {
     },
     [stepList, position, openTarget],
   );
-  // [ in a narrower window opens or closes the slide-out parameters instead; ] does nothing in
+  // Q in a narrower window opens or closes the slide-out parameters instead; E does nothing in
   // the stacked layout, where the list is not a column.
   const togglePanel = (which) => {
     if (which === 'params') {
@@ -379,7 +392,7 @@ export default function App() {
       else toggleParams();
     } else if (!stacked) setPanel('list', !panels.list);
   };
-  keyState.current = { selectedId, step, stepList, openTarget, togglePanel };
+  keyState.current = { selectedId, step, stepList, openTarget, togglePanel, onClose };
 
   const showParams = wide || paramsOpen;
 
@@ -414,7 +427,7 @@ export default function App() {
             short="Params"
             count={paramCount || null}
             countLabel="active"
-            shortcut="["
+            shortcut="Q"
             onOpen={unfoldParams}
           />
         )}
@@ -451,6 +464,7 @@ export default function App() {
             onSelect={onSelect}
             onViewChange={setMapView}
             onLockLost={onClose}
+            commandsRef={mapCommands}
           />
           {phase === 'deploy' && <div className="map-sweep" aria-hidden="true" />}
         </section>
@@ -463,7 +477,7 @@ export default function App() {
             short="Targets"
             count={inViewCount ?? ordered.length}
             countLabel={inViewCount != null ? 'in view' : 'targets'}
-            shortcut="]"
+            shortcut="E"
             onOpen={unfoldList}
           />
         ) : (
@@ -503,7 +517,7 @@ export default function App() {
           position={position}
           count={stepList.length}
           onStep={step}
-          swipe={stacked}
+          swipe={phone}
           isSaved={saved.has(selectedId)}
           onToggleSaved={() => toggleSaved(selectedId)}
         />

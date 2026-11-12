@@ -2,7 +2,7 @@
 
 A personal tool for finding a rental in Tampere. It collects Oikotie rental listings into a local SQLite database (through a script you run in your own browser) and lets you browse them on a local map and list. The local database is the master.
 
-_Version 1.6.4 (called "Tampere homes" up to 1.0.0; the version is shown after the title). The UI is a tactical console: press **N** for night vision, which also shows stops and grocery stores._
+_Version 1.7.0 (called "Tampere homes" up to 1.0.0; the version is shown after the title). The UI is a tactical console: press **N** for night vision, which also shows stops and grocery stores._
 
 ## Setup
 
@@ -25,7 +25,7 @@ npm install
 
 Filters are kept in the address bar, so any view can be bookmarked. Back closes a target profile (or goes to the target before it). The shortlist is saved in the browser only.
 
-**Keys:** D or S opens the next target, A or W the previous one; N toggles night vision; Esc closes. The two keys right of P ([ and ], Å and ¨ on a Finnish keyboard) hide or show the Mission parameters and the Target list for more map; so do the « » buttons in their title bars. The choice is remembered in the browser.
+**Keys:** D or S opens the next target, A or W the previous one; N toggles night vision; Esc or X closes the target profile; C fits the map to the targets; R switches the base map. Q and E hide or show the Mission parameters and the Target list for more map; so do the « » buttons in their title bars. The choice is remembered in the browser.
 
 **Night vision** (N) also shows tram stops, bus stops (zoom in) and Kesko, S-ryhmä and Lidl grocery stores; hover or tap one for its card with the stop number or the store's opening hours. The data is in `web/public/infra.json`; refresh it now and then with `npm run infra` (it downloads the Nysse timetable feed and asks OpenStreetMap; then rebuild the UI or deploy).
 

@@ -106,14 +106,14 @@ function Header({
         {!wide && (
           <>
             {paramCount > 0 && (
-              <button type="button" className="btn btn-link" onClick={onReset}>
+              <button type="button" className="btn btn-link header-clear" onClick={onReset}>
                 Clear
               </button>
             )}
             <button
               ref={paramsButtonRef}
               type="button"
-              className={`btn btn-ghost ${paramsOpen ? 'is-on' : ''}`}
+              className={`btn btn-ghost params-btn ${paramsOpen ? 'is-on' : ''}`}
               aria-expanded={paramsOpen}
               aria-controls="filters-panel"
               onClick={onParams}
@@ -122,7 +122,7 @@ function Header({
               <svg className="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
                 <path d="M3 5h14M6 10h8M8.5 15h3" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="square" />
               </svg>
-              Params
+              <span className="btn-label">Params</span>
               {paramCount > 0 && <span className="badge" aria-label={`${paramCount} active`}>{paramCount}</span>}
             </button>
           </>

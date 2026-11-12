@@ -64,7 +64,7 @@ export default memo(MapView);
 // per view and no full-map blend, which is costly on phone GPUs. Desktop keeps it.
 const LIGHT_GRAPHICS = typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches;
 
-function MapView({ listings, places, areas, infra, nv, hoverId, selectedId, saved, onHover, onSelect, onViewChange, onLockLost }) {
+function MapView({ listings, places, areas, infra, nv, hoverId, selectedId, saved, onHover, onSelect, onViewChange, onLockLost, commandsRef }) {
   const [map, setMap] = useState(null);
   const readoutRef = useRef(null);
   const located = useMemo(() => listings.filter((l) => l.lat != null && l.lon != null), [listings]);
@@ -81,6 +81,16 @@ function MapView({ listings, places, areas, infra, nv, hoverId, selectedId, save
       maxZoom: 16,
     });
   };
+
+  // The C and R keys (App): fit, and the next base map in the layers control's order (it wraps).
+  // R clicks the control's own radio button, so the control and the map stay in step.
+  const nextBaseMap = () => {
+    const radios = map ? [...map.getContainer().querySelectorAll('.leaflet-control-layers-base input[type="radio"]')] : [];
+    if (radios.length < 2) return;
+    const at = radios.findIndex((r) => r.checked);
+    radios[(at + 1) % radios.length].click();
+  };
+  if (commandsRef) commandsRef.current = { fit, nextBaseMap };
 
   return (
     <>
@@ -223,7 +233,7 @@ function FitControl({ count, onFit }) {
   if (!host || count === 0) return null;
   const label = `Fit ${count} ${count === 1 ? 'target' : 'targets'}`;
   return createPortal(
-    <button type="button" className="map-fit" onClick={onFit} aria-label={label} title="Zoom the map to the targets in the list">
+    <button type="button" className="map-fit" onClick={onFit} aria-label={label} title="Zoom the map to the targets in the list (C)">
       <svg className="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
         <path d="M3 7V3h4M13 3h4v4M17 13v4h-4M7 17H3v-4" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
       </svg>

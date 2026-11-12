@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { YEAR_BINS } from '../lib/format.js';
+import { PHONE_QUERY } from '../lib/layout.js';
 
-// Phones (the stacked layout, same value as App.jsx STACKED_QUERY) start with the legend hidden.
-const startHidden = () => typeof window !== 'undefined' && window.matchMedia('(max-width: 900px)').matches;
+// Phones (upright or sideways) start with the legend hidden.
+const startHidden = () => typeof window !== 'undefined' && window.matchMedia(PHONE_QUERY).matches;
 
 /**
  * Build-year colours always; the other marker styles and reference points behind "More".

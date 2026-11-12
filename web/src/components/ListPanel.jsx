@@ -104,7 +104,7 @@ function ListPanel({
             )}
           </p>
         {onHide && (
-          <button ref={hideRef} type="button" className="icon-btn panel-hide" onClick={onHide} aria-expanded="true" aria-label="Hide the target list" title="Hide for more map (])">
+          <button ref={hideRef} type="button" className="icon-btn panel-hide" onClick={onHide} aria-expanded="true" aria-label="Hide the target list" title="Hide for more map (E)">
             <PanelChevron dir="right" />
           </button>
         )}

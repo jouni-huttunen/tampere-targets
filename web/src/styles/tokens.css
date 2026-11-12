@@ -171,7 +171,8 @@
   --sp-8: 40px;
   --sp-9: 56px;
 
-  /* Layout. The three-column breakpoint (1360 px) is also in App.jsx (WIDE_QUERY). */
+  /* Layout. The breakpoints (1360, 900 and 430 px, and the phone held sideways) are also in
+     lib/layout.js and app.css ("Narrower windows"). */
   --header-h: 64px;
   --list-w: 420px;
   --params-w: 320px;
@@ -303,9 +304,24 @@
   }
 }
 
-@media (max-width: 900px) {
+/* Phones held upright: the header wraps to its content (the stacked layout). */
+@media (max-width: 900px) and (orientation: portrait), (max-width: 900px) and (min-height: 501px) {
   :root {
     --header-h: auto;
-    --drawer-w: 100vw;
+  }
+}
+
+/* Phones held sideways: one slim header row. */
+@media (orientation: landscape) and (max-height: 500px) {
+  :root {
+    --header-h: 56px;
+  }
+}
+
+/* Narrow phones: smaller row photos, so more of the address fits beside them. */
+@media (max-width: 430px) {
+  :root {
+    --row-thumb-w: 68px;
+    --row-thumb-h: 48px;
   }
 }
