@@ -21,7 +21,6 @@ function Header({
   paramsButtonRef, onParams, onReset,
 }) {
   const run = meta?.lastRun;
-  const newCount = meta?.counts?.isNew ?? 0;
   const ready = !!filters;
 
   return (
@@ -44,24 +43,6 @@ function Header({
           <dd>
             <span className="readout-n">{ready ? shown : '––'}</span>
             <span className="readout-of">/ {ready ? total : '––'}</span>
-          </dd>
-        </div>
-        <div className={`readout ${newCount && !run?.isInitial ? 'readout-hot' : ''}`}>
-          <dt>{run?.isInitial ? 'First recon' : 'New contacts'}</dt>
-          <dd>
-            {ready && newCount > 0 && !run?.isInitial ? (
-              <button
-                type="button"
-                className="readout-n readout-button"
-                aria-pressed={filters.onlyNew}
-                onClick={() => onChange({ onlyNew: !filters.onlyNew })}
-                title={filters.onlyNew ? 'Show all targets again' : 'Show only the new contacts'}
-              >
-                {newCount}
-              </button>
-            ) : (
-              <span className="readout-n">{!meta || run?.isInitial ? '––' : newCount}</span>
-            )}
           </dd>
         </div>
         <div className={`readout ${saved.size ? 'readout-priority' : ''}`}>

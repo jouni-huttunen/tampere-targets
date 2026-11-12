@@ -485,7 +485,6 @@ function ListingMarkers({ listings, hoverId, selectedId, saved, onHover, onSelec
       if (!entry) {
         const classes = ['mk', `mk-y${yearBin(l.build_year)}`];
         if (l.location_approx) classes.push('is-approx');
-        if (l.removed) classes.push('is-removed');
         const halo = l.is_new
           ? L.circleMarker([l.lat, l.lon], {
               radius: R.halo,

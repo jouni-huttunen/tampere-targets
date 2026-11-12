@@ -37,6 +37,17 @@ export function thumbUrls(searchJson) {
   };
 }
 
+/**
+ * Oikotie's AI-guessed housing forms (`adData.aiHabitationRentTypes`, docs/02-data-source.md §4)
+ * as a sorted list of distinct integer codes; [] when the detail has none. Takes the detail JSON
+ * text or the parsed detail.
+ */
+export function housingTypes(detail) {
+  const raw = (typeof detail === 'string' ? parseJson(detail) : detail)?.adData?.aiHabitationRentTypes;
+  if (!Array.isArray(raw)) return [];
+  return [...new Set(raw.map(Number).filter((c) => Number.isInteger(c) && c > 0))].sort((a, b) => a - b);
+}
+
 /** Detail photos sorted by ordernr. */
 export function detailPhotos(detail) {
   const media = Array.isArray(detail?.media) ? detail.media : [];
@@ -47,7 +58,11 @@ export function detailPhotos(detail) {
     .filter((p) => p.thumb || p.large || p.full);
 }
 
-/** One row for GET /api/listings: extracted columns only, plus is_new, distances and thumbnails. */
+/**
+ * One row for GET /api/listings: extracted columns only, plus is_new, housing types, the photo
+ * count (so the profile can reserve its thumbnail strip before the details load), distances and
+ * thumbnails.
+ */
 export function listRow(row, { newIds, places, noPhotos = false }) {
   const out = {};
   for (const [key, value] of Object.entries(row)) {
@@ -58,6 +73,9 @@ export function listRow(row, { newIds, places, noPhotos = false }) {
   out.furnished = flag(row.furnished);
   out.is_new = newIds.has(row.card_id);
   out.removed = row.removed_at != null;
+  const detail = parseJson(row.detail_json);
+  out.housing_types = housingTypes(detail);
+  out.photo_count = detailPhotos(detail).length;
   out.dist = {};
   for (const place of places) out.dist[place.key] = row[distanceColumn(place)] ?? null;
   const thumbs = noPhotos ? { thumb_url: null, thumb_large_url: null } : thumbUrls(row.search_json);

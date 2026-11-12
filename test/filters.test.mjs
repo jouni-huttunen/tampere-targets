@@ -65,11 +65,14 @@ test('move-in chips: any combination of months, Later and Unknown can be switche
   assert.deepEqual(ids(applyFilters(rows, { ...d, moveOff: [] })), [1, 2, 3, 4, 6]);
 });
 
-test('postal codes, only new and hide removed', () => {
+test('postal codes, only new; withdrawn never shows', () => {
   const d = defaultFilters(meta);
   assert.deepEqual(ids(applyFilters(rows, { ...d, zips: ['33200'] })), [6]);
   assert.deepEqual(ids(applyFilters(rows, { ...d, moveOff: [], onlyNew: true })), [4]);
-  assert.deepEqual(ids(applyFilters(rows, { ...d, hideRemoved: false })), [1, 2, 3, 5, 6]);
+  // Withdrawn listings never show, whatever the filters (no switch any more).
+  assert.deepEqual(ids(applyFilters(rows, { ...d, moveOff: [] })), [1, 2, 3, 4, 6]);
+  assert.deepEqual(ids(applyFilters(rows, fromQuery('removed=show', d))), [1, 2, 3, 6]);
+  assert.equal(activeFilterCount(fromQuery('removed=show', d), d), 0);
 });
 
 test('sorting: newest build year first with unknown years last; distances nearest first', () => {

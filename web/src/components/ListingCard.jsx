@@ -21,14 +21,12 @@ function ListingCard({ l, index = 0, view, outside = false, active, selected, sa
   const cls = ['card', `card-${view}`, `mk-y${yearBin(l.build_year)}`];
   if (active) cls.push('is-hover');
   if (selected) cls.push('is-selected');
-  if (l.removed) cls.push('is-removed');
   if (outside) cls.push('is-outside'); // not on the visible map: listed under the separator
 
   const tags = (
     <>
       {selected && <span className="tag tag-lock">Locked</span>}
       {l.is_new && <span className="tag tag-new">New</span>}
-      {l.removed && <span className="tag tag-removed">Withdrawn</span>}
     </>
   );
 

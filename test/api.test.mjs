@@ -19,7 +19,7 @@ function seeded() {
   const first = [makeCard(1), makeCard(2), makeCard(3, { data: { buildYear: null } })];
   const details = {
     1: makeDetail(1, {
-      adData: { petsAllowed: false },
+      adData: { petsAllowed: false, aiHabitationRentTypes: [9, 4] },
       media: [
         { ordernr: 2, url_thumb: 't2', url_large: 'l2', url_full: 'f2' },
         { ordernr: 1, url_thumb: 't1', url_large: 'l1', url_full: 'f1' },
@@ -59,6 +59,10 @@ test('list route: is_new, removed, thumbnails, distances and no raw JSON', async
   assert.equal(one.location_approx, false);
   assert.equal(one.pets_allowed, false);
   assert.equal(body[1].pets_allowed, true);
+  assert.deepEqual(one.housing_types, [4, 9]);
+  assert.deepEqual(body[1].housing_types, []);
+  assert.equal(one.photo_count, 2); // known before the details load: the profile reserves its strip
+  assert.equal(body[1].photo_count, 0);
   for (const row of body) {
     for (const key of ['search_json', 'detail_json', 'search_hash', 'detail_hash', 'raw']) {
       assert.ok(!(key in row), `list row must not carry ${key}`);

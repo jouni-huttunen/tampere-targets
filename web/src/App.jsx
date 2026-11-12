@@ -245,11 +245,8 @@ export default function App() {
         : [],
     [listings, deferredFilters, saved],
   );
-  // "N / M targets": M counts removed listings only while they are shown.
-  const activeCount = useMemo(() => {
-    if (!listings) return 0;
-    return filters?.hideRemoved === false ? listings.length : listings.filter((l) => !l.removed).length;
-  }, [listings, filters?.hideRemoved]);
+  // "N / M targets": M counts the listings still on Oikotie (withdrawn ones are never shown).
+  const activeCount = useMemo(() => (listings ? listings.filter((l) => !l.removed).length : 0), [listings]);
   const medianRent = useMemo(() => median(shown.map((l) => l.rent_eur)), [shown]);
   const zipNames = useMemo(() => {
     const names = {};

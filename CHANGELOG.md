@@ -1,5 +1,27 @@
 # Changelog
 
+## 1.9.0 — 2026-11-12: housing filters and loaders
+
+Deployed.
+
+**Changed**
+- Withdrawn listings are always left out, without notice: the "Hide withdrawn" switch, the Withdrawn tags and the dimmed markers are gone, and an old `removed=show` link is ignored.
+- The target profile no longer shows "Details fetched".
+- The header no longer shows New contacts (and its "only new" button): the count is still on the "New contacts only" switch in the parameters. On phones the header row holds Targets and Priority.
+
+**Added**
+- Mission parameters: **Financing** chips, Free-market and Subsidised, each with its count; only Free-market is on by default, so subsidised listings (Arava / korkotukiasunto) are out of view but counted. Every other listing, including one without a housing form, is free-market (FR-49).
+- Mission parameters: **Housing type** chips (Shared flat, Sublet, Senior, Employer, Service, Student) with counts; none selected by default (no type filter), and selecting some shows only listings of those types.
+- Target profile: a photo loader ("Acquiring visual": a scan band sweeping over the grid and a pulsing reticle) in the photo's own frame while the details and each photo load; the photo fades in over it, so nothing moves. The same loader, as a small reticle without the label, sits under the gallery thumbnails and the list's row and card photos.
+- Target profile: while the details load, the thumbnail strip is already there with one placeholder per photo, and its scrollbar when the photos will not fit (on desktop from 7), so the profile no longer jumps when the thumbnails arrive. The list API sends `photo_count` for this.
+- Target profile: skeleton loaders while the details load: one line under Lease terms (it said "Loading…") and ten under Briefing (it was missing until loaded). Ten lines is the 5th percentile of the real briefings at the desktop width, so the text that arrives is almost always at least that long.
+- The housing form comes from Oikotie's own AI-guessed field `aiHabitationRentTypes`, the one its "Asumismuoto" search filter uses; the list API sends it as `housing_types`.
+
+**Fixed**
+- Tooltips name the current keys, one each: the profile's ‹ › "Previous target (A)" and "Next target (D)", its × "Close (X)", and the slide-out parameters' × "Close (Q)". W / ←, S / → and Esc still work.
+- Target profile: descriptions and lease texts sent as HTML (`<p>`, `<b>`, `<br>`; 48 of 380 descriptions) showed the tags as text. Briefing and Lease terms now show plain and HTML texts alike: paragraphs, line breaks and bold, never as raw HTML.
+- docs/02-data-source.md named `habitationRentType` as the housing-form field; it is `aiHabitationRentTypes`.
+
 ## 1.8.1 — 2026-11-12: mobile stability and leaner listing details
 
 Deployed.

@@ -1,7 +1,8 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { getJson } from '../lib/api.js';
 import { availabilityText, fmtDate, fmtDay, fmtEur, fmtKm, fmtM2 } from '../lib/format.js';
-import Photo from './Photo.jsx';
+import Photo, { PhotoLoader } from './Photo.jsx';
+import RichText from './RichText.jsx';
 import StarButton from './StarButton.jsx';
 
 /** Keys typed into these, or inside the photo strip or map, are not drawer shortcuts. */
@@ -13,6 +14,24 @@ function isTypingTarget(el) {
 const NO_SWIPE = '.gallery, pre, input, select, textarea';
 const SLIDE_MS = 200;
 const reducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+// Skeleton lines for the Briefing while the details load: just under the 5th percentile of the
+// descriptions as RichText renders them at the desktop profile's text width (measured 2026-11-12
+// on 380 listings at 455 px, 21 px lines: shortest 96 px, 5th percentile 201 px = 9.6 lines,
+// median 612 px; phones wrap to more). So the profile almost always grows, never shrinks, when
+// the text arrives.
+const BRIEFING_SKELETON_LINES = 9;
+
+/** Placeholder lines with the rhythm of a `.prose` paragraph (one line box each). */
+function ProseSkeleton({ lines }) {
+  return (
+    <div className="sk-prose" aria-hidden="true">
+      {Array.from({ length: lines }, (_, i) => (
+        <span key={i} className="sk-line" />
+      ))}
+    </div>
+  );
+}
 
 /**
  * Phones (full-screen profile): a sideways swipe on the profile steps to the next (swipe left) or
@@ -217,7 +236,7 @@ export default function DetailDrawer({
           {position >= 0 && (
             <>
               <button type="button" className="icon-btn" onClick={() => onStep(-1)} disabled={count < 2}
-                aria-label="Previous target in the list" title="Previous target (←)">
+                aria-label="Previous target in the list" title="Previous target (A)">
                 <svg viewBox="0 0 20 20" className="icon" aria-hidden="true" focusable="false">
                   <path d="M12.5 4.5 7 10l5.5 5.5" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
@@ -226,14 +245,14 @@ export default function DetailDrawer({
                 {position + 1} / {count}
               </span>
               <button type="button" className="icon-btn" onClick={() => onStep(1)} disabled={count < 2}
-                aria-label="Next target in the list" title="Next target (→)">
+                aria-label="Next target in the list" title="Next target (D)">
                 <svg viewBox="0 0 20 20" className="icon" aria-hidden="true" focusable="false">
                   <path d="M7.5 4.5 13 10l-5.5 5.5" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
               </button>
             </>
           )}
-          <button ref={closeRef} type="button" className="icon-btn" onClick={onClose} aria-label="Close target profile" title="Close (Esc)">
+          <button ref={closeRef} type="button" className="icon-btn" onClick={onClose} aria-label="Close target profile" title="Close (X)">
             <svg viewBox="0 0 20 20" className="icon" aria-hidden="true" focusable="false">
               <path d="M5 5l10 10M15 5 5 15" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
             </svg>
@@ -242,7 +261,7 @@ export default function DetailDrawer({
       </div>
 
       <div className="drawer-scroll" ref={scrollRef}>
-        <Gallery key={id} detail={detail} noPhotos={noPhotos} />
+        <Gallery key={id} detail={detail} photoCount={summary?.photo_count ?? 0} noPhotos={noPhotos} />
 
         <header className="drawer-head">
           <p className="eyebrow">
@@ -255,7 +274,6 @@ export default function DetailDrawer({
           <div className="drawer-tags">
             {onToggleSaved && <StarButton saved={isSaved} onToggle={onToggleSaved} withLabel />}
             {l?.is_new && <span className="tag tag-new">New contact</span>}
-            {l?.removed && <span className="tag tag-removed">Withdrawn {fmtDay(l.removed_at)}</span>}
             {approx && <span className="tag tag-approx">Approx. position</span>}
           </div>
         </header>
@@ -297,7 +315,6 @@ export default function DetailDrawer({
               ))}
               <Fact label="Landlord / agent" value={l.company_name} />
               <Fact label="Listed" value={l.published_at ? fmtDay(l.published_at) : null} />
-              <Fact label="Details fetched" value={l.detail_fetched_at ? fmtDay(l.detail_fetched_at) : null} />
             </dl>
             {approx && (
               <p className="note">
@@ -306,24 +323,31 @@ export default function DetailDrawer({
               </p>
             )}
 
-            <section className="drawer-section">
+            <section className="drawer-section" aria-busy={!detail}>
               <h3 className="section-title">Lease terms</h3>
               {detail ? (
                 detail.lease_text ? (
-                  <p className="prose">{detail.lease_text}</p>
+                  <RichText text={detail.lease_text} />
                 ) : (
                   <p className="prose quiet">The listing has no lease text. Check the description and the Oikotie page.</p>
                 )
               ) : (
-                <p className="prose quiet">Loading…</p>
+                <ProseSkeleton lines={1} />
               )}
             </section>
 
-            {detail?.description && (
-              <section className="drawer-section">
+            {!detail ? (
+              <section className="drawer-section" aria-busy="true">
                 <h3 className="section-title">Briefing</h3>
-                <p className="prose">{detail.description}</p>
+                <ProseSkeleton lines={BRIEFING_SKELETON_LINES} />
               </section>
+            ) : (
+              detail.description && (
+                <section className="drawer-section">
+                  <h3 className="section-title">Briefing</h3>
+                  <RichText text={detail.description} />
+                </section>
+              )
             )}
 
             {l.url && (
@@ -395,7 +419,7 @@ function Fact({ label, value }) {
  * to its full-size image. Only the photos next to the one shown (round the loop) and ones already
  * seen load. The drawer's own ←/→ and its target swipe ignore the gallery.
  */
-function Gallery({ detail, noPhotos }) {
+function Gallery({ detail, photoCount = 0, noPhotos }) {
   const [index, setIndex] = useState(0);
   const trackRef = useRef(null);
   const thumbsRef = useRef(null);
@@ -440,12 +464,27 @@ function Gallery({ detail, noPhotos }) {
   );
 
   // While the details load, the gallery already takes its final height (the photo plus the row
-  // under it), so nothing below jumps when they arrive, often mid slide-in on a phone.
+  // under it), so nothing below jumps when they arrive, often mid slide-in on a phone. The photo
+  // loader starts here and simply carries on while the first photo loads (unless photos are off).
+  // The thumbnail strip is reserved too: one placeholder per photo (the list row's photo_count) in
+  // the same scrolling row, so when they overflow, the strip's scrollbar shows already and the
+  // profile does not jitter when the real thumbnails replace them.
   if (!detail) {
+    const strip = !noPhotos && photoCount > 1;
     return (
       <div className="gallery" aria-hidden="true">
-        <div className="gallery-hero gallery-loading" />
-        <div className="gallery-under" />
+        <div className="gallery-hero gallery-loading">{!noPhotos && <PhotoLoader />}</div>
+        <div className="gallery-under">
+          {strip && (
+            <div className="gallery-thumbs">
+              {Array.from({ length: photoCount }, (_, k) => (
+                <span key={k} className="gallery-thumb gallery-thumb-wait">
+                  <PhotoLoader />
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     );
   }
@@ -532,7 +571,7 @@ function Gallery({ detail, noPhotos }) {
                 {loaded.current.has(k) ? (
                   <Photo className="gallery-photo" src={p.large ?? p.full ?? p.thumb} alt={`Photo ${k + 1} of ${n}`} eager />
                 ) : (
-                  <span className="gallery-photo gallery-wait" />
+                  <PhotoLoader className="gallery-photo" />
                 )}
               </a>
             );

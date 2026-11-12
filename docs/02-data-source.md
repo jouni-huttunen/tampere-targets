@@ -80,18 +80,19 @@ Top-level keys: `cardId`, `status`, `published`, `meta{created, lastModified}`, 
 | Costs | `securityDeposit`, `securityDepositInfo`, `waterFee`, `waterFeeInfo`, `electricFee` |
 | Other terms | `petsAllowed`, `rentFurnished` |
 | Building | `buildingOverrideBuildYear`, `buildingOverrideBuildingType`, `floor`, `floorCount`, `apartmentCondition` |
-| Text | `title`, `description` |
+| Text | `title`, `description` (plain text, or simple HTML from some senders: on 2026-11-12, 48 of 380 descriptions from 5 companies used only `<p>`, `<b>` and `<br>`, without attributes or entities; 4 `rentTermInfo` texts from one company used `<br>`; titles and `availabilityInfo` had none) |
 | Housing form | `habitationRentType`, `aiHabitationRentTypes` |
 
-**Housing-form codes** (`habitationRentType`; stored, never used to filter the crawl):
+**Housing form ("Asumismuoto").** Oikotie's search filter "Asumismuoto" (marked "AI" on the site) matches **`adData.aiHabitationRentTypes`**, a list of AI-guessed codes: the search URL `habitationRentType[]=2…8` (every box but *Vapaarahoitteinen*) returned listings whose detail has `[3]`. `adData.habitationRentType` is **not** it: on 381 details it is null 305 times and `1` 76 times, with no link to the list. The search card has no housing-form field at all (`sourceType`, `cardSubType` and `listingTypes` do not follow it). Stored, never used to filter the crawl; the UI filters on it (FR-49).
 
-| Code | Meaning | Code | Meaning |
+| Code | Checkbox on Oikotie | Code | Checkbox on Oikotie |
 |---|---|---|---|
-| 1 | appears in data, meaning **unverified** | 6 | service housing |
-| 2 | sublet | 7 | employer housing |
-| 3 | Arava / interest-subsidised | 8 | student housing |
-| 4 | room in a shared flat (*solu*) | 9 | privately financed |
-| 5 | senior housing | | |
+| 2 | Alivuokralaisasunto (sublet) | 6 | Palvelutalo (service housing) |
+| 3 | Arava/korkotukiasunto (state-subsidised) | 7 | Työsuhdeasunto (employer housing) |
+| 4 | Soluasunto (room in a shared flat) | 8 | Opiskelija-asunto (student housing) |
+| 5 | Senioritalo (senior housing) | 9 | Vapaarahoitteinen (privately financed) |
+
+A listing can have several codes (`[4, 9]`: a privately financed shared flat). In the 381 details (2026-11-11): `[9]` 281, `[3]` 59, `[4, 9]` 16, `[]` 16, `[8, 9]` 3, `[5, 9]` 2, `[2, 9]` 1, `[3, 5]` 1, `[5]` 1, missing 1. The UI calls a listing subsidised when its list includes 3 and free-market otherwise, an empty or missing list included (the user's rule). `habitationRentType` code 1 remains unexplained.
 
 **Building-type codes** (`buildingOverrideBuildingType`): only `1` = *kerrostalo* is likely. The mapping is **unverified**, so the raw code is stored and labels are added only once confirmed.
 
@@ -146,7 +147,7 @@ Anything not listed is one query away, for example:
 SELECT card_id,
        json_extract(detail_json, '$.adData.fixedTerm')            AS fixed_term,
        json_extract(detail_json, '$.adData.fixedTermEnd')         AS fixed_term_end,
-       json_extract(detail_json, '$.adData.habitationRentType')   AS housing_form
+       json_extract(detail_json, '$.adData.aiHabitationRentTypes') AS housing_form
 FROM v_window;
 ```
 

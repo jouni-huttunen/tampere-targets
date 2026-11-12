@@ -1,4 +1,5 @@
 import { memo, useEffect, useMemo } from 'react';
+import { FINANCING, HOUSING_TYPES, housingCounts } from '../lib/housing.js';
 import { LATER, UNKNOWN, monthLabel, moveInChips } from '../lib/movein.js';
 import { YEAR_DECADES } from '../lib/stops.js';
 
@@ -27,15 +28,15 @@ function Filters({
   overlay, filters, bounds, zips, zipNames, listings, windowCutoff, saved, activeCount, onChange, onReset, onClose, onHide, hideRef,
 }) {
   const counts = useMemo(() => {
-    const c = { new: 0, removed: 0, zip: {} };
+    const c = { new: 0, zip: {} };
     for (const l of listings ?? []) {
       if (l.is_new && !l.removed) c.new++;
-      if (l.removed) c.removed++;
       if (!l.removed) c.zip[l.zip] = (c.zip[l.zip] ?? 0) + 1;
     }
     return c;
   }, [listings]);
   const moveChips = useMemo(() => moveInChips(listings ?? [], windowCutoff), [listings, windowCutoff]);
+  const housing = useMemo(() => housingCounts(listings ?? []), [listings]);
 
   // The overlay sits on top of the target profile: Esc closes the overlay first.
   useEffect(() => {
@@ -54,6 +55,18 @@ function Filters({
     const off = new Set(filters.moveOff);
     off.has(key) ? off.delete(key) : off.add(key);
     onChange({ moveOff: [...off] });
+  };
+
+  const toggleFinance = (key) => {
+    const off = new Set(filters.financeOff);
+    off.has(key) ? off.delete(key) : off.add(key);
+    onChange({ financeOff: [...off] });
+  };
+
+  const toggleType = (code) => {
+    const set = new Set(filters.types);
+    set.has(code) ? set.delete(code) : set.add(code);
+    onChange({ types: HOUSING_TYPES.map((t) => t.code).filter((c) => set.has(c)) });
   };
 
   const toggleZip = (zip) => {
@@ -84,7 +97,7 @@ function Filters({
           </button>
         )}
         {overlay && (
-          <button type="button" className="icon-btn panel-close" onClick={onClose} aria-label="Close mission parameters" title="Close (Esc)">
+          <button type="button" className="icon-btn panel-close" onClick={onClose} aria-label="Close mission parameters" title="Close (Q)">
             <svg viewBox="0 0 20 20" className="icon" aria-hidden="true" focusable="false">
               <path d="M5 5l10 10M15 5 5 15" stroke="currentColor" strokeWidth="1.6" strokeLinecap="square" />
             </svg>
@@ -132,6 +145,31 @@ function Filters({
             </div>
           </fieldset>
 
+          <fieldset className="param-group move-set">
+            <legend className="group-title">Financing</legend>
+            <div className="chips">
+              {FINANCING.map((c) => (
+                <button key={c.key} type="button" className="chip chip-move" aria-pressed={!filters.financeOff.includes(c.key)} onClick={() => toggleFinance(c.key)} title={c.title}>
+                  <span className="chip-month">{c.label}</span>
+                  <span className="chip-count">{housing.financing[c.key]}</span>
+                </button>
+              ))}
+            </div>
+          </fieldset>
+
+          <fieldset className="param-group move-set" aria-describedby="type-note">
+            <legend className="group-title">Housing type</legend>
+            <p className="group-note" id="type-note">Select to show only those types</p>
+            <div className="chips">
+              {HOUSING_TYPES.map((t) => (
+                <button key={t.code} type="button" className="chip chip-move" aria-pressed={filters.types.includes(t.code)} onClick={() => toggleType(t.code)} title={t.title}>
+                  <span className="chip-month">{t.label}</span>
+                  <span className="chip-count">{housing.types[t.code]}</span>
+                </button>
+              ))}
+            </div>
+          </fieldset>
+
           <fieldset className="param-group zip-set">
             <legend className="group-title">Sectors</legend>
             <div className="chips">
@@ -154,7 +192,6 @@ function Filters({
             <div className="switches">
               <Switch label="New contacts only" count={counts.new} checked={filters.onlyNew} onChange={(onlyNew) => onChange({ onlyNew })} />
               <Switch label="Priority targets only" count={saved?.size ?? 0} checked={filters.onlySaved} onChange={(onlySaved) => onChange({ onlySaved })} />
-              <Switch label="Hide withdrawn" count={counts.removed} checked={filters.hideRemoved} onChange={(hideRemoved) => onChange({ hideRemoved })} />
             </div>
           </section>
         </div>
