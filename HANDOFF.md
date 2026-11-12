@@ -19,7 +19,6 @@ _Last updated 2026-11-12, at release 1.8.1. The rules and the read order are in 
 - **Improvements the user has in mind:** not written down. Ask, then record them here and in the spec before building (explain-before-implementing, see CLAUDE.md).
 
 ## 3. Open items
-- **Phone rotation zoom-out** (parked by the user): portrait → landscape → portrait can leave the page looking smaller. Not reproducible in the pane (the page stays screen-width). The page could be wider than the screen in the Cards view (fixed above), a likely cause: re-check on the phone before trying the other proposed fixes (`minimum-scale=1` in the viewport tag, `overflow-x: clip` on the page, a zoom reset after rotation).
 - The user's own check of 3 listings against Oikotie (ids 24760731, 24705365, 24716849: rent, size, available date, lease text) is pending.
 - Real Oikotie photos are never seen by an agent (by design); only the user's browser loads them. The gallery and photo cards are tested with generated images.
 - Maybe: the satellite map ("Recon sat") as the default instead of the dark canvas.
