@@ -274,6 +274,17 @@ input {
   text-shadow: var(--text-glow);
 }
 
+.brand-version {
+  margin-left: var(--sp-2);
+  vertical-align: baseline;
+  font-family: var(--font-mono);
+  font-size: var(--fs-3xs);
+  font-weight: var(--fw-regular);
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--ink-quiet);
+}
+
 .brand-tag {
   margin: 5px 0 0;
   font-family: var(--font-mono);

@@ -178,6 +178,8 @@ test('the app version shown on the boot screen comes from package.json, not a li
   assert.match(config, /package\.json/);
   const boot = readFileSync('web/src/components/BootSequence.jsx', 'utf8');
   assert.match(boot, /v\$\{__APP_VERSION__\}/);
+  // The header shows it too, small, next to the title.
+  assert.match(readFileSync('web/src/components/Header.jsx', 'utf8'), /v\{__APP_VERSION__\}/);
   // No version literal ("v1.2.3") anywhere in the UI source: it would go stale at the next release.
   const walk = (dir) => readdirSync(dir, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(join(dir, e.name)) : [join(dir, e.name)]));
   for (const file of walk('web/src').filter((f) => /\.(jsx?|css)$/.test(f))) {

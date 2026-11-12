@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.4.4 — 2026-11-12: version in the title
+
+Deployed.
+
+**Added**
+- The version ("v1.4.4") sits small and quiet after the TAMPERE TARGETS title, on the same baseline, also on phones and in the hosted copy, to tell which build is running. It comes from package.json, like the boot screen.
+
 ## 1.4.3 — 2026-11-12: decade build-year slider, phone profile
 
 Deployed.

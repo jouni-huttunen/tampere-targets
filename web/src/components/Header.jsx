@@ -31,6 +31,8 @@ function Header({
         <div className="brand-text">
           <h1 className="brand-title">
             Tampere <span className="brand-sub">Targets</span>
+            {/* The running version (package.json, vite.config.mjs), small and quiet: for debugging. */}
+            <span className="brand-version">v{__APP_VERSION__}</span>
           </h1>
           <p className="brand-tag">Tactical rental recon · Tampere AO</p>
         </div>
