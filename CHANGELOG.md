@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.10.1 — 2026-11-13: phone target swipe fix
+
+Deployed.
+
+**Fixed**
+- Phones: swiping to the next or previous target no longer stops at random. A swipe that started on the profile's edge margins or in the gaps between sections (about a sixth of it) was taken over by the browser and cancelled; and diagonal swipes between 34° and 45° were neither a swipe nor a scroll. Both came with the swipe rewrite in 1.9.1. Also, a second swipe right after the first now works once the new target has slid in (0.2 s), instead of being ignored for about 0.8 s. Photos and the raw JSON still scroll sideways.
+
 ## 1.10.0 — 2026-11-13: price first, keys and field manual
 
 Deployed.

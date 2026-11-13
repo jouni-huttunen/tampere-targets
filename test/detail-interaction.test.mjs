@@ -30,25 +30,27 @@ test('details: revisits use cache; failed and aborted loads can be retried', asy
 });
 
 // Exercise the actual gesture hook with browser-style pointer sequences and hook lifetimes.
-function gesture() {
+function gesture({ still = true } = {}) {
   const source = readFileSync(new URL('../web/src/components/DetailDrawer.jsx', import.meta.url), 'utf8');
   const hook = source.slice(source.indexOf('function useSwipeStep('), source.indexOf('export default function DetailDrawer'));
   const listeners = {};
   const options = {};
   const steps = [];
-  const pane = { style: {}, clientWidth: 412 };
+  const pane = { style: {}, clientWidth: 412, getBoundingClientRect() {} };
+  const layout = []; // the slide-in effect, run by a test when "the new target renders"
   const root = { addEventListener: (key, fn, opts) => { listeners[key] = fn; options[key] = opts; }, removeEventListener() {} };
   vm.runInNewContext(`${hook}; useSwipeStep(true, {current:root}, {current:pane}, 1, true, step);`, {
     root, pane, step: (dir) => steps.push(dir), useRef: (v) => ({ current: v }),
-    useEffect: (fn) => fn(), useLayoutEffect() {}, reducedMotion: () => true,
-    NO_SWIPE: '.gallery, pre, input, select, textarea', SLIDE_MS: 200, setTimeout, clearTimeout,
+    useEffect: (fn) => fn(), useLayoutEffect: (fn) => layout.push(fn), reducedMotion: () => still,
+    NO_SWIPE: '.gallery, pre, input, select, textarea', SLIDE_MS: 200,
+    setTimeout: (...a) => setTimeout(...a), clearTimeout: (...a) => clearTimeout(...a),
   });
   const send = (type, x, y, extra = {}) => listeners[type]({
     clientX: x, clientY: y, timeStamp: 100, pointerId: 1, pointerType: 'touch',
     isPrimary: true, target: { closest: () => false },
     preventDefault: () => assert.fail('Gesture must never block native scrolling'), ...extra,
   });
-  return { send, steps, options };
+  return { send, steps, options, rendered: () => layout.forEach((fn) => fn()) };
 }
 
 test('a small sideways wobble followed by vertical scroll does not cancel scrolling or step', () => {
@@ -79,4 +81,46 @@ test('horizontal swipes step, but cancelled, multitouch and gallery gestures do 
   send('pointermove', 100, 102);
   send('pointerup', 100, 102);
   assert.deepEqual(steps, [1]);
+});
+
+test('a diagonal swipe that is more sideways than vertical steps (the browser leaves it to us)', () => {
+  const { send, steps } = gesture();
+  send('pointerdown', 250, 300);
+  send('pointermove', 190, 260); // 60 sideways, 40 up: 1.5 : 1, which a stricter rule dropped
+  send('pointermove', 120, 230);
+  send('pointerup', 120, 230);
+  assert.deepEqual(steps, [1]);
+  send('pointerdown', 250, 300);
+  send('pointermove', 240, 270); // more vertical: a scroll, never a step
+  send('pointerup', 100, 270);
+  assert.deepEqual(steps, [1]);
+});
+
+test('the next swipe works as soon as the new target has slid in', (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const { send, steps, rendered } = gesture({ still: false });
+  const swipe = () => {
+    send('pointerdown', 300, 100);
+    send('pointermove', 100, 104);
+    send('pointerup', 100, 104);
+  };
+  swipe();
+  t.mock.timers.tick(200); // slide-out done: step
+  assert.deepEqual(steps, [1]);
+  rendered(); // the new target renders and slides in
+  t.mock.timers.tick(200); // slid in: 400 ms after the release, before the 600 ms safety net
+  swipe();
+  t.mock.timers.tick(200);
+  assert.deepEqual(steps, [1, 1]);
+});
+
+test('the gallery and raw JSON, neighbours in the profile, never share a React key', () => {
+  // Equal keys on neighbours make React leave the previous target's gallery behind on every step
+  // (seen on the phone after the swipe fix moved RawIntel next to the gallery).
+  const source = readFileSync(new URL('../web/src/components/DetailDrawer.jsx', import.meta.url), 'utf8');
+  const keyOf = (name) => source.match(new RegExp(`<${name} key=\{([^}]+)\}`))?.[1];
+  const gallery = keyOf('Gallery');
+  const raw = keyOf('RawIntel');
+  assert.ok(gallery && raw, 'both are keyed by target');
+  assert.notEqual(gallery, raw);
 });

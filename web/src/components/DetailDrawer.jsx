@@ -45,7 +45,9 @@ function useSwipeStep(enabled, rootRef, paneRef, id, canStep, onStep) {
   const latest = useRef({ canStep, onStep });
   latest.current = { canStep, onStep };
   const incoming = useRef(0); // the direction of a step started by a swipe, until the new target renders
-  const busy = useRef(false);
+  const busy = useRef(false); // a swipe's slide-out and slide-in are running: new swipes wait
+  const settle = useRef(null);
+  useEffect(() => () => clearTimeout(settle.current), []);
 
   useEffect(() => {
     const root = rootRef.current;
@@ -76,7 +78,10 @@ function useSwipeStep(enabled, rootRef, paneRef, id, canStep, onStep) {
         const ax = Math.abs(mx);
         const ay = Math.abs(my);
         if (ax < 8 && ay < 8) return;
-        mode = ax > ay * 1.5 ? 'h' : 'v';
+        // The browser's own rule under touch-action pan-y: it scrolls a gesture that is more
+        // vertical than sideways and leaves the rest to us. Deciding the same way means every
+        // gesture is either a swipe or a scroll (a stricter rule left the ones in between dead).
+        mode = ax > ay ? 'h' : 'v';
         if (mode === 'v') return;
       }
       dx = mx;
@@ -157,6 +162,12 @@ function useSwipeStep(enabled, rootRef, paneRef, id, canStep, onStep) {
     pane.style.transition = `transform ${SLIDE_MS}ms var(--ease-snap), opacity ${SLIDE_MS}ms var(--ease)`;
     pane.style.transform = '';
     pane.style.opacity = '';
+    // The next swipe can start as soon as this target has slid in, not only when the safety net
+    // fires (which made quick swipes in a row feel dead for most of a second).
+    clearTimeout(settle.current);
+    settle.current = setTimeout(() => {
+      busy.current = false;
+    }, SLIDE_MS);
   }, [id, paneRef]);
 }
 
@@ -256,8 +267,14 @@ export default function DetailDrawer({
       </div>
 
       <div className="drawer-scroll" ref={scrollRef}>
-        <Gallery key={id} detail={detail} photoCount={summary?.photo_count ?? 0} noPhotos={noPhotos} />
+        {/* Keyed by target so each one starts fresh. Keys must differ from RawIntel's, its
+            neighbour: two children with one key make React leave the old gallery behind. */}
+        <Gallery key={`gallery-${id}`} detail={detail} photoCount={summary?.photo_count ?? 0} noPhotos={noPhotos} />
 
+        {/* Everything between the photos and the raw JSON, in one block: on phones it reserves
+            sideways drags for the target swipe over its whole area, the gaps and edges included
+            (app.css). The photos and the JSON stay outside it, free to scroll sideways. */}
+        <div className="drawer-body">
         <header className="drawer-head">
           <p className="eyebrow">
             {[l?.district, l?.zip && `${l.zip}${zipNames[l.zip] ? ' ' + zipNames[l.zip] : ''}`].filter(Boolean).join(' · ')}
@@ -356,9 +373,11 @@ export default function DetailDrawer({
               </p>
             )}
 
-            {detail && <RawIntel key={id} id={id} />}
           </>
         )}
+        </div>
+
+        {l && detail && <RawIntel key={`raw-${id}`} id={id} />}
       </div>
     </aside>
   );

@@ -2113,8 +2113,16 @@ input[type='date'].range-field {
   scrollbar-color: var(--hairline-strong) transparent;
 }
 
-.drawer-scroll > * {
+.drawer-scroll > *,
+.drawer-body > * {
   flex-shrink: 0;
+}
+
+/* Header to "Open on Oikotie", spaced like the rest of the profile. */
+.drawer-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-6);
 }
 
 .drawer-title {
@@ -4541,11 +4549,19 @@ input[type='date'].range-field {
     overscroll-behavior: contain;
   }
 
-  /* Leave the gallery and raw JSON free to scroll sideways. Other profile content
-     reserves horizontal gestures for stepping without blocking vertical scroll or zoom. */
+  /* The target swipe (DetailDrawer useSwipeStep): sideways drags are the page's own, vertical
+     scroll and pinch zoom stay native. On the top bar and on .drawer-body, which also covers the
+     side padding and the gaps above and below it (negative margins, equal padding: the layout
+     does not move), so no strip of the profile hands a sideways swipe to the browser, which would
+     cancel it. The gallery and raw JSON stay outside, free to scroll sideways. */
   .drawer-top,
-  .drawer-scroll > :not(.gallery):not(.raw) {
+  .drawer-body {
     touch-action: pan-y pinch-zoom;
+  }
+
+  .drawer-body {
+    margin: calc(-1 * var(--sp-6)) calc(-1 * var(--sp-4));
+    padding: var(--sp-6) var(--sp-4);
   }
 
   .drawer-top {
@@ -4557,8 +4573,10 @@ input[type='date'].range-field {
     display: none;
   }
 
+  /* Bottom padding = the gap, so .drawer-body's negative bottom margin, when it ends the profile
+     (before the details load), stays inside the scroll area. */
   .drawer-scroll {
-    padding: var(--sp-5) var(--sp-4);
+    padding: var(--sp-5) var(--sp-4) var(--sp-6);
   }
 
   .gallery {
