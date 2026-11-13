@@ -247,7 +247,7 @@ export default function DetailDrawer({
               </button>
             </>
           )}
-          <button ref={closeRef} type="button" className="icon-btn" onClick={onClose} aria-label="Close target profile" title="Close (X)">
+          <button ref={closeRef} type="button" className="icon-btn" onClick={onClose} aria-label="Close target profile" title="Close (C)">
             <svg viewBox="0 0 20 20" className="icon" aria-hidden="true" focusable="false">
               <path d="M5 5l10 10M15 5 5 15" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
             </svg>
@@ -281,18 +281,20 @@ export default function DetailDrawer({
 
         {l && (
           <>
+            {/* Cost first: the figure the user wants at a glance, also on the phone. The rooms are
+                in Layout (2h+kt), so no Rooms box. */}
             <section className="facts-hero" aria-label="Key facts">
-              <div>
-                <span className="fact-label">Built</span>
-                <span className="fact-hero">{l.build_year ?? '—'}</span>
+              <div className="fact-cost">
+                <span className="fact-label">Cost / month</span>
+                <span className="fact-hero">{fmtEur(l.rent_eur)}</span>
               </div>
               <div>
                 <span className="fact-label">Area</span>
                 <span className="fact-hero">{fmtM2(l.size_m2)}</span>
               </div>
               <div>
-                <span className="fact-label">Rooms</span>
-                <span className="fact-hero">{l.rooms ?? '—'}</span>
+                <span className="fact-label">Built</span>
+                <span className="fact-hero">{l.build_year ?? '—'}</span>
               </div>
             </section>
 
@@ -301,7 +303,6 @@ export default function DetailDrawer({
               <Fact label="Floor" value={l.floor != null ? `${l.floor}${l.floor_count ? ` / ${l.floor_count}` : ''}` : null} />
               <Fact label="Move-in" value={availabilityText(l)} />
               {l.available_date && l.availability_text && <Fact label="Move-in note" value={l.availability_text} />}
-              <Fact label="Cost" value={`${fmtEur(l.rent_eur)} / month`} />
               {l.water_fee != null && String(l.water_fee).trim() !== '' && <Fact label="Water" value={l.water_fee} />}
               {l.deposit_eur != null && <Fact label="Deposit" value={fmtEur(l.deposit_eur)} />}
               {l.furnished === true && <Fact label="Furnished" value="Yes" />}

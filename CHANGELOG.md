@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.10.0 — 2026-11-13: price first, keys and field manual
+
+Deployed.
+
+**Changed**
+- Target profile: the three big numbers are now Cost / month, Area and Built. The price shows at a glance, also on the phone; Rooms is gone from them (Layout says it) and the Cost line under them went with it.
+- Upright phones: the header's Priority readout is gone (the list's ★ Priority chip does the same), and the Targets readout (only as wide as its numbers, at the left) shares the row right above the map with the Params and NV buttons at the right. Params shows its name again beside the icon. The header is 108 px tall at 384 px wide (was 115).
+- Keys remapped: F fits the map to the targets (was C), C works like Esc and closes whatever is on top: the profile, the slide-out parameters, an intel card or the field manual (Close was X), V switches night vision (was N). X does nothing now. N (night vision) and M (base map) also work as second keys; the tooltips name only F, C and V.
+
+**Added**
+- Field manual (desktop): H or the new keyboard button in the header (after NV) opens a card with the keys drawn as a keyboard block, Esc included. While it is open, pressing a key lights it and says what it does. The boot log points to it ("Field manual · press H"). Hidden on touch screens.
+
 ## 1.9.1 — 2026-11-13: mobile responsiveness
 
 Deployed.

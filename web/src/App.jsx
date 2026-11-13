@@ -1,6 +1,7 @@
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import BootSequence from './components/BootSequence.jsx';
 import DetailDrawer from './components/DetailDrawer.jsx';
+import FieldManual from './components/FieldManual.jsx';
 import Filters from './components/Filters.jsx';
 import Header from './components/Header.jsx';
 import ListPanel from './components/ListPanel.jsx';
@@ -25,17 +26,13 @@ import { applyTheme, loadTheme, saveTheme } from './lib/theme.js';
 import { loadPanels, savePanels } from './lib/panels.js';
 import { PHONE_QUERY, STACKED_QUERY, WIDE_QUERY } from './lib/layout.js';
 import { moveInBucket } from './lib/movein.js';
+import { keyAction } from './lib/keys.js';
 
 // The boot sequence plays once per browser tab; a reload goes straight to the deploy animation.
 const BOOT_KEY = 'tcb.boot.v1';
 const DEPLOY_MS = 1300;
 const NV_SWAP_MS = 190; // the theme flips while the effect is at its brightest
 const NV_FX_MS = 720;
-
-// Next / previous target (FR-44): the WASD keys by position, D and S forward, A and W back.
-const STEP_KEYS = { KeyD: 1, KeyS: 1, KeyA: -1, KeyW: -1 };
-// Show or hide the side panels (FR-46): Q the parameters (left), E the target list (right).
-const PANEL_KEYS = { KeyQ: 'params', KeyE: 'list' };
 
 const NO_PLACES = [];
 const NO_ZIPS = [];
@@ -95,6 +92,10 @@ export default function App() {
   const mapRef = useRef(null);
   const [paramsOpen, setParamsOpen] = useState(false);
   const paramsButtonRef = useRef(null);
+  // The field manual (FR-50): ? or the keys button in the header.
+  const [manualOpen, setManualOpen] = useState(false);
+  const toggleManual = useCallback(() => setManualOpen((o) => !o), []);
+  const closeManual = useCallback(() => setManualOpen(false), []);
 
   // Theme: RECON or night vision, remembered in this browser.
   const [theme, setTheme] = useState(loadTheme);
@@ -138,48 +139,48 @@ export default function App() {
     };
   }, [nv, infra]);
 
-  // Keys (not while typing, not with Ctrl / Alt / Cmd, and not during the boot sequence): N toggles
-  // night vision; D or S opens the next target and A or W the previous one (FR-44), like › and ‹
-  // in the profile; with no profile open, D/S opens the first target in the list and A/W the last.
-  // Q / E show or hide the side panels, C fits the map to the targets, R switches the base map and
-  // X closes the profile like × (FR-47). By key position (e.code), so they sit under the left hand
-  // on any layout.
+  // Keys (lib/keys.js; not while typing, not with Ctrl / Alt / Cmd, not during the boot sequence):
+  // V or N toggles night vision; D or S opens the next target and A or W the previous one (FR-44),
+  // like › and ‹ in the profile; with no profile open, D/S opens the first target in the list and
+  // A/W the last. Q / E show or hide the side panels, F fits the map to the targets, R or M
+  // switches the base map and C works like Esc: it closes the topmost intel card, slide-out
+  // parameters or profile (FR-47). H opens the field manual (FR-50), which then takes the keys
+  // itself.
   const keyState = useRef(null);
-  const mapCommands = useRef(null); // { fit, nextBaseMap } from MapView, for the C and R keys
+  const mapCommands = useRef(null); // { fit, nextBaseMap } from MapView, for F and R / M
   useEffect(() => {
     const onKey = (e) => {
-      if (phase === 'boot' || e.altKey || e.ctrlKey || e.metaKey || isTyping(e.target)) return;
-      if (e.key === 'n' || e.key === 'N') {
-        toggleNv();
-        return;
-      }
+      if (phase === 'boot' || isTyping(e.target)) return;
+      const action = keyAction(e);
+      if (!action) return;
       const k = keyState.current;
-      const panel = PANEL_KEYS[e.code];
-      if (panel) {
+      if (action === 'manual') {
         e.preventDefault();
-        k.togglePanel(panel);
+        k.toggleManual();
         return;
       }
-      if (e.code === 'KeyC' || e.code === 'KeyR') {
-        e.preventDefault();
-        if (e.code === 'KeyC') mapCommands.current?.fit();
-        else mapCommands.current?.nextBaseMap();
-        return;
-      }
-      if (e.code === 'KeyX') {
-        if (k.selectedId != null) {
-          e.preventDefault();
-          k.onClose();
-        }
-        return;
-      }
-      const dir = STEP_KEYS[e.code];
-      if (!dir) return;
+      if (k.manualOpen) return;
       e.preventDefault();
-      if (k.selectedId != null) k.step(dir);
+      if (action === 'close') {
+        // C is a second Esc (the user's choice): send an Esc from where the key was pressed, so
+        // the same handlers close the same topmost thing (intel card, slide-out parameters,
+        // profile) in the same order. App itself ignores Esc, so this does not loop.
+        (e.target ?? window).dispatchEvent(
+          new KeyboardEvent('keydown', { key: 'Escape', code: 'Escape', bubbles: true, cancelable: true }),
+        );
+        return;
+      }
+      if (action === 'nv') toggleNv();
+      else if (action === 'params' || action === 'list') k.togglePanel(action);
+      else if (action === 'fit') mapCommands.current?.fit();
+      else if (action === 'basemap') mapCommands.current?.nextBaseMap();
       else {
-        const target = dir > 0 ? k.stepList[0] : k.stepList[k.stepList.length - 1];
-        if (target) k.openTarget(target.card_id, 'list');
+        const dir = action === 'next' ? 1 : -1;
+        if (k.selectedId != null) k.step(dir);
+        else {
+          const target = dir > 0 ? k.stepList[0] : k.stepList[k.stepList.length - 1];
+          if (target) k.openTarget(target.card_id, 'list');
+        }
       }
     };
     window.addEventListener('keydown', onKey);
@@ -391,7 +392,7 @@ export default function App() {
       else toggleParams();
     } else if (!stacked) setPanel('list', !panels.list);
   };
-  keyState.current = { selectedId, step, stepList, openTarget, togglePanel, onClose };
+  keyState.current = { selectedId, step, stepList, openTarget, togglePanel, manualOpen, toggleManual };
 
   const showParams = wide || paramsOpen;
 
@@ -415,6 +416,8 @@ export default function App() {
         paramsButtonRef={paramsButtonRef}
         onParams={toggleParams}
         onReset={reset}
+        manualOpen={manualOpen}
+        onManual={toggleManual}
       />
       <main className="main">
         {paramsFolded && (
@@ -521,6 +524,7 @@ export default function App() {
           onToggleSaved={() => toggleSaved(selectedId)}
         />
       )}
+      {manualOpen && <FieldManual onClose={closeManual} />}
       <div className="nv-goggles" aria-hidden="true" />
       {nvFx && <div className={`nv-fx nv-fx-${nvFx}`} aria-hidden="true" />}
       {phase === 'boot' && (

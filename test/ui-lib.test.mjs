@@ -232,3 +232,31 @@ test('panels: both shown by default; hidden ones remembered; bad or blocked stor
   assert.deepEqual(loadPanels(blocked), { params: true, list: true });
   assert.doesNotThrow(() => savePanels({ params: false, list: false }, blocked));
 });
+
+test('keys (FR-47, FR-50): F fits, C closes, V or N night vision, R or M base map, H the manual; modifiers do nothing', async () => {
+  const { ACTION_TEXT, KEY_ACTIONS, MANUAL_ROWS, capOf, keyAction, manualAction } = await import('../web/src/lib/keys.js');
+  const press = (code, key = code.replace(/^Key/, '').toLowerCase(), mods = {}) => keyAction({ code, key, ...mods });
+  assert.equal(press('KeyF'), 'fit');
+  assert.equal(press('KeyC'), 'close');
+  for (const c of ['KeyV', 'KeyN']) assert.equal(press(c), 'nv', c);
+  for (const c of ['KeyR', 'KeyM']) assert.equal(press(c), 'basemap', c);
+  assert.equal(press('KeyH'), 'manual');
+  assert.equal(press('KeyQ'), 'params');
+  assert.equal(press('KeyE'), 'list');
+  for (const c of ['KeyD', 'KeyS']) assert.equal(press(c), 'next');
+  for (const c of ['KeyA', 'KeyW']) assert.equal(press(c), 'prev');
+  for (const c of ['KeyX', 'KeyZ', 'Escape']) assert.equal(press(c), null, c); // X is no longer close; Esc is each panel's own
+  assert.equal(press('Slash', '?', { shiftKey: true }), null); // ? no longer opens the manual
+  // Esc is drawn in the manual, as Esc.
+  assert.equal(manualAction('Escape'), 'esc');
+  assert.equal(capOf('Escape'), 'Esc');
+  for (const mod of ['ctrlKey', 'altKey', 'metaKey']) assert.equal(press('KeyC', 'c', { [mod]: true }), null, mod); // Ctrl+C copies
+  // By position: a layout that types another letter there still gets the action.
+  assert.equal(press('KeyF', 'u'), 'fit');
+  // The manual draws every key that has an action, and each action has its text.
+  const drawn = new Set(MANUAL_ROWS.flatMap((r) => r.keys));
+  for (const [code, action] of Object.entries(KEY_ACTIONS)) {
+    assert.ok(drawn.has(code), `${code} is in the manual`);
+    assert.equal(ACTION_TEXT[action]?.length, 2, action);
+  }
+});

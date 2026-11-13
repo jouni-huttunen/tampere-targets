@@ -10,5 +10,8 @@ export const LANDSCAPE_PHONE_QUERY = '(orientation: landscape) and (max-height: 
 /** Phone behaviour in either orientation: full-screen profile, swipe between targets, legend folded. */
 export const PHONE_QUERY = `(max-width: 900px), ${LANDSCAPE_PHONE_QUERY}`;
 
+/** A mouse or trackpad, so most likely a keyboard: the field manual is offered (FR-50). */
+export const DESKTOP_POINTER = '(hover: hover) and (pointer: fine)';
+
 /** The stacked layout (the list under the map): a phone held upright, or any narrow tall window. */
 export const STACKED_QUERY = '(max-width: 900px) and (orientation: portrait), (max-width: 900px) and (min-height: 501px)';

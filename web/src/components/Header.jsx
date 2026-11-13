@@ -18,7 +18,7 @@ export default memo(Header);
 
 function Header({
   meta, shown, total, filters, saved, medianRent, onChange, nv, onToggleNv, wide, paramsOpen, paramCount,
-  paramsButtonRef, onParams, onReset,
+  paramsButtonRef, onParams, onReset, manualOpen, onManual,
 }) {
   const run = meta?.lastRun;
   const ready = !!filters;
@@ -45,7 +45,8 @@ function Header({
             <span className="readout-of">/ {ready ? total : '––'}</span>
           </dd>
         </div>
-        <div className={`readout ${saved.size ? 'readout-priority' : ''}`}>
+        {/* Not on upright phones: the list's ★ Priority chip does the same there. */}
+        <div className={`readout readout-shortlist ${saved.size ? 'readout-priority' : ''}`}>
           <dt>Priority</dt>
           <dd>
             {ready && saved.size > 0 ? (
@@ -113,7 +114,7 @@ function Header({
           className={`nv-toggle ${nv ? 'is-on' : ''}`}
           aria-pressed={nv}
           onClick={onToggleNv}
-          title={`Night vision ${nv ? 'off' : 'on'} (N)`}
+          title={`Night vision ${nv ? 'off' : 'on'} (V)`}
         >
           <svg className="nv-icon" viewBox="0 0 32 20" aria-hidden="true" focusable="false">
             <path d="M3 6h26v8a3 3 0 0 1-3 3h-6l-2-3h-4l-2 3H6a3 3 0 0 1-3-3z" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
@@ -125,6 +126,21 @@ function Header({
             <span className="nv-label">NV</span>
             <span className="nv-state">{nv ? 'On' : 'Off'}</span>
           </span>
+        </button>
+        {/* The field manual (FR-50): desktop only, after NV (CSS hides it on touch screens, which have no keys). */}
+        <button
+          type="button"
+          className={`btn btn-ghost keys-btn ${manualOpen ? 'is-on' : ''}`}
+          aria-haspopup="dialog"
+          aria-label="Field manual: the keyboard keys"
+          title="Field manual (H)"
+          onClick={onManual}
+        >
+          <svg className="icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <rect x="2.5" y="6" width="19" height="12" rx="1.5" fill="none" stroke="currentColor" strokeWidth="1.5" />
+            <path d="M6 9.5h1.5M9.5 9.5H11M13 9.5h1.5M16.5 9.5H18M7.5 12.5H9M11 12.5h1.5M14.5 12.5H16M8 15.2h8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="square" />
+          </svg>
+          <span className="keys-btn-q" aria-hidden="true">H</span>
         </button>
       </div>
     </header>

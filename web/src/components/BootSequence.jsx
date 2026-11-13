@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { fmtDateTime } from '../lib/format.js';
+import { DESKTOP_POINTER } from '../lib/layout.js';
 import { Reticle } from './Icons.jsx';
 
 // Fallback for the GPS line when /api/meta has no centre place: Keskustori (the map centre).
@@ -46,6 +47,8 @@ export default function BootSequence({ meta, count, error, saved, onDone }) {
           : { text: 'New contacts · none', status: 'OK' },
       );
       out.push({ text: `Priority targets · ${saved.size}`, status: 'OK' });
+      // Where there is a keyboard (a mouse or trackpad), point to the field manual (FR-50).
+      if (window.matchMedia?.(DESKTOP_POINTER).matches) out.push({ text: 'Field manual · press H', status: 'READY' });
     }
     out.push({ text: error ? 'Standing by' : 'All systems armed', kind: 'final', tone: error ? 'alert' : null });
     return out;

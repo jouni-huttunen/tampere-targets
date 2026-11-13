@@ -233,7 +233,7 @@ function FitControl({ count, onFit }) {
   if (!host || count === 0) return null;
   const label = `Fit ${count} ${count === 1 ? 'target' : 'targets'}`;
   return createPortal(
-    <button type="button" className="map-fit" onClick={onFit} aria-label={label} title="Zoom the map to the targets in the list (C)">
+    <button type="button" className="map-fit" onClick={onFit} aria-label={label} title="Zoom the map to the targets in the list (F)">
       <svg className="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
         <path d="M3 7V3h4M13 3h4v4M17 13v4h-4M7 17H3v-4" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
       </svg>

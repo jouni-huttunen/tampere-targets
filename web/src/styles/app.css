@@ -2405,11 +2405,15 @@ input[type='date'].range-field {
   padding: 0 var(--sp-6);
 }
 
-/* Three key figures in readout boxes. */
+/* Three key figures in readout boxes: cost (a little wider, for "1 299 €"), area, built. */
 .facts-hero {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: 1.3fr 1fr 1fr;
   gap: var(--sp-2);
+}
+
+.fact-cost .fact-hero {
+  white-space: nowrap;
 }
 
 .facts-hero > div {
@@ -4118,6 +4122,222 @@ input[type='date'].range-field {
   }
 }
 
+/* ---------- Field manual (FR-50): the desktop keys ---------- */
+
+/* Header button: a keyboard glyph with a small "?" on its corner. Not on touch screens. */
+.keys-btn {
+  position: relative;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  color: var(--ink-quiet);
+}
+
+.keys-btn:not(:disabled):hover,
+.keys-btn.is-on {
+  color: var(--accent);
+}
+
+.keys-btn .icon {
+  width: 22px;
+  height: 22px;
+}
+
+.keys-btn-q {
+  position: absolute;
+  right: 4px;
+  bottom: 3px;
+  font-family: var(--font-mono);
+  font-size: var(--fs-3xs);
+  font-weight: var(--fw-bold);
+  line-height: 1;
+  color: var(--accent);
+}
+
+@media (hover: none), (pointer: coarse) {
+  .keys-btn {
+    display: none;
+  }
+}
+
+/* A modal <dialog> in the top layer, over everything (the profile, the slide-out parameters). */
+.manual {
+  width: min(600px, calc(100vw - 32px));
+  max-width: none;
+  max-height: calc(100dvh - 32px);
+  /* 1 px room for the corner brackets (inset -1px), so they never make the dialog scroll. */
+  padding: 1px;
+  border: 0;
+  background: none;
+  color: var(--ink);
+  overflow: auto;
+  scrollbar-width: thin;
+}
+
+.manual[open] {
+  animation: manual-in var(--dur-slow) var(--ease-snap);
+}
+
+.manual::backdrop {
+  background: var(--scrim);
+  backdrop-filter: blur(3px);
+}
+
+@keyframes manual-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+    clip-path: inset(0 0 100% 0);
+  }
+  to {
+    clip-path: inset(0);
+  }
+}
+
+.manual-body {
+  display: grid;
+  gap: var(--sp-5);
+  padding-bottom: var(--sp-5);
+  background: var(--texture-scan), var(--glass-strong);
+  border: 1px solid var(--accent-a40);
+  box-shadow: var(--shadow-3);
+}
+
+.manual-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 46px;
+  padding: var(--sp-1) var(--sp-2) var(--sp-1) var(--sp-5);
+  border-bottom: 1px solid var(--hairline);
+  background: var(--texture-scan), var(--header-gradient);
+}
+
+/* The keyboard block, staggered like a real keyboard (each row's offset in key widths), Esc on
+   its own row above with a little extra space, like a function row. */
+.manual-pad {
+  --cap: 62px;
+  --cap-gap: 8px;
+  display: grid;
+  gap: var(--cap-gap);
+  justify-content: center;
+  padding: 0 var(--sp-5);
+}
+
+.manual-row {
+  display: flex;
+  gap: var(--cap-gap);
+  padding-left: calc(var(--row-offset) * (var(--cap) + var(--cap-gap)));
+}
+
+.manual-row-fn {
+  margin-bottom: var(--sp-2);
+}
+
+.keycap {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  width: var(--cap);
+  height: var(--cap);
+  padding: 7px 8px 6px;
+  border: 1px solid var(--hairline);
+  border-bottom-width: 3px;
+  border-radius: var(--r-md);
+  background: var(--surface-sunk);
+  transition:
+    transform var(--dur-fast) var(--ease),
+    border-color var(--dur-fast) var(--ease),
+    box-shadow var(--dur-fast) var(--ease);
+}
+
+.keycap.is-idle {
+  opacity: 0.35;
+}
+
+.keycap.is-live {
+  border-color: var(--hairline-strong);
+  background: var(--surface);
+}
+
+/* The WASD cluster (previous / next target) is tinted as one group. */
+.keycap-prev,
+.keycap-next {
+  background: var(--accent-a10);
+}
+
+.keycap-char {
+  font-family: var(--font-display);
+  font-size: var(--fs-xl);
+  font-weight: var(--fw-bold);
+  line-height: 1;
+  color: var(--ink-soft);
+}
+
+.keycap.is-live .keycap-char {
+  color: var(--accent);
+}
+
+/* C and Esc close: amber, like the profile's own frame. */
+.keycap-close .keycap-char,
+.keycap-esc .keycap-char {
+  color: var(--hot);
+}
+
+.keycap-label {
+  font-family: var(--font-mono);
+  font-size: var(--fs-3xs);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: var(--ink-quiet);
+}
+
+.keycap.is-lit {
+  transform: translateY(2px);
+  border-color: var(--accent);
+  box-shadow: var(--glow-accent);
+}
+
+.keycap.is-lit .keycap-label {
+  color: var(--ink);
+}
+
+.manual-readout {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-height: 36px;
+  margin: 0 var(--sp-5);
+  padding: var(--sp-1) var(--sp-3);
+  border: 1px dashed var(--hairline);
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  color: var(--ink-quiet);
+}
+
+.manual-readout.is-on {
+  border-style: solid;
+  border-color: var(--accent-a40);
+  color: var(--ink);
+}
+
+.kbd {
+  display: inline-grid;
+  place-items: center;
+  min-width: 24px;
+  height: 22px;
+  padding: 0 5px;
+  border: 1px solid var(--hairline-strong);
+  border-bottom-width: 2px;
+  border-radius: var(--r-sm);
+  background: var(--surface-sunk);
+  font-family: var(--font-mono);
+  font-size: var(--fs-2xs);
+  font-weight: var(--fw-semibold);
+  color: var(--accent);
+}
+
 /* ---------- Touch screens (phones, tablets) ---------- */
 
 @media (pointer: coarse) {
@@ -4242,8 +4462,13 @@ input[type='date'].range-field {
   .lock-label,
   .cards-enter .card-item,
   .nv-switching .header,
-  .nv-switching .main {
+  .nv-switching .main,
+  .manual[open] {
     animation: none;
+  }
+
+  .keycap {
+    transition: none;
   }
 }
 
@@ -4405,16 +4630,21 @@ input[type='date'].range-field {
     padding: var(--sp-3) var(--sp-4);
   }
 
+  /* Two rows: the brand alone, then the Targets readout with Params and NV beside it, right above
+     the map where the thumb reaches them. The Priority readout goes (the list's ★ Priority chip
+     does the same). */
   .brand {
-    flex: 1 1 180px;
+    flex: 1 1 100%;
     min-width: 0;
   }
 
   .readouts {
-    order: 3;
-    flex-basis: 100%;
+    flex: 1 1 0;
     margin: 0;
-    overflow-x: auto;
+  }
+
+  .readout-shortlist {
+    display: none;
   }
 
   .main {
@@ -4440,8 +4670,9 @@ input[type='date'].range-field {
 }
 
 /* Compact header, for narrow upright phones and phones held sideways: a smaller brand with the
-   version under the name, and Params and NV as square icon buttons (their names stay for screen
-   readers; the Params badge sits on the button's corner). */
+   version under the name, Params with its icon and name (the three-line icon alone is ambiguous;
+   the badge sits on the button's corner) and NV as a square icon button (the goggles say it; its
+   name stays for screen readers). */
 @media (max-width: 430px), (orientation: landscape) and (max-height: 500px) {
   .brand {
     gap: var(--sp-2);
@@ -4473,8 +4704,15 @@ input[type='date'].range-field {
   .nv-toggle {
     position: relative;
     justify-content: center;
-    width: 44px;
     height: 44px;
+  }
+
+  .params-btn {
+    padding: 0 var(--sp-3);
+  }
+
+  .nv-toggle {
+    width: 44px;
     padding: 0;
   }
 
@@ -4483,7 +4721,6 @@ input[type='date'].range-field {
     height: 20px;
   }
 
-  .params-btn .btn-label,
   .nv-text {
     position: absolute;
     width: 1px;
@@ -4538,25 +4775,17 @@ input[type='date'].range-field {
     padding: var(--sp-3);
   }
 
-  .brand {
-    flex: 1 1 0;
-  }
-
   /* The parameters panel has its own "Clear params"; the Params badge shows that some are set. */
   .header-clear {
     display: none;
   }
 
-  /* The two readouts (Targets, Priority) share the row, so they always fit: no scroll box (it showed a stray bar). */
-  .readouts {
-    gap: 6px;
-    overflow: visible;
-  }
-
+  /* The Targets readout: only as wide as its numbers, at the left, as tall as the buttons, which
+     the row pushes to the right. */
   .readout {
-    flex: 1 1 0;
-    min-width: 0;
-    padding: 0 var(--sp-2);
+    flex: none;
+    height: 44px;
+    padding: 0 var(--sp-4) 0 var(--sp-3);
   }
 
   .panel-head {
