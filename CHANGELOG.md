@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.12.0 — 2026-11-13: move-in up front
+
+Deployed.
+
+**Added**
+- Target profile: move-in up front, on the row with the priority star ("IN 1.12.2026"), so it is on a phone's first screen. Without a date it shows the listing's own text, cut to one line (40 characters at most, with "…"; the full text in its tooltip and still in the facts); nothing when the listing gives neither.
+
 ## 1.11.1 — 2026-11-13: profile range labels
 
 Deployed.

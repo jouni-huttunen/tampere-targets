@@ -118,3 +118,24 @@ test('formatting helpers', () => {
   assert.equal(yearBin(1905), 1);
   assert.equal(yearBin(2026), 5);
 });
+
+test('profile move-in: date first, else the tidied text cut at a word, else nothing', async () => {
+  const { MOVE_IN_MAX, moveInBrief } = await import('../web/src/lib/format.js');
+  const brief = (available_date, availability_text) => moveInBrief({ available_date, availability_text });
+  assert.deepEqual(brief('2026-12-01', 'Vapaa 01.12.2026'), { text: '1.12.2026', full: '1.12.2026' });
+  assert.deepEqual(brief(null, '  heti   vapaa. '), { text: 'heti vapaa', full: 'heti vapaa' });
+  assert.deepEqual(brief(null, null), { text: '', full: '' });
+  assert.deepEqual(brief(null, '   '), { text: '', full: '' });
+  assert.deepEqual(moveInBrief(null), { text: '', full: '' });
+  // Synthetic long text: cut at a word boundary, under the limit, ending in "…"; full kept.
+  const long = 'Vapautuu sopimuksen mukaan, aikaisintaan joulukuun puolivälissä tai tammikuun alussa';
+  const cut = brief(null, long);
+  assert.equal(cut.full, long);
+  assert.ok(cut.text.length <= MOVE_IN_MAX, cut.text);
+  assert.ok(cut.text.endsWith('…'));
+  assert.ok(long.startsWith(cut.text.slice(0, -1)));
+  assert.ok(!/[\s,]…$/.test(cut.text), 'no space or comma before the ellipsis');
+  // One unbroken word: cut mid-word rather than leave almost nothing.
+  const word = 'x'.repeat(60);
+  assert.equal(brief(null, word).text, `${'x'.repeat(MOVE_IN_MAX - 1)}…`);
+});

@@ -2153,6 +2153,21 @@ input[type='date'].range-field {
   padding: 0 var(--sp-3);
 }
 
+/* Move-in, up front on the star row: the list rows' "IN 1.12.2026" style, at the right end.
+   It fills the rest of the row (so the New contact / Approx. position tags after it take the next
+   line) and ends in "…" rather than wrapping; it keeps at least a date's width. */
+.drawer-movein {
+  flex: 1 1 0;
+  min-width: 11ch;
+  overflow: hidden;
+  font-family: var(--font-mono);
+  font-size: var(--fs-sm);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  text-align: right;
+  color: var(--ink-soft);
+}
+
 .strip-note {
   margin: 0;
   font-family: var(--font-mono);

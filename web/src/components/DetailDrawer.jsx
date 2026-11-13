@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { getJson } from '../lib/api.js';
 import { cachedDetail, loadDetail } from '../lib/details.js';
-import { availabilityText, fmtDate, fmtDay, fmtEur, fmtKm, fmtM2 } from '../lib/format.js';
+import { availabilityText, fmtDate, fmtDay, fmtEur, fmtKm, fmtM2, moveInBrief } from '../lib/format.js';
 import Photo, { PhotoLoader } from './Photo.jsx';
 import RichText from './RichText.jsx';
 import StarButton from './StarButton.jsx';
@@ -233,6 +233,7 @@ export default function DetailDrawer({
 
   const l = detail ?? summary;
   const approx = l?.location_approx;
+  const moveIn = moveInBrief(l);
 
   return (
     <aside ref={rootRef} className="drawer frame" role="dialog" aria-modal="false" aria-labelledby="drawer-title">
@@ -288,6 +289,17 @@ export default function DetailDrawer({
           {detail?.title && <p className="drawer-subtitle">{detail.title}</p>}
           <div className="drawer-tags">
             {onToggleSaved && <StarButton saved={isSaved} onToggle={onToggleSaved} withLabel />}
+            {/* Move-in up front (the user's choice): on the star row, so it is on a phone's first
+                screen. It fills the rest of the row, so the tags below take the next line rather
+                than push it off. Nothing when the listing says nothing; the full text stays in the
+                facts. */}
+            {moveIn.text && (
+              <span className="drawer-movein" title={`Move-in: ${moveIn.full}`}>
+                <span className="meta-key" aria-hidden="true">In</span>
+                <span className="sr-only">Move-in </span>
+                {moveIn.text}
+              </span>
+            )}
             {l?.is_new && <span className="tag tag-new">New contact</span>}
             {approx && <span className="tag tag-approx">Approx. position</span>}
           </div>
