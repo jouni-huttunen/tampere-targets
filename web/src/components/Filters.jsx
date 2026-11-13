@@ -7,6 +7,7 @@ import { YEAR_DECADES } from '../lib/stops.js';
 const fmtMonth = (date) => `${monthLabel(date.slice(0, 7))} ${date.slice(0, 4)}`;
 import { PanelChevron } from './PanelRail.jsx';
 import RangeFilter from './RangeFilter.jsx';
+import ScorchedEarth from './ScorchedEarth.jsx';
 
 // Same bins as the map markers and the legend (format.js YEAR_BINS).
 const YEAR_ERAS = [
@@ -26,6 +27,7 @@ export default memo(Filters);
 
 function Filters({
   overlay, filters, bounds, zips, zipNames, listings, windowCutoff, saved, activeCount, onChange, onReset, onClose, onHide, hideRef,
+  onPurge, phone,
 }) {
   const counts = useMemo(() => {
     const c = { new: 0, zip: {} };
@@ -194,6 +196,9 @@ function Filters({
               <Switch label="Priority targets only" count={saved?.size ?? 0} checked={filters.onlySaved} onChange={(onlySaved) => onChange({ onlySaved })} />
             </div>
           </section>
+
+          {/* The very bottom: the reset of last resort, folded to one slim bar (FR-51). */}
+          {onPurge && <ScorchedEarth compact terse={!phone} onFire={onPurge} />}
         </div>
       )}
 

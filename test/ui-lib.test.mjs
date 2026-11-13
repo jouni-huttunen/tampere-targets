@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { applyFilters, defaultFilters, fromQuery, rentPerM2, sortListings, toQuery } from '../web/src/lib/filters.js';
 import { fmtPerM2 } from '../web/src/lib/format.js';
-import { SHORTLIST_KEY, loadShortlist, parseShortlist, saveShortlist, toggled } from '../web/src/lib/shortlist.js';
+import { SHORTLIST_KEY, liveShortlist, loadShortlist, parseShortlist, saveShortlist, toggled } from '../web/src/lib/shortlist.js';
+import { cleanUrl, purgeStorage } from '../web/src/lib/purge.js';
 import { groupByPosition, ringOffsets, ringRadius } from '../web/src/lib/spread.js';
 import { sameIds, splitByView, stepIndex } from '../web/src/lib/inview.js';
 
@@ -89,6 +90,42 @@ test('shortlist store: round trip, bad data ignored, broken storage tolerated', 
   assert.deepEqual([...toggled(new Set([1]), 2)], [1, 2]);
   assert.deepEqual([...toggled(new Set([1, 2]), 1)], [2]);
 });
+
+test('live shortlist: stars on listings gone from the data or withdrawn are ignored, not lost', () => {
+  const stored = new Set([1, 2, 99]); // 99: not in the data any more
+  const active = new Set([1, 3]); // 2: withdrawn (in the data, but not active)
+  assert.deepEqual([...liveShortlist(stored, active)], [1]);
+  assert.deepEqual([...stored], [1, 2, 99], 'the stored set is left as it was');
+  assert.equal(liveShortlist(new Set([1]), active).size, 1);
+  const allLive = new Set([1, 3]);
+  assert.equal(liveShortlist(allLive, active), allLive, 'nothing dropped: the same set back');
+  assert.equal(liveShortlist(stored, null).size, 0, 'no data yet: nothing counts');
+});
+
+test('scorched earth: only the app keys go, in both stores; blocked storage never throws', () => {
+  const local = keyedStorage({ 'tcb.shortlist.v1': '[1]', 'tcb.theme.v1': 'nv', 'other.app': 'keep' });
+  const session = keyedStorage({ 'tcb.boot.v1': '1' });
+  assert.equal(purgeStorage([local, session]), 3);
+  assert.deepEqual(Object.keys(local.data), ['other.app']);
+  assert.deepEqual(Object.keys(session.data), []);
+  const blocked = { get length() { throw new Error('blocked'); } };
+  assert.equal(purgeStorage([blocked, keyedStorage({ 'tcb.x': '1' })]), 1);
+  assert.equal(cleanUrl({ pathname: '/', search: '?listing=5&sort=rent', hash: '#x' }), '/');
+  assert.equal(cleanUrl({ pathname: '' }), '/');
+});
+
+/** A Web Storage stand-in with key(i) and length, for code that walks the keys. */
+function keyedStorage(init) {
+  const data = { ...init };
+  return {
+    data,
+    get length() {
+      return Object.keys(data).length;
+    },
+    key: (i) => Object.keys(data)[i] ?? null,
+    removeItem: (k) => delete data[k],
+  };
+}
 
 test('rent per m²: value, missing data, sort cheapest first with unknowns last, formatting', () => {
   assert.equal(rentPerM2({ rent_eur: 1000, size_m2: 50 }), 20);

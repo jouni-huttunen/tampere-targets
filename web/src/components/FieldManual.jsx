@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import ScorchedEarth from './ScorchedEarth.jsx';
 import { ACTION_TEXT, KEY_ACTIONS, MANUAL_ROWS, capOf, manualAction } from '../lib/keys.js';
 
 const IDLE_TEXT = 'Press a key or point at one to see what it does';
@@ -7,9 +8,9 @@ const IDLE_TEXT = 'Press a key or point at one to see what it does';
  * The field manual (FR-50): the desktop keys on a drawn keyboard block, opened by H or the keys
  * button in the header. A modal <dialog>: the page behind is inert, and while it is open the keys
  * only light up their key cap here (practice) instead of acting. Esc, C, H, × or a click outside
- * closes it and focus goes back where it was.
+ * closes it and focus goes back where it was. At the bottom: scorched earth (FR-51).
  */
-export default function FieldManual({ onClose }) {
+export default function FieldManual({ onClose, onPurge }) {
   const ref = useRef(null);
   const [lit, setLit] = useState(null);
 
@@ -102,7 +103,10 @@ export default function FieldManual({ onClose }) {
             IDLE_TEXT
           )}
         </p>
+
+        <ScorchedEarth onFire={onPurge} />
       </div>
     </dialog>
   );
 }
+

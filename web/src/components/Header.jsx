@@ -60,7 +60,7 @@ function Header({
                 {saved.size}
               </button>
             ) : (
-              <span className="readout-n">{saved.size}</span>
+              <span className="readout-n">{ready ? saved.size : '––'}</span>
             )}
           </dd>
         </div>

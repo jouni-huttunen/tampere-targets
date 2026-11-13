@@ -69,6 +69,14 @@
   --accent-a70: rgb(56 200 255 / 0.7);
   --hot-a20: rgb(255 164 58 / 0.2);
   --hot-a50: rgb(255 164 58 / 0.5);
+  /* Scorched earth (FR-51): the one place the console goes red. */
+  --danger-a10: rgb(255 116 104 / 0.1);
+  --danger-a20: rgb(255 116 104 / 0.2);
+  --danger-a50: rgb(255 116 104 / 0.5);
+  --danger-deep: rgb(40 6 6);
+  --glow-danger: 0 0 0 1px var(--danger-a50), 0 0 18px var(--danger-a20);
+  --hazard-stripes: repeating-linear-gradient(-45deg, var(--danger) 0 8px, transparent 8px 16px);
+  --purge-bg: radial-gradient(ellipse at center, rgb(60 8 8 / 0.92), rgb(8 2 2 / 0.98) 70%);
   --grid-line: rgb(56 200 255 / 0.05);
   --flash: rgb(216 246 255 / 0.9);
 
@@ -217,6 +225,7 @@
   --z-drawer: 1200;
   --z-fx: 3000;
   --z-boot: 4000;
+  --z-purge: 5000;
 }
 
 /* Night vision: phosphor green, lime for alerts and the target lock. */
@@ -254,6 +263,9 @@
   --accent-a70: rgb(61 220 132 / 0.7);
   --hot-a20: rgb(212 255 94 / 0.2);
   --hot-a50: rgb(212 255 94 / 0.5);
+  --danger-a10: rgb(255 128 102 / 0.1);
+  --danger-a20: rgb(255 128 102 / 0.2);
+  --danger-a50: rgb(255 128 102 / 0.5);
   --grid-line: rgb(61 220 132 / 0.055);
   --flash: rgb(226 255 233 / 0.9);
   --vignette: radial-gradient(ellipse at center, transparent 45%, rgb(2 6 4 / 0.75) 100%);

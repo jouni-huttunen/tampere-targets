@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.11.0 — 2026-11-13: scorched earth
+
+Deployed.
+
+**Added**
+- **Scorched earth**, the reset of last resort, on desktop and phones: at the very bottom of Mission parameters (a slim hazard bar until you lift the safety cover; then the full brief on phones, a short one with Disarm / Burn on desktop) and at the bottom of the field manual. Lift the safety cover, then Burn it all: it wipes everything this browser remembers (priority targets, parameters, night vision, panels, list view), clears the address and reboots the console from zero with the boot sequence. No undo; your listing data stays. A double-click on the cover never fires.
+
+**Changed**
+- Priority targets: stars on listings that are no longer in the data, or withdrawn, are ignored silently: they no longer count in the header, the list chip, the parameters switch or the boot log. They stay stored, so a listing that comes back keeps its star.
+- Header: the Priority readout shows –– until the data is in, like the Targets readout.
+
 ## 1.10.1 — 2026-11-13: phone target swipe fix
 
 Deployed.

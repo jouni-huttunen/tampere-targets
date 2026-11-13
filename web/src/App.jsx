@@ -7,6 +7,7 @@ import Header from './components/Header.jsx';
 import ListPanel from './components/ListPanel.jsx';
 import MapView from './components/MapView.jsx';
 import PanelRail from './components/PanelRail.jsx';
+import Purge from './components/Purge.jsx';
 import Radar from './components/Radar.jsx';
 import { ApiError, getJson } from './lib/api.js';
 import {
@@ -20,7 +21,7 @@ import {
   toQuery,
 } from './lib/filters.js';
 import { splitByView, stepIndex } from './lib/inview.js';
-import { SHORTLIST_KEY, loadShortlist, parseShortlist, saveShortlist, toggled } from './lib/shortlist.js';
+import { SHORTLIST_KEY, liveShortlist, loadShortlist, parseShortlist, saveShortlist, toggled } from './lib/shortlist.js';
 import { listingFromSearch, profileState, searchWithListing, stepsToMain } from './lib/history.js';
 import { applyTheme, loadTheme, saveTheme } from './lib/theme.js';
 import { loadPanels, savePanels } from './lib/panels.js';
@@ -96,6 +97,13 @@ export default function App() {
   const [manualOpen, setManualOpen] = useState(false);
   const toggleManual = useCallback(() => setManualOpen((o) => !o), []);
   const closeManual = useCallback(() => setManualOpen(false), []);
+  // Scorched earth (FR-51), fired from the manual or the parameters: the burn screen takes over
+  // and reloads the app.
+  const [purging, setPurging] = useState(false);
+  const purge = useCallback(() => {
+    setManualOpen(false);
+    setPurging(true);
+  }, []);
 
   // Theme: RECON or night vision, remembered in this browser.
   const [theme, setTheme] = useState(loadTheme);
@@ -154,6 +162,7 @@ export default function App() {
       const action = keyAction(e);
       if (!action) return;
       const k = keyState.current;
+      if (k.purging) return; // the burn screen is up: nothing acts any more
       if (action === 'manual') {
         e.preventDefault();
         k.toggleManual();
@@ -239,15 +248,23 @@ export default function App() {
   // the expensive part (filter, sort, ~400 rows, the markers) catches up when there is time,
   // skipping in-between values while the thumb is dragged.
   const deferredFilters = useDeferredValue(filters);
+  // "N / M targets": M counts the listings still on Oikotie (withdrawn ones are never shown).
+  const activeIds = useMemo(
+    () => (listings ? new Set(listings.filter((l) => !l.removed).map((l) => l.card_id)) : null),
+    [listings],
+  );
+  const activeCount = activeIds?.size ?? 0;
+  // Stars on listings no longer in the data (or withdrawn) are ignored everywhere they would show
+  // or count; the stored set keeps them (lib/shortlist.js). The profile's own star and toggling
+  // use the stored set.
+  const liveSaved = useMemo(() => liveShortlist(saved, activeIds), [saved, activeIds]);
   const shown = useMemo(
     () =>
       listings && deferredFilters
-        ? sortListings(applyFilters(listings, deferredFilters, saved), deferredFilters.sort)
+        ? sortListings(applyFilters(listings, deferredFilters, liveSaved), deferredFilters.sort)
         : [],
-    [listings, deferredFilters, saved],
+    [listings, deferredFilters, liveSaved],
   );
-  // "N / M targets": M counts the listings still on Oikotie (withdrawn ones are never shown).
-  const activeCount = useMemo(() => (listings ? listings.filter((l) => !l.removed).length : 0), [listings]);
   const medianRent = useMemo(() => median(shown.map((l) => l.rent_eur)), [shown]);
   const zipNames = useMemo(() => {
     const names = {};
@@ -392,7 +409,7 @@ export default function App() {
       else toggleParams();
     } else if (!stacked) setPanel('list', !panels.list);
   };
-  keyState.current = { selectedId, step, stepList, openTarget, togglePanel, manualOpen, toggleManual };
+  keyState.current = { selectedId, step, stepList, openTarget, togglePanel, manualOpen, toggleManual, purging };
 
   const showParams = wide || paramsOpen;
 
@@ -405,7 +422,7 @@ export default function App() {
         shown={shown.length}
         total={activeCount}
         filters={filters}
-        saved={saved}
+        saved={liveSaved}
         medianRent={medianRent}
         onChange={update}
         nv={theme === 'nv'}
@@ -442,13 +459,15 @@ export default function App() {
             zipNames={zipNames}
             listings={listings}
             windowCutoff={meta?.windowCutoff}
-            saved={saved}
+            saved={liveSaved}
             activeCount={paramCount}
             onChange={update}
             onReset={reset}
             onClose={closeParams}
             onHide={wide ? hideParams : undefined}
             hideRef={paramsHideRef}
+            onPurge={purge}
+            phone={phone}
           />
         )}
         <section className="map-wrap frame" aria-label="Tactical map" ref={mapRef}>
@@ -461,7 +480,7 @@ export default function App() {
             nv={nv}
             hoverId={hover.id}
             selectedId={selectedId}
-            saved={saved}
+            saved={liveSaved}
             onHover={onHover}
             onSelect={onSelect}
             onViewChange={setMapView}
@@ -496,7 +515,7 @@ export default function App() {
           onSelect={onSelect}
           onReset={reset}
           noPhotos={meta?.noPhotos ?? false}
-          saved={saved}
+          saved={liveSaved}
           onToggleSaved={toggleSaved}
           onlySaved={filters?.onlySaved ?? false}
           onOnlySaved={onOnlySaved}
@@ -524,11 +543,12 @@ export default function App() {
           onToggleSaved={() => toggleSaved(selectedId)}
         />
       )}
-      {manualOpen && <FieldManual onClose={closeManual} />}
+      {manualOpen && <FieldManual onClose={closeManual} onPurge={purge} />}
+      {purging && <Purge />}
       <div className="nv-goggles" aria-hidden="true" />
       {nvFx && <div className={`nv-fx nv-fx-${nvFx}`} aria-hidden="true" />}
       {phase === 'boot' && (
-        <BootSequence meta={meta} count={listings ? activeCount : null} error={error} saved={saved} onDone={bootDone} />
+        <BootSequence meta={meta} count={listings ? activeCount : null} error={error} saved={liveSaved} onDone={bootDone} />
       )}
     </div>
   );

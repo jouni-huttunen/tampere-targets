@@ -38,6 +38,20 @@ export function saveShortlist(set, storage = defaultStorage()) {
   }
 }
 
+/**
+ * The stars that point at a listing still on Oikotie (activeIds: a Set of active card ids, or
+ * null while the data loads). Stars for listings no longer in the data, or withdrawn, are ignored
+ * without a word (the user's choice) but stay stored: a withdrawn listing can reappear. Returns
+ * the same Set when nothing is dropped.
+ */
+export function liveShortlist(saved, activeIds) {
+  if (!activeIds) return new Set();
+  for (const id of saved) {
+    if (!activeIds.has(id)) return new Set([...saved].filter((s) => activeIds.has(s)));
+  }
+  return saved;
+}
+
 /** A new Set with id added or removed. */
 export function toggled(set, id) {
   const next = new Set(set);
