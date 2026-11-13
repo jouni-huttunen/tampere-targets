@@ -14,6 +14,9 @@ function isTypingTarget(el) {
 /** A swipe that starts in these scrolls them (photos, thumbnails, raw JSON); it never changes target. */
 const NO_SWIPE = '.gallery, pre, input, select, textarea';
 const SLIDE_MS = 200;
+// The profile's distance facts: "Range to Keskustori", "Range to railway station" (the user's
+// wording); any other config place uses its own name.
+const RANGE_NAMES = { centre: 'Keskustori', station: 'railway station' };
 const reducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 // Skeleton lines for the Briefing while the details load: just under the 5th percentile of the
@@ -324,7 +327,7 @@ export default function DetailDrawer({
               {l.deposit_eur != null && <Fact label="Deposit" value={fmtEur(l.deposit_eur)} />}
               {l.furnished === true && <Fact label="Furnished" value="Yes" />}
               {places.map((p) => (
-                <Fact key={p.key} label={`Range to ${p.key === 'centre' ? 'HQ' : p.key === 'station' ? 'rail' : p.name} · ${p.name}`} value={fmtKm(l.dist?.[p.key], approx)} />
+                <Fact key={p.key} label={`Range to ${RANGE_NAMES[p.key] ?? p.name}`} value={fmtKm(l.dist?.[p.key], approx)} />
               ))}
               <Fact label="Landlord / agent" value={l.company_name} />
               <Fact label="Listed" value={l.published_at ? fmtDay(l.published_at) : null} />

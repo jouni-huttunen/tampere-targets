@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.11.1 — 2026-11-13: profile range labels
+
+Deployed.
+
+**Changed**
+- Target profile: the distance facts read "Range to Keskustori" and "Range to railway station".
+
 ## 1.11.0 — 2026-11-13: scorched earth
 
 Deployed.
