@@ -9,4 +9,4 @@
 - Field manual (FR-50): H or the keyboard button after NV opens a modal with the keys drawn as a keyboard block, Esc included; pressing or pointing at a key lights it and describes it. Desktop only.
 - Earlier (1.9.1): passive pointer gestures keep native scrolling and pinch zoom; listing details are cached per page session (100 entries); distant unloaded gallery slides use static placeholders.
 - Validation: 143 tests passed; production build passed; profile layout checked unchanged at 384×780 and desktop; one gallery per target while stepping.
-- Real finger swipes on the S24 have not been checked by the agent (the preview cannot make touches).
+- Confirmed by the user on the S24 on 2026-11-13: target swipes work with 1.10.1.
