@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.14.0 — 2026-11-14: Alko
+
+Deployed.
+
+**Added**
+- Night vision ground intel: the 14 Alko stores in the area (Tampere and Pirkkala), from OpenStreetMap. Each is a hexagon with an A in its own pale tone; hover for a one-line status ("Alko Stockmann · Open · closes 21:00"), tap or click for the card with the address, open or closed now and the week's hours. The legend lists it. `npm run infra` asks for them in the same single Overpass request; `web/public/infra.json` is refreshed (some grocery hours changed too).
+
+**Changed**
+- Intel cards: a kicker whose group and chain are the same reads once ("Lidl", not "Lidl · Lidl"); a store named only by its chain gets its street in the hover tooltip.
+
 ## 1.13.0 — 2026-11-14: top floor
 
 Deployed.

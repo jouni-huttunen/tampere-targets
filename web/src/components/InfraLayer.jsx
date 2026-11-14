@@ -4,8 +4,8 @@ import { useMap } from 'react-leaflet';
 import { fmtDate } from '../lib/format.js';
 import { helsinkiClock, openState, parseOpeningHours, statusText, weekRows } from '../lib/hours.js';
 
-// Ground intel (FR-43), shown only in night vision: tram and bus stops (Nysse GTFS) and grocery
-// stores (OpenStreetMap) from web/public/infra.json. Stores and tram stops from zoom 13, bus
+// Ground intel (FR-43), shown only in night vision: tram and bus stops (Nysse GTFS), grocery
+// stores and Alkos (OpenStreetMap) from web/public/infra.json. Stores and tram stops from zoom 13, bus
 // stops (about 950) only from zoom 15. Hover (mouse) shows a one-line tooltip; a click or tap
 // opens an intel card on the point. Everything lives in its own pane under the target markers,
 // so a target is never covered. Managed directly in Leaflet, like the target markers.
@@ -15,8 +15,8 @@ export const BUS_MIN_ZOOM = 15;
 // Short: the base map's line already credits OpenStreetMap contributors.
 const ATTRIBUTION =
   'Stops <a href="https://data.itsfactory.fi/journeys/files/gtfs/">Nysse</a> CC BY 4.0 · Stores <a href="https://www.openstreetmap.org/copyright">&copy; OSM</a> ODbL';
-const LETTER = { kesko: 'K', s: 'S', lidl: 'L' };
-const GROUP = { kesko: 'Kesko', s: 'S-ryhmä', lidl: 'Lidl' };
+const LETTER = { kesko: 'K', s: 'S', lidl: 'L', alko: 'A' };
+const GROUP = { kesko: 'Kesko', s: 'S-ryhmä', lidl: 'Lidl', alko: 'Alko' };
 const STORE_PX = { 1: 18, 2: 22, 3: 26 }; // glyph size by store size class
 const TRAM_PX = 16;
 // Tooltips only where there is a real hover (mouse); a tap opens the card directly.
@@ -44,7 +44,7 @@ function storeIcon(s) {
     iconCache.set(
       key,
       L.divIcon({
-        className: `poi poi-store poi-t${s.tier}`,
+        className: `poi poi-store poi-t${s.tier} poi-${s.group}`,
         iconSize: [px, px],
         popupAnchor: [0, -px / 2],
         tooltipAnchor: [0, -px / 2],
@@ -93,7 +93,15 @@ function storeStatus(s, clock) {
 
 function storeTip(s) {
   const st = storeStatus(s, helsinkiClock());
-  return el('span', 'tip-text', `${s.name} · ${st.text}`);
+  // A store named only by its chain ("Alko", "Lidl") also gives its street, to tell them apart.
+  const name = s.name === s.chain && s.addr ? `${s.name} · ${s.addr}` : s.name;
+  return el('span', 'tip-text', `${name} · ${st.text}`);
+}
+
+/** "Kesko · K-Market"; just "Alko" or "Lidl" when the group and the chain are the same. */
+function storeKind(s) {
+  const chain = s.chain === 'K-store' ? 'K store' : s.chain;
+  return GROUP[s.group] === chain ? chain : `${GROUP[s.group]} · ${chain}`;
 }
 
 function stopTip(stop) {
@@ -105,7 +113,7 @@ function storeCard(s) {
   const clock = helsinkiClock();
   const card = el('div', 'intel');
   const kicker = el('p', 'intel-kicker');
-  kicker.append(el('span', `intel-badge intel-badge-${s.group}`, LETTER[s.group]), `${GROUP[s.group]} · ${s.chain === 'K-store' ? 'K store' : s.chain}`);
+  kicker.append(el('span', `intel-badge intel-badge-${s.group}`, LETTER[s.group]), storeKind(s));
   card.append(kicker, el('p', 'intel-title', s.name));
   if (s.addr) card.append(el('p', 'intel-sub', s.addr));
   const st = storeStatus(s, clock);

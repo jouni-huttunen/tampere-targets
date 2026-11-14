@@ -1,5 +1,6 @@
-// Grocery stores from OpenStreetMap (FR-43): only the chains the user chose on 2026-11-12,
-// Kesko (K-Citymarket, K-Supermarket, K-Market), S-ryhmä (Prisma, S-market, Sale, Alepa) and Lidl.
+// Stores from OpenStreetMap (FR-43): the grocery chains the user chose on 2026-11-12, Kesko
+// (K-Citymarket, K-Supermarket, K-Market), S-ryhmä (Prisma, S-market, Sale, Alepa) and Lidl, and
+// since 1.14.0 Alko (the state alcohol retailer; `shop=alcohol` only).
 // Tier is the store size class the map glyph shows: 3 hypermarket, 2 supermarket, 1 small.
 
 export const CHAINS = [
@@ -12,18 +13,21 @@ export const CHAINS = [
   { chain: 'Alepa', group: 's', tier: 1 },
   { chain: 'Lidl', group: 'lidl', tier: 2 },
 ];
-export const GROUPS = { kesko: 'Kesko', s: 'S-ryhmä', lidl: 'Lidl' };
+const ALKO = { chain: 'Alko', group: 'alko', tier: 2 };
+export const GROUPS = { kesko: 'Kesko', s: 'S-ryhmä', lidl: 'Lidl', alko: 'Alko' };
 
-/** The Overpass query: every supermarket and convenience store in the box (filtered here). */
+/** The Overpass query: every supermarket, convenience and alcohol shop in the box (filtered here). */
 export function overpassQuery([west, south, east, north]) {
   const box = [south, west, north, east].map((v) => v.toFixed(5)).join(',');
-  return `[out:json][timeout:60];nwr["shop"~"^(supermarket|convenience)$"](${box});out center tags;`;
+  return `[out:json][timeout:60];nwr["shop"~"^(supermarket|convenience|alcohol)$"](${box});out center tags;`;
 }
 
-/** Which chosen chain a shop belongs to: its brand tag, else its name; null for any other shop. */
+/** Which chosen chain a shop belongs to: its brand tag, else its name; null for any other shop.
+ *  An alcohol shop counts only when it is an Alko (no wine bars, no other liquor shops). */
 export function chainOf(tags = {}) {
   const brand = tags.brand?.trim();
   const name = tags.name?.trim() ?? '';
+  if (tags.shop === 'alcohol') return /^alko\b/i.test(brand || name) ? ALKO : null;
   const byBrand = CHAINS.find((c) => c.chain.toLowerCase() === brand?.toLowerCase());
   if (byBrand) return byBrand;
   if (brand) return null; // another brand (R-kioski, Tokmanni, …)

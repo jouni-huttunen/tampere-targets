@@ -1,5 +1,5 @@
 // npm run infra: refresh the NV map's ground intel (FR-43), tram and bus stops (Nysse GTFS,
-// CC BY 4.0) and Kesko / S-ryhmä / Lidl grocery stores (OpenStreetMap, ODbL), into
+// CC BY 4.0), Kesko / S-ryhmä / Lidl grocery stores and Alkos (OpenStreetMap, ODbL), into
 // web/public/infra.json. Two plain, identified requests (no Oikotie traffic). Run it now and
 // then; the file is committed (public open data, nothing personal).
 //

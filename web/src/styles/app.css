@@ -2879,6 +2879,19 @@ input[type='date'].range-field {
   stroke-width: 2.2;
 }
 
+/* Alko: the hexagon and its A in their own tone. */
+.leaflet-marker-icon.poi-alko {
+  filter: var(--poi-alko-glow);
+}
+
+.poi-alko .poi-hex path {
+  stroke: var(--poi-alko);
+}
+
+.poi-alko .poi-letter {
+  color: var(--poi-alko);
+}
+
 /* Tram stops: a small square with a T. */
 .poi-tram {
   border: 1.5px solid var(--poi-tram);
@@ -3005,6 +3018,11 @@ input[type='date'].range-field {
   font-weight: var(--fw-bold);
   letter-spacing: 0;
   color: var(--poi-store);
+}
+
+.intel-badge.intel-badge-alko {
+  border-color: var(--poi-alko);
+  color: var(--poi-alko);
 }
 
 .intel .intel-title {

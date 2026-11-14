@@ -123,6 +123,10 @@
   /* Ground intel (FR-43; shown in NV only): hollow glyphs on a dark fill, so the filled
      target markers stay the brightest things on the map. */
   --poi-store: var(--accent-strong);
+  /* Alko: the same hexagon in the pale alert tone (pale lime in NV), so it stands apart from
+     the groceries without the full lock colour. */
+  --poi-alko: var(--hot-strong);
+  --poi-alko-glow: drop-shadow(0 0 3px var(--hot-a50));
   --poi-tram: var(--ink-soft);
   --poi-bus: var(--ink-quiet);
   --poi-fill: var(--glass-strong);

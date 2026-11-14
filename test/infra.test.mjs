@@ -163,6 +163,17 @@ test('stores: only the chosen chains, by brand or by name; names with the branch
   assert.equal(storeName({ name: 'Lidl' }, 'Lidl'), 'Lidl');
 });
 
+test('stores: Alko only as an alcohol shop, and no other alcohol shop', () => {
+  assert.deepEqual(chainOf({ shop: 'alcohol', brand: 'Alko', name: 'Alko' }), { chain: 'Alko', group: 'alko', tier: 2 });
+  assert.equal(chainOf({ shop: 'alcohol', name: 'Alko Testilä' }).group, 'alko');
+  for (const other of [{ shop: 'alcohol', name: 'Viinikellari' }, { shop: 'alcohol', brand: 'K-Market' }, { shop: 'convenience', brand: 'Alko' }, { shop: 'alcohol' }]) {
+    assert.equal(chainOf(other), null, JSON.stringify(other));
+  }
+  assert.equal(storeName({ name: 'Alko', branch: 'Tampere Ratina' }, 'Alko'), 'Alko Ratina');
+  assert.equal(storeName({ name: 'Alko', branch: 'Sokos Tampere' }, 'Alko'), 'Alko Sokos');
+  assert.match(overpassQuery(BOX), /supermarket\|convenience\|alcohol/);
+});
+
 test('stores from Overpass: nodes and ways (centre), outside the box and other shops dropped, sorted', () => {
   const elements = [
     { type: 'node', id: 3, lat: 61.5, lon: 23.8, tags: { shop: 'supermarket', brand: 'Lidl', opening_hours: 'Mo-Sa 08:00-22:00', 'addr:street': 'Testikatu', 'addr:housenumber': '1' } },

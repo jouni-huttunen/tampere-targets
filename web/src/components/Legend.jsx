@@ -100,6 +100,15 @@ export default function Legend({ intel = false }) {
                 grocery: K Kesko · S S-ryhmä · L Lidl (larger = bigger store)
               </li>
               <li>
+                <span className="legend-poi poi poi-store poi-t2 poi-alko" aria-hidden="true">
+                  <svg className="poi-hex" viewBox="-12 -12 24 24" focusable="false">
+                    <path d="M-11 0L-5.5 -9.5H5.5L11 0L5.5 9.5H-5.5Z" />
+                  </svg>
+                  <span className="poi-letter">A</span>
+                </span>
+                Alko
+              </li>
+              <li>
                 <span className="legend-poi poi poi-tram" aria-hidden="true">
                   <span className="poi-letter">T</span>
                 </span>
