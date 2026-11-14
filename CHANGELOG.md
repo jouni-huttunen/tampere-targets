@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.12.1 — 2026-11-14: rent in the map tooltip
+
+Deployed.
+
+**Changed**
+- Map: a target's hover tooltip leads with its rent ("850 €/mo · 1965 · 56 m² · Hallituskatu 25 B").
+
 ## 1.12.0 — 2026-11-13: move-in up front
 
 Deployed.

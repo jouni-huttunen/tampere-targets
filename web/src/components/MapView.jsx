@@ -2,7 +2,7 @@ import L from 'leaflet';
 import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { GeoJSON, LayerGroup, LayersControl, MapContainer, Marker, Pane, ScaleControl, TileLayer, Tooltip, useMap } from 'react-leaflet';
-import { fmtM2, yearBin } from '../lib/format.js';
+import { fmtEur, fmtM2, yearBin } from '../lib/format.js';
 import { sameIds } from '../lib/inview.js';
 import { groupByPosition, ringOffsets, ringRadius } from '../lib/spread.js';
 import InfraLayer from './InfraLayer.jsx';
@@ -503,7 +503,8 @@ function ListingMarkers({ listings, hoverId, selectedId, saved, onHover, onSelec
           fillOpacity: 1,
           bubblingMouseEvents: false,
         });
-        const tip = `${l.build_year ?? 'Year unknown'} · ${fmtM2(l.size_m2)} · ${l.address ?? l.district ?? ''}${l.location_approx ? ' (approximate location)' : ''}`;
+        const rent = l.rent_eur == null ? 'Rent unknown' : `${fmtEur(l.rent_eur)}/mo`;
+        const tip = `${rent} · ${l.build_year ?? 'Year unknown'} · ${fmtM2(l.size_m2)} · ${l.address ?? l.district ?? ''}${l.location_approx ? ' (approximate location)' : ''}`;
         marker.bindTooltip(textNode(tip, 'tip-text'), { direction: 'top', offset: [0, -8], className: 'map-tip' });
         marker.on('mouseover', () => !dragging.current && handlers.current.onHover(id, 'map'));
         marker.on('mouseout', () => handlers.current.onHover(null, 'map'));
