@@ -335,6 +335,29 @@ export default function App() {
     paramsButtonRef.current?.focus();
   }, []);
 
+  // Done in the slide-out parameters (the user's choice): when the filters changed while it was
+  // open (the order alone does not count), the map fits the new list, like F. The list is
+  // filtered from a deferred copy of the filters, so the fit waits until that copy has caught up
+  // and the map holds the new targets (fitKey goes to MapView). Esc, C and a click outside only close.
+  const filtersRef = useRef(filters);
+  filtersRef.current = filters;
+  const filterKey = (f) => (f ? JSON.stringify({ ...f, sort: null }) : '');
+  const paramsAtOpen = useRef('');
+  useEffect(() => {
+    if (paramsOpen) paramsAtOpen.current = filterKey(filtersRef.current);
+  }, [paramsOpen]);
+  const fitPending = useRef(false);
+  const [fitKey, setFitKey] = useState(0);
+  const doneParams = useCallback(() => {
+    if (filterKey(filtersRef.current) !== paramsAtOpen.current) fitPending.current = true;
+    closeParams();
+  }, [closeParams]);
+  useEffect(() => {
+    if (!fitPending.current || paramsOpen || deferredFilters !== filters) return;
+    fitPending.current = false;
+    setFitKey((k) => k + 1);
+  }, [paramsOpen, deferredFilters, filters]);
+
   const update = useCallback((patch) => setFilters((f) => ({ ...f, ...patch })), []);
   const reset = useCallback(() => setFilters((f) => ({ ...defaults, sort: f.sort })), [defaults]);
   const onHover = useCallback(
@@ -465,6 +488,7 @@ export default function App() {
             onChange={update}
             onReset={reset}
             onClose={closeParams}
+            onDone={doneParams}
             onHide={wide ? hideParams : undefined}
             hideRef={paramsHideRef}
             onPurge={purge}
@@ -487,6 +511,7 @@ export default function App() {
             onViewChange={setMapView}
             onLockLost={onClose}
             commandsRef={mapCommands}
+            fitKey={fitKey}
           />
           {phase === 'deploy' && <div className="map-sweep" aria-hidden="true" />}
         </section>

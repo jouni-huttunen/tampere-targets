@@ -3,6 +3,7 @@ import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { GeoJSON, LayerGroup, LayersControl, MapContainer, Marker, Pane, ScaleControl, TileLayer, Tooltip, useMap } from 'react-leaflet';
 import { fmtEur, fmtM2, yearBin } from '../lib/format.js';
+import { fitZoom } from '../lib/fit.js';
 import { sameIds } from '../lib/inview.js';
 import { groupByPosition, ringOffsets, ringRadius } from '../lib/spread.js';
 import InfraLayer from './InfraLayer.jsx';
@@ -55,10 +56,12 @@ const R = { base: 6.5, hover: 10, halo: 12 };
 const EDGE_MARGIN = 48;
 // The map's own pan to a selection counts as its own (it never releases the lock) for at most this.
 const SELF_MOVE_MS = 1500;
-// "Fit N targets" keeps the targets this far inside the visible map; on a narrow (phone) map
-// less, since 2 × 48 px would take a quarter of its width.
-const FIT_PAD = 48;
-const FIT_PAD_NARROW = 24;
+// "Fit N targets" keeps every target, as drawn (its ring and its new-contact halo), this far
+// inside the visible map: at the top below the zoom, Fit and layers buttons, at the bottom above
+// the legend and the attribution, at the sides a little (less on a narrow, phone map, where
+// the width is what limits the zoom).
+const FIT_PAD = { top: 72, bottom: 56, side: 32 };
+const FIT_PAD_NARROW = { top: 72, bottom: 56, side: 12 };
 const NARROW_MAP_PX = 600;
 
 export default memo(MapView);
@@ -67,7 +70,7 @@ export default memo(MapView);
 // per view and no full-map blend, which is costly on phone GPUs. Desktop keeps it.
 const LIGHT_GRAPHICS = typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches;
 
-function MapView({ listings, places, areas, infra, nv, hoverId, selectedId, saved, onHover, onSelect, onViewChange, onLockLost, commandsRef }) {
+function MapView({ listings, places, areas, infra, nv, hoverId, selectedId, saved, onHover, onSelect, onViewChange, onLockLost, commandsRef, fitKey }) {
   const [map, setMap] = useState(null);
   const readoutRef = useRef(null);
   const located = useMemo(() => listings.filter((l) => l.lat != null && l.lon != null), [listings]);
@@ -76,21 +79,28 @@ function MapView({ listings, places, areas, infra, nv, hoverId, selectedId, save
   // targets go in the part it leaves visible (the same part that counts as "in view", FR-41).
   // The zoom is the exact level that fits them (e.g. 10.87), not the nearest half step below
   // (the user's choice); every other zoom (buttons, wheel, pinch) stays on the half-step grid,
-  // and the next one from a fitted level lands back on it.
+  // and the next one from a fitted level lands back on it. Each shared point counts with its
+  // ring of homes (fixed in pixels) plus a marker's halo, so no ring hangs off the edge.
   const fit = (animate = true) => {
     if (!map || located.length === 0) return;
-    const bounds = L.latLngBounds(located.map((l) => [l.lat, l.lon]));
     const view = visibleArea(map);
     const pad = view.mapWidth < NARROW_MAP_PX ? FIT_PAD_NARROW : FIT_PAD;
+    const width = Math.max(40, view.width - 2 * pad.side);
+    const height = Math.max(40, view.height - pad.top - pad.bottom);
+    const points = [...groupByPosition(located)].map(([key, ids]) => {
+      const [lat, lon] = key.split(',').map(Number);
+      const p = map.project([lat, lon], 0);
+      return { x: p.x, y: p.y, r: ringRadius(ids.length) + R.halo };
+    });
+    const f = fitZoom(points, width, height, { minZoom: map.getMinZoom(), maxZoom: 16 });
+    // The map's centre sits this far from the middle of the room the targets get.
+    const dx = pad.side + width / 2 - view.mapWidth / 2;
+    const dy = pad.top + height / 2 - view.height / 2;
+    const center = map.unproject([f.x - dx, f.y - dy], f.zoom);
     const snap = map.options.zoomSnap;
-    map.options.zoomSnap = 0; // read by fitBounds when it picks the zoom, before it moves
+    map.options.zoomSnap = 0; // read by setView when it limits the zoom, before it moves
     try {
-      map.fitBounds(bounds, {
-        paddingTopLeft: [pad, pad],
-        paddingBottomRight: [view.mapWidth - view.width + pad, pad],
-        maxZoom: 16,
-        animate,
-      });
+      map.setView(center, f.zoom, { animate });
     } finally {
       map.options.zoomSnap = snap;
     }
@@ -107,6 +117,12 @@ function MapView({ listings, places, areas, infra, nv, hoverId, selectedId, save
     map.invalidateSize({ pan: false });
     fit(false);
   }, [map, located]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // App asks for a fit (Done after changing the parameters) by bumping fitKey, once the list
+  // holds the new targets: this render's `located` is that list.
+  useEffect(() => {
+    if (fitKey) fit();
+  }, [fitKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // The C and R keys (App): fit, and the next base map in the layers control's order (it wraps).
   // R clicks the control's own radio button, so the control and the map stay in step.

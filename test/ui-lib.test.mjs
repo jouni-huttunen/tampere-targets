@@ -310,3 +310,23 @@ test('keys (FR-47, FR-50): F fits, C closes, V or N night vision, R or M base ma
     assert.equal(ACTION_TEXT[action]?.length, 2, action);
   }
 });
+
+test('fit (FR-41): the largest zoom at which every point, with its drawn ring, fits the room', async () => {
+  const { fitZoom } = await import('../web/src/lib/fit.js');
+  // Two bare points 1 px apart at zoom 0 in a 512 px wide room: 2^9 = 512, so zoom 9 exactly.
+  const bare = fitZoom([{ x: 0, y: 0, r: 0 }, { x: 1, y: 0, r: 0 }], 512, 512, { maxZoom: 16 });
+  assert.ok(Math.abs(bare.zoom - 9) < 0.002, String(bare.zoom));
+  assert.ok(Math.abs(bare.x - 2 ** bare.zoom / 2) < 1);
+  // A ring of 50 px round the right-hand point takes room: it has to fit too, so the zoom drops
+  // and the centre moves towards the ring.
+  const ring = fitZoom([{ x: 0, y: 0, r: 0 }, { x: 1, y: 0, r: 50 }], 512, 512, { maxZoom: 16 });
+  const s = 2 ** ring.zoom;
+  assert.ok(ring.zoom < bare.zoom);
+  assert.ok(s + 50 <= 512 + 0.5 && s + 50 > 505, String(s)); // the drawn extent fills the room
+  assert.ok(Math.abs(ring.x - (s + 50) / 2) < 1);
+  // The narrower side limits: a tall room does not help a wide cluster.
+  assert.ok(Math.abs(fitZoom([{ x: 0, y: 0, r: 0 }, { x: 1, y: 0, r: 0 }], 512, 4096).zoom - 9) < 0.002);
+  // One point: as close as allowed; nothing fits: the farthest out.
+  assert.equal(fitZoom([{ x: 5, y: 5, r: 12 }], 300, 300, { maxZoom: 16 }).zoom, 16);
+  assert.equal(fitZoom([{ x: 0, y: 0, r: 200 }, { x: 1, y: 1, r: 200 }], 300, 300, { minZoom: 10, maxZoom: 16 }).zoom, 10);
+});

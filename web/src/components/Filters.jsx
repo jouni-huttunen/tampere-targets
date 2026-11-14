@@ -27,7 +27,7 @@ const YEAR_ERAS = [
 export default memo(Filters);
 
 function Filters({
-  overlay, filters, bounds, zips, zipNames, listings, windowCutoff, saved, activeCount, onChange, onReset, onClose, onHide, hideRef,
+  overlay, filters, bounds, zips, zipNames, listings, windowCutoff, saved, activeCount, onChange, onReset, onClose, onDone, onHide, hideRef,
   onPurge, phone,
 }) {
   const counts = useMemo(() => {
@@ -210,7 +210,7 @@ function Filters({
           Clear params
         </button>
         {overlay && (
-          <button type="button" className="btn btn-primary" onClick={onClose}>
+          <button type="button" className="btn btn-primary" onClick={onDone ?? onClose}>
             Done
           </button>
         )}

@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.16.0 — 2026-11-15: Done fits
+
+Deployed.
+
+**Added**
+- Slide-out parameters (phones and narrower windows): Done fits the map to the new list when the parameters changed, so the targets you filtered for are all on the map. Done without a change, Esc, C and a tap outside leave the map as it is.
+
+**Fixed**
+- Fit (and the framing on load and after Done) counts each target as drawn: homes in one building sit on a ring round their shared point, and a big ring at the edge (Lielahti) hung off the map. The rings now fit too, clear of the map buttons at the top and the legend at the bottom.
+
 ## 1.15.0 — 2026-11-15: exact fit and zoom keys
 
 Deployed.
