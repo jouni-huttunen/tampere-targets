@@ -282,7 +282,20 @@ test('keys (FR-47, FR-50): F fits, C closes, V or N night vision, R or M base ma
   assert.equal(press('KeyE'), 'list');
   for (const c of ['KeyD', 'KeyS']) assert.equal(press(c), 'next');
   for (const c of ['KeyA', 'KeyW']) assert.equal(press(c), 'prev');
-  for (const c of ['KeyX', 'KeyZ', 'Escape']) assert.equal(press(c), null, c); // X is no longer close; Esc is each panel's own
+  assert.equal(press('Escape'), null); // Esc is each panel's own
+  // Zoom (the user's choice, 2026-11-15): Z / X by position, + / − by character on any layout
+  // (Finnish + sits where US has -, and - where US has /), numpad too; Shift+= types +.
+  assert.equal(press('KeyZ'), 'zoomin');
+  assert.equal(press('KeyX'), 'zoomout');
+  assert.equal(press('KeyZ', 'y'), 'zoomin'); // German layout: by position
+  assert.equal(press('Minus', '+'), 'zoomin'); // Finnish +
+  assert.equal(press('Slash', '-'), 'zoomout'); // Finnish -
+  assert.equal(press('Equal', '='), 'zoomin');
+  assert.equal(press('Equal', '+', { shiftKey: true }), 'zoomin');
+  assert.equal(press('Minus', '-'), 'zoomout'); // US -
+  assert.equal(press('NumpadAdd', '+'), 'zoomin');
+  assert.equal(press('NumpadSubtract', '-'), 'zoomout');
+  assert.equal(press('Minus', '+', { ctrlKey: true }), null); // Ctrl + is the browser's page zoom
   assert.equal(press('Slash', '?', { shiftKey: true }), null); // ? no longer opens the manual
   // Esc is drawn in the manual, as Esc.
   assert.equal(manualAction('Escape'), 'esc');

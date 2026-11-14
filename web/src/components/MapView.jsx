@@ -55,8 +55,11 @@ const R = { base: 6.5, hover: 10, halo: 12 };
 const EDGE_MARGIN = 48;
 // The map's own pan to a selection counts as its own (it never releases the lock) for at most this.
 const SELF_MOVE_MS = 1500;
-// "Fit N targets" keeps the targets this far inside the visible map.
+// "Fit N targets" keeps the targets this far inside the visible map; on a narrow (phone) map
+// less, since 2 × 48 px would take a quarter of its width.
 const FIT_PAD = 48;
+const FIT_PAD_NARROW = 24;
+const NARROW_MAP_PX = 600;
 
 export default memo(MapView);
 
@@ -71,16 +74,39 @@ function MapView({ listings, places, areas, infra, nv, hoverId, selectedId, save
 
   // Fit to the visible map: an open target profile covers the map's right side on desktop, so the
   // targets go in the part it leaves visible (the same part that counts as "in view", FR-41).
-  const fit = () => {
+  // The zoom is the exact level that fits them (e.g. 10.87), not the nearest half step below
+  // (the user's choice); every other zoom (buttons, wheel, pinch) stays on the half-step grid,
+  // and the next one from a fitted level lands back on it.
+  const fit = (animate = true) => {
     if (!map || located.length === 0) return;
     const bounds = L.latLngBounds(located.map((l) => [l.lat, l.lon]));
     const view = visibleArea(map);
-    map.fitBounds(bounds, {
-      paddingTopLeft: [FIT_PAD, FIT_PAD],
-      paddingBottomRight: [view.mapWidth - view.width + FIT_PAD, FIT_PAD],
-      maxZoom: 16,
-    });
+    const pad = view.mapWidth < NARROW_MAP_PX ? FIT_PAD_NARROW : FIT_PAD;
+    const snap = map.options.zoomSnap;
+    map.options.zoomSnap = 0; // read by fitBounds when it picks the zoom, before it moves
+    try {
+      map.fitBounds(bounds, {
+        paddingTopLeft: [pad, pad],
+        paddingBottomRight: [view.mapWidth - view.width + pad, pad],
+        maxZoom: 16,
+        animate,
+      });
+    } finally {
+      map.options.zoomSnap = snap;
+    }
   };
+
+  // On load the map frames every target in the list, like Fit: the opening view (Keskustori,
+  // zoom 13) showed under half of them on a phone's small map, and the list counts only targets
+  // in view (FR-41). Once per page load, when the targets first arrive. Done right away, not in
+  // an animation frame: a tab opened in the background runs no frames until it is shown.
+  const framed = useRef(false);
+  useEffect(() => {
+    if (!map || framed.current || located.length === 0) return;
+    framed.current = true;
+    map.invalidateSize({ pan: false });
+    fit(false);
+  }, [map, located]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // The C and R keys (App): fit, and the next base map in the layers control's order (it wraps).
   // R clicks the control's own radio button, so the control and the map stay in step.
@@ -90,7 +116,20 @@ function MapView({ listings, places, areas, infra, nv, hoverId, selectedId, save
     const at = radios.findIndex((r) => r.checked);
     radios[(at + 1) % radios.length].click();
   };
-  if (commandsRef) commandsRef.current = { fit, nextBaseMap };
+  // Z / X and + / − (App): one level in or out, like the zoom buttons, but around the open
+  // target (it stays where it is, so it keeps its lock), else the centre of the visible map
+  // (the part the profile leaves visible). The level is snapped first, so a zoom from a fitted
+  // level (11.2) lands on the half-step grid (12) and the anchor stays exactly in place.
+  const zoom = (delta) => {
+    if (!map) return;
+    const snap = map.options.zoomSnap || 1;
+    const z = Math.max(map.getMinZoom(), Math.min(map.getMaxZoom(), Math.round((map.getZoom() + delta) / snap) * snap));
+    if (z === map.getZoom()) return;
+    const view = visibleArea(map);
+    const target = selectedId != null && !view.hidden ? located.find((l) => l.card_id === selectedId) : null;
+    map.setZoomAround(target ? L.latLng(target.lat, target.lon) : L.point(view.width / 2, view.height / 2), z);
+  };
+  if (commandsRef) commandsRef.current = { fit, zoom, nextBaseMap };
 
   return (
     <>
@@ -113,7 +152,7 @@ function MapView({ listings, places, areas, infra, nv, hoverId, selectedId, save
           onViewChange={onViewChange}
           onLockLost={onLockLost}
         />
-        <FitControl count={located.length} onFit={fit} />
+        <FitControl count={located.length} onFit={() => fit()} />
         <ZoomStrike />
         <CursorReadout target={readoutRef} />
       </MapContainer>

@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.15.0 — 2026-11-15: exact fit and zoom keys
+
+Deployed.
+
+**Added**
+- Desktop keys: Z zooms the map in one level and X out, around the open target (it stays put and keeps its lock), else around the centre of the visible map. + and − (also = and the numpad keys) do the same on any keyboard layout. The field manual shows Z and X, and lights them for + and −.
+
+**Fixed**
+- On load, every target in the list starts on the map: the opening view (Keskustori, zoom 13) left most of them off the map on a phone (154 of 333 in view) and some on desktop (297 of 333), and the list only counts targets in view. The map now frames them all on load, like "Fit N targets".
+
+**Changed**
+- Fit (and the framing on load) zooms to the exact level that fits the targets instead of the half step below it, with 24 px of margin on a phone (48 px on desktop): a phone opens at zoom 11.2 instead of 10.5, the cluster about 1.6 times as wide. Other zooms keep their half steps.
+
 ## 1.14.0 — 2026-11-14: Alko
 
 Deployed.

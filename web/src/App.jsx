@@ -151,11 +151,11 @@ export default function App() {
   // V or N toggles night vision; D or S opens the next target and A or W the previous one (FR-44),
   // like › and ‹ in the profile; with no profile open, D/S opens the first target in the list and
   // A/W the last. Q / E show or hide the side panels, F fits the map to the targets, R or M
-  // switches the base map and C works like Esc: it closes the topmost intel card, slide-out
-  // parameters or profile (FR-47). H opens the field manual (FR-50), which then takes the keys
-  // itself.
+  // switches the base map, Z / X (or + / −) zoom one level and C works like Esc: it closes the
+  // topmost intel card, slide-out parameters or profile (FR-47). H opens the field manual
+  // (FR-50), which then takes the keys itself.
   const keyState = useRef(null);
-  const mapCommands = useRef(null); // { fit, nextBaseMap } from MapView, for F and R / M
+  const mapCommands = useRef(null); // { fit, zoom, nextBaseMap } from MapView, for F, Z / X and R / M
   useEffect(() => {
     const onKey = (e) => {
       if (phase === 'boot' || isTyping(e.target)) return;
@@ -182,6 +182,7 @@ export default function App() {
       if (action === 'nv') toggleNv();
       else if (action === 'params' || action === 'list') k.togglePanel(action);
       else if (action === 'fit') mapCommands.current?.fit();
+      else if (action === 'zoomin' || action === 'zoomout') mapCommands.current?.zoom(action === 'zoomin' ? 1 : -1);
       else if (action === 'basemap') mapCommands.current?.nextBaseMap();
       else {
         const dir = action === 'next' ? 1 : -1;

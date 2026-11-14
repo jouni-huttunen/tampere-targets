@@ -2,7 +2,7 @@
 
 A personal tool for finding a rental in Tampere. It collects Oikotie rental listings into a local SQLite database (through a script you run in your own browser) and lets you browse them on a local map and list. The local database is the master.
 
-_Version 1.14.0 (shown after the title). The UI is a tactical console: press **V** (or **N**) for night vision, which also shows stops, grocery stores and Alkos, and **H** for the field manual of all keys._
+_Version 1.15.0 (shown after the title). The UI is a tactical console: press **V** (or **N**) for night vision, which also shows stops, grocery stores and Alkos, and **H** for the field manual of all keys._
 
 ## Setup
 
@@ -25,7 +25,7 @@ npm install
 
 Filters are kept in the address bar, so any view can be bookmarked. Back closes a target profile (or goes to the target before it). The shortlist is saved in the browser only.
 
-**Keys:** D or S opens the next target, A or W the previous one; V (or N) toggles night vision; Esc or C closes whatever is on top (the profile, the parameters, an intel card, the field manual); F fits the map to the targets; R (or M) switches the base map. Q and E hide or show the Mission parameters and the Target list for more map; so do the « » buttons in their title bars. The choice is remembered in the browser. Press H (or the keyboard button in the header) for the field manual: all keys on one card.
+**Keys:** D or S opens the next target, A or W the previous one; V (or N) toggles night vision; Esc or C closes whatever is on top (the profile, the parameters, an intel card, the field manual); F fits the map to the targets; Z and X (or + and −) zoom in and out, around the open target; R (or M) switches the base map. Q and E hide or show the Mission parameters and the Target list for more map; so do the « » buttons in their title bars. The choice is remembered in the browser. Press H (or the keyboard button in the header) for the field manual: all keys on one card.
 
 **Night vision** (V) also shows tram stops, bus stops (zoom in), Kesko, S-ryhmä and Lidl grocery stores, and Alko; hover or tap one for its card with the stop number or the store's opening hours. The data is in `web/public/infra.json`; refresh it now and then with `npm run infra` (it downloads the Nysse timetable feed and asks OpenStreetMap; then rebuild the UI or deploy).
 

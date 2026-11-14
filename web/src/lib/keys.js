@@ -13,11 +13,17 @@ export const KEY_ACTIONS = Object.freeze({
   KeyD: 'next',
   KeyF: 'fit',
   KeyH: 'manual',
+  KeyZ: 'zoomin',
+  KeyX: 'zoomout',
   KeyC: 'close',
   KeyV: 'nv',
   KeyN: 'nv',
   KeyM: 'basemap',
 });
+
+/** The usual map zoom keys, by the character typed (where + and − sit differs by layout):
+ *  + or = (and numpad +) zoom in, − (and numpad −) out, beside Z and X. */
+export const CHAR_ACTIONS = Object.freeze({ '+': 'zoomin', '=': 'zoomin', '-': 'zoomout' });
 
 /** Keys the manual draws that are not in the table: Esc is handled by each panel and card. */
 export const MANUAL_EXTRA = Object.freeze({ Escape: 'esc' });
@@ -30,6 +36,8 @@ export const ACTION_TEXT = Object.freeze({
   prev: ['Prev', 'Previous target (the last one with no profile open)'],
   next: ['Next', 'Next target (the first one with no profile open)'],
   fit: ['Fit', 'Zoom the map to the targets in the list'],
+  zoomin: ['Zoom +', 'Zoom in one level (also +), around the open target, else the map centre'],
+  zoomout: ['Zoom −', 'Zoom out one level (also −), around the open target, else the map centre'],
   manual: ['Manual', 'Open or close this field manual'],
   close: ['Close', 'Same as Esc: closes the topmost of this manual, the parameters, an intel card or the profile'],
   nv: ['NV', 'Night vision on or off'],
@@ -57,5 +65,5 @@ export const capOf = (code) => (code === 'Escape' ? 'Esc' : code.replace(/^Key/,
 /** The action for a keydown, or null. Ctrl / Alt / Cmd combinations are never shortcuts (Ctrl+C still copies). */
 export function keyAction(e) {
   if (e.altKey || e.ctrlKey || e.metaKey) return null;
-  return KEY_ACTIONS[e.code] ?? null;
+  return KEY_ACTIONS[e.code] ?? CHAR_ACTIONS[e.key] ?? null;
 }

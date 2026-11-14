@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import ScorchedEarth from './ScorchedEarth.jsx';
-import { ACTION_TEXT, KEY_ACTIONS, MANUAL_ROWS, capOf, manualAction } from '../lib/keys.js';
+import { ACTION_TEXT, CHAR_ACTIONS, KEY_ACTIONS, MANUAL_ROWS, capOf, manualAction } from '../lib/keys.js';
 
 const IDLE_TEXT = 'Press a key or point at one to see what it does';
+// + and − are not drawn; pressing one lights the drawn key with the same action.
+const CHAR_CAP = { zoomin: 'KeyZ', zoomout: 'KeyX' };
 
 /**
  * The field manual (FR-50): the desktop keys on a drawn keyboard block, opened by H or the keys
@@ -36,9 +38,10 @@ export default function FieldManual({ onClose, onPurge }) {
         onClose();
         return;
       }
-      if (plain && KEY_ACTIONS[e.code]) {
+      const cap = KEY_ACTIONS[e.code] ? e.code : CHAR_CAP[CHAR_ACTIONS[e.key]];
+      if (plain && cap) {
         e.preventDefault();
-        setLit(e.code);
+        setLit(cap);
       }
     };
     window.addEventListener('keydown', onKey, true);
