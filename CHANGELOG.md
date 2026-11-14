@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.13.0 — 2026-11-14: top floor
+
+Deployed.
+
+**Added**
+- Mission parameters: a "Top floor only" switch under Flags, with its count. A home counts when its floor equals the building's floor count (nobody lives above; 1- and 2-storey buildings count). Homes with no known floor count are hidden while it is on. URL key `top=1`.
+- Target profile: a top-floor home shows an amber TOP tag after its floor ("6 / 6 TOP").
+
+**Fixed**
+- The building's floor count now falls back to the search card's `buildingFloorCount` and the detail's `buildingOverrideFloors` when the detail's `floorCount` is empty, so more profiles read "3 / 4" instead of "3" (`npm run rebuild` applies it to stored data). The floor itself falls back to the card's `floor`.
+
 ## 1.12.1 — 2026-11-14: rent in the map tooltip
 
 Deployed.

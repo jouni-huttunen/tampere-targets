@@ -61,6 +61,12 @@ export function roomsText(l) {
   return `${l.rooms} ${l.rooms === 1 ? 'room' : 'rooms'}`;
 }
 
+/** "3 / 5" (floor of floors), or "3" when the building's floor count is unknown; null without a floor. */
+export function fmtFloor(l) {
+  if (l.floor == null) return null;
+  return l.floor_count != null ? `${l.floor} / ${l.floor_count}` : String(l.floor);
+}
+
 /** Available date, or the listing's own text ("heti", "sopimuksen mukaan"), or "no date". */
 export function availabilityText(l) {
   if (l.available_date) return fmtDate(l.available_date);

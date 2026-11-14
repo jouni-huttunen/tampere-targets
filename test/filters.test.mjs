@@ -7,11 +7,12 @@ import {
   dataBounds,
   defaultFilters,
   fromQuery,
+  isTopFloor,
   normalizeRange,
   sortListings,
   toQuery,
 } from '../web/src/lib/filters.js';
-import { availabilityText, fmtDate, fmtKm, yearBin } from '../web/src/lib/format.js';
+import { availabilityText, fmtDate, fmtFloor, fmtKm, yearBin } from '../web/src/lib/format.js';
 
 const meta = { windowCutoff: '2027-02-01' };
 const row = (id, extra) => ({
@@ -73,6 +74,34 @@ test('postal codes, only new; withdrawn never shows', () => {
   assert.deepEqual(ids(applyFilters(rows, { ...d, moveOff: [] })), [1, 2, 3, 4, 6]);
   assert.deepEqual(ids(applyFilters(rows, fromQuery('removed=show', d))), [1, 2, 3, 6]);
   assert.equal(activeFilterCount(fromQuery('removed=show', d), d), 0);
+});
+
+test('top floor only: floor equals the floor count; unknown counts drop out', () => {
+  const d = defaultFilters(meta);
+  const homes = [
+    row(1, { floor: 5, floor_count: 5 }),
+    row(2, { floor: 2, floor_count: 5 }),
+    row(3, { floor: 3, floor_count: null }),
+    row(4, { floor: null, floor_count: 4 }),
+    row(5, { floor: 2, floor_count: 2 }),
+    row(6, { floor: 4, floor_count: 4, removed: true }),
+  ];
+  assert.equal(isTopFloor(homes[0]), true);
+  assert.equal(isTopFloor(homes[2]), false);
+  assert.deepEqual(ids(applyFilters(homes, { ...d, topFloor: true })), [1, 5]);
+  assert.deepEqual(ids(applyFilters(homes, d)), [1, 2, 3, 4, 5]);
+  const f = { ...d, topFloor: true };
+  assert.equal(toQuery(f, d), 'top=1');
+  assert.deepEqual(fromQuery('top=1', d), f);
+  assert.equal(fromQuery('top=yes', d).topFloor, false);
+  assert.equal(activeFilterCount(f, d), 1);
+});
+
+test('floor text: "3 / 5", or the floor alone when the count is unknown', () => {
+  assert.equal(fmtFloor({ floor: 3, floor_count: 5 }), '3 / 5');
+  assert.equal(fmtFloor({ floor: 3, floor_count: null }), '3');
+  assert.equal(fmtFloor({ floor: 0, floor_count: 4 }), '0 / 4');
+  assert.equal(fmtFloor({ floor: null, floor_count: 4 }), null);
 });
 
 test('sorting: newest build year first with unknown years last; distances nearest first', () => {

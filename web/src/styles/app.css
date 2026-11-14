@@ -1624,6 +1624,14 @@ input[type='date'].range-field {
   color: var(--hot);
 }
 
+/* "Top" after the profile's floor ("5 / 5 TOP"). */
+.tag-top {
+  margin-left: var(--sp-2);
+  vertical-align: 1px;
+  border-color: var(--hot);
+  color: var(--hot);
+}
+
 .tag-lock {
   border-color: var(--hot);
   background: var(--hot);

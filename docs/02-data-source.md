@@ -131,7 +131,8 @@ How each database column is filled. "Card" is the search card (`search_json`), "
 | `room_config` | Card `data.roomConfiguration` | Detail `adData.roomConfiguration` | e.g. `2h+kk+s` |
 | `build_year` | Card `data.buildYear` | Detail `adData.buildingOverrideBuildYear`, then `building.*` | |
 | `building_type` | Detail `adData.buildingOverrideBuildingType` | | Raw code |
-| `floor`, `floor_count` | Detail `adData.floor`, `adData.floorCount` | | |
+| `floor` | Detail `adData.floor` | Card `data.floor` | |
+| `floor_count` | Detail `adData.floorCount` | Card `data.buildingFloorCount`, then Detail `adData.buildingOverrideFloors` | The building's floors; `floorCount` is often empty while the other two are set (they agreed with it on every listing that had both, Nov 2026) |
 | `available_date` | Detail `adData.availabilityDate` | | `YYYY-MM-DD` or NULL |
 | `availability_text` | Detail `adData.availabilityInfo` | | Free text |
 | `lease_text` | Detail `adData.rentTermInfo` | | Free text, often NULL |

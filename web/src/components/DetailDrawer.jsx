@@ -1,7 +1,8 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { getJson } from '../lib/api.js';
 import { cachedDetail, loadDetail } from '../lib/details.js';
-import { availabilityText, fmtDate, fmtDay, fmtEur, fmtKm, fmtM2, moveInBrief } from '../lib/format.js';
+import { isTopFloor } from '../lib/filters.js';
+import { availabilityText, fmtDate, fmtDay, fmtEur, fmtFloor, fmtKm, fmtM2, moveInBrief } from '../lib/format.js';
 import Photo, { PhotoLoader } from './Photo.jsx';
 import RichText from './RichText.jsx';
 import StarButton from './StarButton.jsx';
@@ -332,7 +333,17 @@ export default function DetailDrawer({
 
             <dl className="facts">
               <Fact label="Layout" value={l.room_config} />
-              <Fact label="Floor" value={l.floor != null ? `${l.floor}${l.floor_count ? ` / ${l.floor_count}` : ''}` : null} />
+              <Fact
+                label="Floor"
+                value={
+                  l.floor != null ? (
+                    <>
+                      {fmtFloor(l)}
+                      {isTopFloor(l) && <span className="tag tag-top" title="Top floor: nobody lives above">Top</span>}
+                    </>
+                  ) : null
+                }
+              />
               <Fact label="Move-in" value={availabilityText(l)} />
               {l.available_date && l.availability_text && <Fact label="Move-in note" value={l.availability_text} />}
               {l.water_fee != null && String(l.water_fee).trim() !== '' && <Fact label="Water" value={l.water_fee} />}

@@ -46,6 +46,7 @@ export function defaultFilters() {
     zips: [],
     onlyNew: false,
     onlySaved: false,
+    topFloor: false,
     sort: 'year',
   };
 }
@@ -64,6 +65,11 @@ export function dataBounds(listings) {
     size: size && [Math.floor(size[0]), Math.ceil(size[1])],
     rooms: span(listings.map((l) => l.rooms)),
   };
+}
+
+/** On the building's top floor: nobody lives above (needs both the floor and the floor count). */
+export function isTopFloor(l) {
+  return l.floor != null && l.floor_count != null && l.floor >= l.floor_count;
 }
 
 export function isOpen(range) {
@@ -107,6 +113,7 @@ export function matches(l, f, saved = null) {
   if (f.zips.length && !f.zips.includes(l.zip)) return false;
   if (f.onlyNew && !l.is_new) return false;
   if (f.onlySaved && !saved?.has(l.card_id)) return false;
+  if (f.topFloor && !isTopFloor(l)) return false;
   return true;
 }
 
@@ -147,7 +154,7 @@ export function sortListings(listings, sort) {
 // ---- URL query ----------------------------------------------------------------------
 // year=2010..2026, year=2010.. , rent=..900, moveoff=2026-11,later (the move-in chips switched
 // off; empty = all on), financeoff=subsidised (the financing chips switched off; empty = both on),
-// type=4,8 (only these housing types), zip=33100,33200, new=1, sort=size (an old removed=… is ignored). Only
+// type=4,8 (only these housing types), zip=33100,33200, new=1, top=1 (top floor only), sort=size (an old removed=… is ignored). Only
 // values that differ from the defaults are written.
 
 const rangeText = ([a, b]) => `${a ?? ''}..${b ?? ''}`;
@@ -175,6 +182,7 @@ export function toQuery(f, defaults) {
   if (f.zips.length) q.set('zip', f.zips.join(','));
   if (f.onlyNew) q.set('new', '1');
   if (f.onlySaved) q.set('saved', '1');
+  if (f.topFloor) q.set('top', '1');
   if (f.sort !== defaults.sort) q.set('sort', f.sort);
   return q.toString();
 }
@@ -199,6 +207,7 @@ export function fromQuery(search, defaults, validZips = null) {
   }
   if (q.get('new') === '1') f.onlyNew = true;
   if (q.get('saved') === '1') f.onlySaved = true;
+  if (q.get('top') === '1') f.topFloor = true;
   if (SORTS.some((s) => s.key === q.get('sort'))) f.sort = q.get('sort');
   return f;
 }
@@ -213,6 +222,7 @@ export function activeFilterCount(f, defaults) {
   if (f.zips.length) n++;
   if (f.onlyNew) n++;
   if (f.onlySaved) n++;
+  if (f.topFloor) n++;
   return n;
 }
 

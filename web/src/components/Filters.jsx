@@ -1,4 +1,5 @@
 import { memo, useEffect, useMemo } from 'react';
+import { isTopFloor } from '../lib/filters.js';
 import { FINANCING, HOUSING_TYPES, housingCounts } from '../lib/housing.js';
 import { LATER, UNKNOWN, monthLabel, moveInChips } from '../lib/movein.js';
 import { YEAR_DECADES } from '../lib/stops.js';
@@ -30,9 +31,10 @@ function Filters({
   onPurge, phone,
 }) {
   const counts = useMemo(() => {
-    const c = { new: 0, zip: {} };
+    const c = { new: 0, top: 0, zip: {} };
     for (const l of listings ?? []) {
       if (l.is_new && !l.removed) c.new++;
+      if (isTopFloor(l) && !l.removed) c.top++;
       if (!l.removed) c.zip[l.zip] = (c.zip[l.zip] ?? 0) + 1;
     }
     return c;
@@ -194,6 +196,7 @@ function Filters({
             <div className="switches">
               <Switch label="New contacts only" count={counts.new} checked={filters.onlyNew} onChange={(onlyNew) => onChange({ onlyNew })} />
               <Switch label="Priority targets only" count={saved?.size ?? 0} checked={filters.onlySaved} onChange={(onlySaved) => onChange({ onlySaved })} />
+              <Switch label="Top floor only" count={counts.top} checked={filters.topFloor} onChange={(topFloor) => onChange({ topFloor })} />
             </div>
           </section>
 

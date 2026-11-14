@@ -150,8 +150,9 @@ export function normalize(card, detail, config) {
     room_config: first(asText(data.roomConfiguration), asText(ad.roomConfiguration)),
     build_year: first(toInt(data.buildYear), toInt(ad.buildingOverrideBuildYear), toInt(building.buildYear)),
     building_type: toInt(ad.buildingOverrideBuildingType),
-    floor: toInt(ad.floor),
-    floor_count: toInt(ad.floorCount),
+    floor: first(toInt(ad.floor), toInt(data.floor)),
+    // The detail's floorCount is often empty while the building's count is still given elsewhere.
+    floor_count: first(toInt(ad.floorCount), toInt(data.buildingFloorCount), toInt(ad.buildingOverrideFloors)),
     available_date: isoDate(ad.availabilityDate),
     availability_text: asText(ad.availabilityInfo),
     lease_text: asText(ad.rentTermInfo),

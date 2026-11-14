@@ -84,6 +84,23 @@ test('normalize: a card without a detail leaves detail fields empty', () => {
   assert.equal(row.status, 1);
 });
 
+test('normalize: the floor count falls back to the building counts, the floor to the card', () => {
+  const noCount = { adData: { floorCount: null, buildingOverrideFloors: 4 } };
+  // The card's buildingFloorCount comes first, then the detail's buildingOverrideFloors.
+  let row = normalize(makeCard(7, { data: { buildingFloorCount: 6 } }), makeDetail(7, noCount), config);
+  assert.equal(row.floor, 3);
+  assert.equal(row.floor_count, 6);
+  row = normalize(makeCard(7), makeDetail(7, noCount), config);
+  assert.equal(row.floor_count, 4);
+  // The detail's own floorCount wins when present.
+  row = normalize(makeCard(7, { data: { buildingFloorCount: 6 } }), makeDetail(7), config);
+  assert.equal(row.floor_count, 5);
+  row = normalize(makeCard(7, { data: { floor: 2 } }), makeDetail(7, { adData: { floor: null } }), config);
+  assert.equal(row.floor, 2);
+  row = normalize(makeCard(7), makeDetail(7, { adData: { floorCount: null } }), config);
+  assert.equal(row.floor_count, null);
+});
+
 test('normalize: missing availabilityDate stays NULL', () => {
   const row = normalize(makeCard(7), makeDetail(7, { adData: { availabilityDate: null } }), config);
   assert.equal(row.available_date, null);
