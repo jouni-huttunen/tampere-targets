@@ -1,10 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import ScorchedEarth from './ScorchedEarth.jsx';
-import { ACTION_TEXT, CHAR_ACTIONS, KEY_ACTIONS, MANUAL_ROWS, capOf, manualAction } from '../lib/keys.js';
+import { ACTION_TEXT, KEY_ACTIONS, MANUAL_ARROWS, MANUAL_ROWS, capOf, manualAction } from '../lib/keys.js';
 
 const IDLE_TEXT = 'Press a key or point at one to see what it does';
-// + and − are not drawn; pressing one lights the drawn key with the same action.
-const CHAR_CAP = { zoomin: 'KeyZ', zoomout: 'KeyX' };
 
 /**
  * The field manual (FR-50): the desktop keys on a drawn keyboard block, opened by H or the keys
@@ -32,13 +30,13 @@ export default function FieldManual({ onClose, onPurge }) {
       if (e.key === 'Tab') return; // focus moves inside the dialog as usual
       e.stopPropagation();
       const plain = !e.altKey && !e.ctrlKey && !e.metaKey;
-      // Esc, H and C (a second Esc) close the manual.
-      if (e.key === 'Escape' || (plain && ['manual', 'close'].includes(KEY_ACTIONS[e.code]))) {
+      // Esc and H close the manual.
+      if (e.key === 'Escape' || (plain && KEY_ACTIONS[e.code] === 'manual')) {
         e.preventDefault();
         onClose();
         return;
       }
-      const cap = KEY_ACTIONS[e.code] ? e.code : CHAR_CAP[CHAR_ACTIONS[e.key]];
+      const cap = KEY_ACTIONS[e.code] ? e.code : null;
       if (plain && cap) {
         e.preventDefault();
         setLit(cap);
@@ -47,6 +45,24 @@ export default function FieldManual({ onClose, onPurge }) {
     window.addEventListener('keydown', onKey, true);
     return () => window.removeEventListener('keydown', onKey, true);
   }, [onClose]);
+
+  const keycap = (code) => {
+    const action = manualAction(code);
+    const [short, long] = action ? ACTION_TEXT[action] : [];
+    return (
+      <div
+        key={code}
+        role="listitem"
+        className={`keycap ${action ? `is-live keycap-${action}` : 'is-idle'} ${lit === code ? 'is-lit' : ''}`}
+        aria-label={action ? `${capOf(code)}: ${long}` : undefined}
+        aria-hidden={action ? undefined : 'true'}
+        onPointerEnter={action ? () => setLit(code) : undefined}
+      >
+        <span className="keycap-char">{capOf(code)}</span>
+        {short && <span className="keycap-label">{short}</span>}
+      </div>
+    );
+  };
 
   const litAction = lit && manualAction(lit);
 
@@ -73,28 +89,22 @@ export default function FieldManual({ onClose, onPurge }) {
           </button>
         </div>
 
-        <div className="manual-pad" role="list" aria-label="Keys">
-          {MANUAL_ROWS.map((row) => (
-            <div key={row.keys[0]} className={`manual-row ${row.fn ? 'manual-row-fn' : ''}`} style={{ '--row-offset': row.offset }}>
-              {row.keys.map((code) => {
-                const action = manualAction(code);
-                const [short, long] = action ? ACTION_TEXT[action] : [];
-                return (
-                  <div
-                    key={code}
-                    role="listitem"
-                    className={`keycap ${action ? `is-live keycap-${action}` : 'is-idle'} ${lit === code ? 'is-lit' : ''}`}
-                    aria-label={action ? `${capOf(code)}: ${long}` : undefined}
-                    aria-hidden={action ? undefined : 'true'}
-                    onPointerEnter={action ? () => setLit(code) : undefined}
-                  >
-                    <span className="keycap-char">{capOf(code)}</span>
-                    {short && <span className="keycap-label">{short}</span>}
-                  </div>
-                );
-              })}
-            </div>
-          ))}
+        <div className="manual-board" role="list" aria-label="Keys">
+          <div className="manual-pad">
+            {MANUAL_ROWS.map((row) => (
+              <div key={row.keys[0]} className={`manual-row ${row.fn ? 'manual-row-fn' : ''}`} style={{ '--row-offset': row.offset }}>
+                {row.keys.map(keycap)}
+              </div>
+            ))}
+          </div>
+          {/* The arrow cluster at the right: ↑ level with A, ← ↓ → with Z. */}
+          <div className="manual-arrows">
+            {MANUAL_ARROWS.map((row) => (
+              <div key={row[0]} className="manual-arrow-row">
+                {row.map(keycap)}
+              </div>
+            ))}
+          </div>
         </div>
 
         <p className={`manual-readout ${litAction ? 'is-on' : ''}`} aria-live="polite">

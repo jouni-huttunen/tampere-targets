@@ -2,28 +2,26 @@
 // handler in App.jsx and the field manual, so the manual always shows the keys that work.
 // Letters go by key position (KeyboardEvent.code), so they sit in the same place on any layout.
 
-/** Key position → action. N and M are second keys for night vision and the base map. */
+/** Key position → action. Q or N switches night vision, E or M the base map; R and T show or hide the parameters and the list; F zooms to the open target (else fits the map), C fits the map to all targets; ← / → step through targets like A / D, ↑ / ↓ zoom like W / S. Esc closes (each panel's own). */
 export const KEY_ACTIONS = Object.freeze({
-  KeyQ: 'params',
-  KeyW: 'prev',
-  KeyE: 'list',
-  KeyR: 'basemap',
+  KeyQ: 'nv',
+  KeyW: 'zoomin',
+  KeyE: 'basemap',
+  KeyR: 'params',
+  KeyT: 'list',
   KeyA: 'prev',
-  KeyS: 'next',
+  KeyS: 'zoomout',
   KeyD: 'next',
-  KeyF: 'fit',
+  KeyF: 'focus',
+  KeyC: 'fit',
   KeyH: 'manual',
-  KeyZ: 'zoomin',
-  KeyX: 'zoomout',
-  KeyC: 'close',
-  KeyV: 'nv',
   KeyN: 'nv',
   KeyM: 'basemap',
+  ArrowUp: 'zoomin',
+  ArrowDown: 'zoomout',
+  ArrowLeft: 'prev',
+  ArrowRight: 'next',
 });
-
-/** The usual map zoom keys, by the character typed (where + and − sit differs by layout):
- *  + or = (and numpad +) zoom in, − (and numpad −) out, beside Z and X. */
-export const CHAR_ACTIONS = Object.freeze({ '+': 'zoomin', '=': 'zoomin', '-': 'zoomout' });
 
 /** Keys the manual draws that are not in the table: Esc is handled by each panel and card. */
 export const MANUAL_EXTRA = Object.freeze({ Escape: 'esc' });
@@ -35,11 +33,11 @@ export const ACTION_TEXT = Object.freeze({
   basemap: ['Map', 'Next base map: Night ops → Recon sat → Terrain'],
   prev: ['Prev', 'Previous target (the last one with no profile open)'],
   next: ['Next', 'Next target (the first one with no profile open)'],
-  fit: ['Fit', 'Zoom the map to the targets in the list'],
-  zoomin: ['Zoom +', 'Zoom in one level (also +), around the open target, else the map centre'],
-  zoomout: ['Zoom −', 'Zoom out one level (also −), around the open target, else the map centre'],
+  focus: ['Focus', 'Zoom to the open target, centred; with none open, fit the map to the targets'],
+  fit: ['Fit', 'Zoom the map to all the targets in the list'],
+  zoomin: ['Zoom +', 'Zoom in one level (W or ↑), centred on the open target, else around the map centre'],
+  zoomout: ['Zoom −', 'Zoom out one level (S or ↓), centred on the open target, else around the map centre'],
   manual: ['Manual', 'Open or close this field manual'],
-  close: ['Close', 'Same as Esc: closes the topmost of this manual, the parameters, an intel card or the profile'],
   nv: ['NV', 'Night vision on or off'],
   esc: ['Close', 'Close the topmost: this manual, the parameters, an intel card or the profile'],
 });
@@ -56,14 +54,18 @@ export const MANUAL_ROWS = Object.freeze([
   { offset: 0.75, keys: ['KeyZ', 'KeyX', 'KeyC', 'KeyV', 'KeyB', 'KeyN', 'KeyM'] },
 ]);
 
+/** The arrow cluster the manual draws to the right of the letters: ↑ above ← ↓ →. */
+export const MANUAL_ARROWS = Object.freeze([['ArrowUp'], ['ArrowLeft', 'ArrowDown', 'ArrowRight']]);
+
 /** The action the manual shows for a drawn key, or undefined for a dim one. */
 export const manualAction = (code) => KEY_ACTIONS[code] ?? MANUAL_EXTRA[code];
 
-/** "KeyQ" → "Q", "Escape" → "Esc". */
-export const capOf = (code) => (code === 'Escape' ? 'Esc' : code.replace(/^Key/, ''));
+/** "KeyQ" → "Q", "Escape" → "Esc", "ArrowUp" → "↑" (and the other arrows). */
+const CAPS = { Escape: 'Esc', ArrowUp: '↑', ArrowDown: '↓', ArrowLeft: '←', ArrowRight: '→' };
+export const capOf = (code) => CAPS[code] ?? code.replace(/^Key/, '');
 
 /** The action for a keydown, or null. Ctrl / Alt / Cmd combinations are never shortcuts (Ctrl+C still copies). */
 export function keyAction(e) {
   if (e.altKey || e.ctrlKey || e.metaKey) return null;
-  return KEY_ACTIONS[e.code] ?? CHAR_ACTIONS[e.key] ?? null;
+  return KEY_ACTIONS[e.code] ?? null;
 }

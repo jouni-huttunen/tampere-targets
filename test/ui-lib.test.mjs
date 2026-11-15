@@ -5,7 +5,7 @@ import { applyFilters, defaultFilters, fromQuery, rentPerM2, sortListings, toQue
 import { fmtPerM2 } from '../web/src/lib/format.js';
 import { SHORTLIST_KEY, liveShortlist, loadShortlist, parseShortlist, saveShortlist, toggled } from '../web/src/lib/shortlist.js';
 import { cleanUrl, purgeStorage } from '../web/src/lib/purge.js';
-import { groupByPosition, ringOffsets, ringRadius } from '../web/src/lib/spread.js';
+import { groupByPosition, ringOffsetOf, ringOffsets, ringRadius } from '../web/src/lib/spread.js';
 import { sameIds, splitByView, stepIndex } from '../web/src/lib/inview.js';
 
 test('stepIndex wraps round in both directions; nothing to step to with one target or no position', () => {
@@ -40,6 +40,22 @@ test('sameIds compares id sets', () => {
   assert.ok(!sameIds(new Set([1]), new Set([1, 2])));
   assert.ok(!sameIds(null, new Set()));
   assert.ok(sameIds(null, null));
+});
+
+test('ringOffsetOf: where a marker sits on its building ring (the zoom keys centre that point)', () => {
+  const rows = [
+    { card_id: 9, lat: 61.5, lon: 23.7 },
+    { card_id: 3, lat: 61.5, lon: 23.7 },
+    { card_id: 5, lat: 61.5, lon: 23.7 },
+    { card_id: 7, lat: 61.4, lon: 23.8 },
+    { card_id: 8, lat: null, lon: null },
+  ];
+  const ring = ringOffsets(3);
+  assert.deepEqual(ringOffsetOf(rows, 3), ring[0]); // ids sorted: 3, 5, 9
+  assert.deepEqual(ringOffsetOf(rows, 9), ring[2]);
+  assert.deepEqual(ringOffsetOf(rows, 7), [0, 0]); // alone at its point
+  assert.deepEqual(ringOffsetOf(rows, 8), [0, 0]); // no point
+  assert.deepEqual(ringOffsetOf(rows, 404), [0, 0]);
 });
 
 test('groupByPosition groups identical points, sorted by id, and skips rows without a point', () => {
@@ -144,7 +160,7 @@ test('rent per m²: value, missing data, sort cheapest first with unknowns last,
 
 test('"only shortlist" filter and its URL key', () => {
   const d = defaultFilters({ windowCutoff: '2027-02-01' });
-  const rows = [1, 2, 3].map((id) => ({ card_id: id, available_date: null, zip: '33100', removed: false }));
+  const rows = [1, 2, 3].map((id) => ({ card_id: id, size_m2: 50, available_date: null, zip: '33100', removed: false }));
   const f = { ...d, onlySaved: true };
   assert.deepEqual(applyFilters(rows, f, new Set([2])).map((r) => r.card_id), [2]);
   assert.deepEqual(applyFilters(rows, f, null), []);
@@ -270,41 +286,42 @@ test('panels: both shown by default; hidden ones remembered; bad or blocked stor
   assert.doesNotThrow(() => savePanels({ params: false, list: false }, blocked));
 });
 
-test('keys (FR-47, FR-50): F fits, C closes, V or N night vision, R or M base map, H the manual; modifiers do nothing', async () => {
-  const { ACTION_TEXT, KEY_ACTIONS, MANUAL_ROWS, capOf, keyAction, manualAction } = await import('../web/src/lib/keys.js');
+test('keys (FR-47, FR-50): F focuses the open target, C fits all, Q or N night vision, E or M base map, R / T panels, H the manual, arrows zoom and step; modifiers do nothing', async () => {
+  const { ACTION_TEXT, KEY_ACTIONS, MANUAL_ARROWS, MANUAL_ROWS, capOf, keyAction, manualAction } = await import('../web/src/lib/keys.js');
   const press = (code, key = code.replace(/^Key/, '').toLowerCase(), mods = {}) => keyAction({ code, key, ...mods });
-  assert.equal(press('KeyF'), 'fit');
-  assert.equal(press('KeyC'), 'close');
-  for (const c of ['KeyV', 'KeyN']) assert.equal(press(c), 'nv', c);
-  for (const c of ['KeyR', 'KeyM']) assert.equal(press(c), 'basemap', c);
+  assert.equal(press('KeyF'), 'focus'); // the user's choice on 2026-11-15: F zooms to the open target (else fits), C fits all, Esc closes
+  assert.equal(press('KeyC'), 'fit');
+  for (const c of ['KeyQ', 'KeyN']) assert.equal(press(c), 'nv', c); // E and Q swapped on 2026-11-15 (the user's choice)
+  for (const c of ['KeyE', 'KeyM']) assert.equal(press(c), 'basemap', c);
+  assert.equal(press('KeyV'), null); // removed on 2026-11-15 (the user's choice)
   assert.equal(press('KeyH'), 'manual');
-  assert.equal(press('KeyQ'), 'params');
-  assert.equal(press('KeyE'), 'list');
-  for (const c of ['KeyD', 'KeyS']) assert.equal(press(c), 'next');
-  for (const c of ['KeyA', 'KeyW']) assert.equal(press(c), 'prev');
+  assert.equal(press('KeyR'), 'params'); // the user's choice on 2026-11-15: R / T panels, Q night vision, E base map
+  assert.equal(press('KeyT'), 'list');
+  assert.equal(press('KeyD'), 'next');
+  assert.equal(press('KeyA'), 'prev');
+  assert.equal(press('KeyW'), 'zoomin'); // the user's choice on 2026-11-15: W / S zoom, like ↑ / ↓
+  assert.equal(press('KeyS'), 'zoomout');
+  assert.equal(press('ArrowRight', 'ArrowRight'), 'next');
+  assert.equal(press('ArrowLeft', 'ArrowLeft'), 'prev');
+  assert.deepEqual([capOf('ArrowLeft'), capOf('ArrowRight')], ['←', '→']);
   assert.equal(press('Escape'), null); // Esc is each panel's own
-  // Zoom (the user's choice, 2026-11-15): Z / X by position, + / − by character on any layout
-  // (Finnish + sits where US has -, and - where US has /), numpad too; Shift+= types +.
-  assert.equal(press('KeyZ'), 'zoomin');
-  assert.equal(press('KeyX'), 'zoomout');
-  assert.equal(press('KeyZ', 'y'), 'zoomin'); // German layout: by position
-  assert.equal(press('Minus', '+'), 'zoomin'); // Finnish +
-  assert.equal(press('Slash', '-'), 'zoomout'); // Finnish -
-  assert.equal(press('Equal', '='), 'zoomin');
-  assert.equal(press('Equal', '+', { shiftKey: true }), 'zoomin');
-  assert.equal(press('Minus', '-'), 'zoomout'); // US -
-  assert.equal(press('NumpadAdd', '+'), 'zoomin');
-  assert.equal(press('NumpadSubtract', '-'), 'zoomout');
-  assert.equal(press('Minus', '+', { ctrlKey: true }), null); // Ctrl + is the browser's page zoom
+  // Zoom (the user's choice, 2026-11-15): ↑ in, ↓ out; Z, X, T, Y, + and − do nothing.
+  assert.equal(press('ArrowUp', 'ArrowUp'), 'zoomin');
+  assert.equal(press('ArrowDown', 'ArrowDown'), 'zoomout');
+  assert.equal(press('ArrowUp', 'ArrowUp', { ctrlKey: true }), null);
+  assert.deepEqual([capOf('ArrowUp'), capOf('ArrowDown')], ['↑', '↓']);
+  for (const [code, key] of [['KeyZ', 'z'], ['KeyX', 'x'], ['KeyY', 'y'], ['Minus', '+'], ['Slash', '-'], ['Equal', '='], ['Minus', '-'], ['NumpadAdd', '+'], ['NumpadSubtract', '-']]) {
+    assert.equal(press(code, key), null, `${code} ${key}`);
+  }
   assert.equal(press('Slash', '?', { shiftKey: true }), null); // ? no longer opens the manual
   // Esc is drawn in the manual, as Esc.
   assert.equal(manualAction('Escape'), 'esc');
   assert.equal(capOf('Escape'), 'Esc');
   for (const mod of ['ctrlKey', 'altKey', 'metaKey']) assert.equal(press('KeyC', 'c', { [mod]: true }), null, mod); // Ctrl+C copies
   // By position: a layout that types another letter there still gets the action.
-  assert.equal(press('KeyF', 'u'), 'fit');
+  assert.equal(press('KeyQ', 'a'), 'nv'); // AZERTY types a there
   // The manual draws every key that has an action, and each action has its text.
-  const drawn = new Set(MANUAL_ROWS.flatMap((r) => r.keys));
+  const drawn = new Set([...MANUAL_ROWS.flatMap((r) => r.keys), ...MANUAL_ARROWS.flat()]);
   for (const [code, action] of Object.entries(KEY_ACTIONS)) {
     assert.ok(drawn.has(code), `${code} is in the manual`);
     assert.equal(ACTION_TEXT[action]?.length, 2, action);

@@ -148,19 +148,24 @@ export default function App() {
   }, [nv, infra]);
 
   // Keys (lib/keys.js; not while typing, not with Ctrl / Alt / Cmd, not during the boot sequence):
-  // V or N toggles night vision; D or S opens the next target and A or W the previous one (FR-44),
-  // like › and ‹ in the profile; with no profile open, D/S opens the first target in the list and
-  // A/W the last. Q / E show or hide the side panels, F fits the map to the targets, R or M
-  // switches the base map, Z / X (or + / −) zoom one level and C works like Esc: it closes the
-  // topmost intel card, slide-out parameters or profile (FR-47). H opens the field manual
-  // (FR-50), which then takes the keys itself.
+  // Q or N toggles night vision; D or → opens the next target and A or ← the previous one
+  // (FR-44), like › and ‹ in the profile; with no profile open, D/→ opens the first target in the
+  // list and A/← the last. R / T show or hide the side panels; F zooms to the open target (with
+  // none open, it fits the map to the targets); C fits the map to all targets; E or M switches the base map; W / ↑ and S / ↓
+  // zoom one level in / out (the arrows not on a focused list row, where they move between
+  // rows) (FR-47). Esc is each panel's own. H opens the field manual (FR-50), which then takes
+  // the keys itself.
   const keyState = useRef(null);
-  const mapCommands = useRef(null); // { fit, zoom, nextBaseMap } from MapView, for F, Z / X and R / M
+  const mapCommands = useRef(null); // { fit, focus, zoom, nextBaseMap } from MapView, for F, C, W / S / ↑ / ↓ and E / M
   useEffect(() => {
     const onKey = (e) => {
       if (phase === 'boot' || isTyping(e.target)) return;
       const action = keyAction(e);
       if (!action) return;
+      // A focused list row keeps ↑ / ↓ for moving between rows (ListPanel), also at the ends, and
+      // a focused photo gallery keeps ← / → for its photos.
+      if ((e.key === 'ArrowUp' || e.key === 'ArrowDown') && e.target?.closest?.('.card-item')) return;
+      if ((e.key === 'ArrowLeft' || e.key === 'ArrowRight') && e.target?.closest?.('.gallery')) return;
       const k = keyState.current;
       if (k.purging) return; // the burn screen is up: nothing acts any more
       if (action === 'manual') {
@@ -170,17 +175,9 @@ export default function App() {
       }
       if (k.manualOpen) return;
       e.preventDefault();
-      if (action === 'close') {
-        // C is a second Esc (the user's choice): send an Esc from where the key was pressed, so
-        // the same handlers close the same topmost thing (intel card, slide-out parameters,
-        // profile) in the same order. App itself ignores Esc, so this does not loop.
-        (e.target ?? window).dispatchEvent(
-          new KeyboardEvent('keydown', { key: 'Escape', code: 'Escape', bubbles: true, cancelable: true }),
-        );
-        return;
-      }
       if (action === 'nv') toggleNv();
       else if (action === 'params' || action === 'list') k.togglePanel(action);
+      else if (action === 'focus') mapCommands.current?.focus();
       else if (action === 'fit') mapCommands.current?.fit();
       else if (action === 'zoomin' || action === 'zoomout') mapCommands.current?.zoom(action === 'zoomin' ? 1 : -1);
       else if (action === 'basemap') mapCommands.current?.nextBaseMap();
@@ -336,9 +333,9 @@ export default function App() {
   }, []);
 
   // Done in the slide-out parameters (the user's choice): when the filters changed while it was
-  // open (the order alone does not count), the map fits the new list, like F. The list is
+  // open (the order alone does not count), the map fits the new list, like the Fit button. The list is
   // filtered from a deferred copy of the filters, so the fit waits until that copy has caught up
-  // and the map holds the new targets (fitKey goes to MapView). Esc, C and a click outside only close.
+  // and the map holds the new targets (fitKey goes to MapView). Esc and a click outside only close.
   const filtersRef = useRef(filters);
   filtersRef.current = filters;
   const filterKey = (f) => (f ? JSON.stringify({ ...f, sort: null }) : '');
@@ -470,7 +467,7 @@ export default function App() {
             short="Params"
             count={paramCount || null}
             countLabel="active"
-            shortcut="Q"
+            shortcut="R"
             onOpen={unfoldParams}
           />
         )}
@@ -524,7 +521,7 @@ export default function App() {
             short="Targets"
             count={inViewCount ?? ordered.length}
             countLabel={inViewCount != null ? 'in view' : 'targets'}
-            shortcut="E"
+            shortcut="T"
             onOpen={unfoldList}
           />
         ) : (

@@ -275,7 +275,7 @@ function printSummary(summary, totals, reportFile) {
   lines.push(`  new ${summary.new} · changed ${summary.changed} · removed ${summary.removed} · reappeared ${summary.reappeared} · errors ${summary.errors}`);
   if (summary.stoppedReason) lines.push(`  stopped early: ${summary.stoppedReason}`);
   lines.push('');
-  lines.push(`Database now: ${totals.active} active (${totals.withDetail} with details), ${totals.window} in your window, ${totals.isNew} new, ${totals.removed} removed`);
+  lines.push(`Database now: ${totals.active} active (${totals.withDetail} with details), ${totals.window} in your window, ${totals.removed} removed`);
   if (totals.withDetail < totals.active) {
     lines.push(`  ${totals.active - totals.withDetail} active listings still lack details: run "npm run capture" again to fetch them.`);
   }

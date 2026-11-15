@@ -114,7 +114,7 @@ function Header({
           className={`nv-toggle ${nv ? 'is-on' : ''}`}
           aria-pressed={nv}
           onClick={onToggleNv}
-          title={`Night vision ${nv ? 'off' : 'on'} (V)`}
+          title={`Night vision ${nv ? 'off' : 'on'} (Q)`}
         >
           <svg className="nv-icon" viewBox="0 0 32 20" aria-hidden="true" focusable="false">
             <path d="M3 6h26v8a3 3 0 0 1-3 3h-6l-2-3h-4l-2 3H6a3 3 0 0 1-3-3z" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />

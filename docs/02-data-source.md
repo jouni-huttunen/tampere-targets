@@ -6,7 +6,7 @@ _Everything here was observed in a real browser unless marked **unverified**. Re
 - Source: `https://asunnot.oikotie.fi`, the rentals section (`cardType=101`).
 - Two JSON endpoints are used: **search** (lists of cards) and **card** (one listing's full detail).
 - **The API answers only inside a real browser.** Node and PowerShell clients get HTTP 403 even with valid tokens and cookies. This is why data is captured with a script the user pastes into DevTools.
-- Size of the job: about **380 listings** in the 17 postal codes with size ≥ 40 m² and rent ≤ 1400 €. That is 4 search pages plus one detail request per listing for a first run.
+- Size of the job: about **700 listings** in the 17 postal codes with size ≥ 20 m² and rent ≤ 1400 € (703 on 2026-11-15). That is 8 search pages plus one detail request per listing for a first run.
 
 ## 2. Access and authentication
 Every API request needs three headers. Their values are in `<meta>` tags on any Oikotie HTML page:
@@ -25,7 +25,7 @@ Every API request needs three headers. Their values are in `<meta>` tags on any 
 ```
 GET /api/search?cardType=101
                &locations=<url-encoded JSON>
-               &size[min]=40
+               &size[min]=20
                &price[max]=1400
                &limit=100
                &offset=<N>
@@ -224,7 +224,7 @@ Overpass often answers 504 or 502 when busy; the script waits 15 s and retries t
 **Guardrails** (agreed with the user; changing any of them needs the user's explicit decision)
 1. **No disguise.** No crawler that pretends to be a browser: no spoofed User-Agent, no Playwright or Puppeteer stealth, no headless workaround for the 403.
 2. **The user runs the capture,** in their own browser, when they choose. An AI agent never runs the bulk capture through its own browser. A smoke test of at most 2 detail requests is allowed only with the user's OK.
-3. **Polite pacing.** One request at a time, about 2 s apart plus jitter.
+3. **Polite pacing.** One request at a time, at least 0.5 s apart plus 0–0.8 s jitter (2 s until 2026-11-15).
 4. **Stop when blocked.** A 403 or 429 ends the run; nothing tries to get around it.
 5. **Personal use only.** The data is for the user alone: never shared with or published for others. The user may host a copy for their own use. Aggregate numbers (counts) are fine.
 6. **No images stored.** Only URLs.

@@ -13,7 +13,6 @@ const row = (id, housing_types, extra) => ({
   rooms: 2,
   move_in: '2026-12',
   zip: '33100',
-  is_new: false,
   removed: false,
   dist: {},
   housing_types,

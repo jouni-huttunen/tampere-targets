@@ -43,13 +43,13 @@ async function get(app, url) {
   return { status: res.statusCode, body: res.json() };
 }
 
-test('list route: is_new, removed, thumbnails, distances and no raw JSON', async () => {
+test('list route: removed, thumbnails, distances and no raw JSON', async () => {
   const { db, config } = seeded();
   const app = buildApp({ db, config });
   const { status, body } = await get(app, '/api/listings');
   assert.equal(status, 200);
   assert.deepEqual(body.map((r) => r.card_id), [1, 2, 3, 4]);
-  assert.deepEqual(body.filter((r) => r.is_new).map((r) => r.card_id), [4]);
+  assert.ok(body.every((r) => !('is_new' in r)), 'nothing is flagged as new');
   assert.deepEqual(body.filter((r) => r.removed).map((r) => r.card_id), [3]);
   const one = body[0];
   assert.equal(one.thumb_url, 'https://img.example/1-s.jpg');
@@ -119,7 +119,7 @@ test('meta route: last run, counts, places and cutoff', async () => {
   assert.equal(body.lastRun.startedAt, T2);
   assert.equal(body.lastRun.isInitial, false);
   assert.equal(body.counts.active, 3);
-  assert.equal(body.counts.isNew, 1);
+  assert.ok(!('isNew' in body.counts));
   assert.equal(body.counts.removed, 1);
   assert.deepEqual(body.places.map((p) => p.key), ['centre', 'station']);
   assert.deepEqual(body.zips, ['33100', '33200']);

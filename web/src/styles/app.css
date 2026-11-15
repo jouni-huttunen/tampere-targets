@@ -1619,11 +1619,6 @@ input[type='date'].range-field {
   color: var(--ink-soft);
 }
 
-.tag-new {
-  border-color: var(--hot);
-  color: var(--hot);
-}
-
 /* "Top" after the profile's floor ("5 / 5 TOP"). */
 .tag-top {
   margin-left: var(--sp-2);
@@ -2162,7 +2157,7 @@ input[type='date'].range-field {
 }
 
 /* Move-in, up front on the star row: the list rows' "IN 1.12.2026" style, at the right end.
-   It fills the rest of the row (so the New contact / Approx. position tags after it take the next
+   It fills the rest of the row (so the Approx. position tag after it take the next
    line) and ends in "…" rather than wrapping; it keeps at least a date's width. */
 .drawer-movein {
   flex: 1 1 0;
@@ -2733,26 +2728,6 @@ input[type='date'].range-field {
   stroke-dasharray: 1 3;
 }
 
-/* New contacts: a dashed ring. The rings live in their own pane (MapView), which pulses by
-   fading as a whole: a GPU opacity change instead of repainting every marker each frame. */
-.mk-halo {
-  fill: none;
-  stroke: var(--halo);
-  stroke-width: 2;
-  stroke-opacity: 0.95;
-  stroke-dasharray: 3 2;
-}
-
-.leaflet-halos-pane {
-  animation: halo-pulse 2.4s ease-in-out infinite;
-}
-
-@keyframes halo-pulse {
-  50% {
-    opacity: 0.37;
-  }
-}
-
 /* While the map is dragged, marker tooltips stay hidden (hovers are ignored then too). */
 .map.is-dragging .leaflet-tooltip.map-tip {
   visibility: hidden;
@@ -3258,6 +3233,9 @@ input[type='date'].range-field {
   display: grid;
   gap: 1px;
   padding: 3px var(--sp-2) 4px;
+  /* As wide as its longest row: inside the 96 px icon it would otherwise shrink and cut the
+     facts row short. */
+  width: max-content;
   transform: translateY(-50%);
   border-left: 2px solid var(--lock);
   background: var(--glass-strong);
@@ -3288,6 +3266,20 @@ input[type='date'].range-field {
   font-family: var(--font-mono);
   font-size: var(--fs-3xs);
   color: var(--ink-soft);
+}
+
+/* The marker tooltip's facts on their own row: rent first, a long address ends in "…". */
+.lock-info {
+  max-width: 300px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-family: var(--font-mono);
+  font-size: var(--fs-2xs);
+  color: var(--ink);
+}
+
+.lock-rent {
+  font-weight: var(--fw-bold);
 }
 
 /* Zoom strike: a fast crosshair on the point the operator zoomed at. */
@@ -3667,10 +3659,6 @@ input[type='date'].range-field {
   border-radius: 50%;
   background: var(--mk);
   border: 1.5px solid var(--marker-stroke);
-}
-
-.legend-new {
-  box-shadow: 0 0 0 2px var(--bg-deep), 0 0 0 3.5px var(--halo);
 }
 
 .legend-saved {
@@ -4211,7 +4199,7 @@ input[type='date'].range-field {
 
 /* A modal <dialog> in the top layer, over everything (the profile, the slide-out parameters). */
 .manual {
-  width: min(600px, calc(100vw - 32px));
+  width: min(830px, calc(100vw - 32px));
   max-width: none;
   max-height: calc(100dvh - 32px);
   /* 1 px room for the corner brackets (inset -1px), so they never make the dialog scroll. */
@@ -4263,14 +4251,28 @@ input[type='date'].range-field {
 }
 
 /* The keyboard block, staggered like a real keyboard (each row's offset in key widths), Esc on
-   its own row above with a little extra space, like a function row. */
-.manual-pad {
+   its own row above with a little extra space, like a function row; the arrow cluster stands
+   apart at the right, ↑ above ← ↓ →, level with the two bottom rows, like a real keyboard. */
+.manual-board {
   --cap: 62px;
   --cap-gap: 8px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: var(--sp-5);
+  padding: 0 var(--sp-5);
+}
+
+.manual-pad,
+.manual-arrows {
   display: grid;
   gap: var(--cap-gap);
+}
+
+.manual-arrow-row {
+  display: flex;
   justify-content: center;
-  padding: 0 var(--sp-5);
+  gap: var(--cap-gap);
 }
 
 .manual-row {
@@ -4309,7 +4311,7 @@ input[type='date'].range-field {
   background: var(--surface);
 }
 
-/* The WASD cluster (previous / next target) is tinted as one group. */
+/* The step keys (A / D and ← / →, previous / next target) are tinted as one group. */
 .keycap-prev,
 .keycap-next {
   background: var(--accent-a10);
@@ -4328,7 +4330,6 @@ input[type='date'].range-field {
 }
 
 /* C and Esc close: amber, like the profile's own frame. */
-.keycap-close .keycap-char,
 .keycap-esc .keycap-char {
   color: var(--hot);
 }
@@ -4874,7 +4875,7 @@ input[type='date'].range-field {
   }
 
   /* Lighter graphics: no glow filters on dozens of markers (redrawn on every pan and zoom), no
-     blur behind panels, no pulsing halos. Same colours and frames. */
+     blur behind panels. Same colours and frames. */
   .mk.mk-y4,
   .mk.mk-y5 {
     filter: none;
@@ -4926,7 +4927,6 @@ input[type='date'].range-field {
   .radar-dot,
   .radar-label::after,
   .kicker-tag::before,
-  .leaflet-halos-pane,
   .lock-ring-svg,
   .lock-ring-svg circle,
   .lock-brackets,

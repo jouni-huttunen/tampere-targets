@@ -1,5 +1,27 @@
 # Changelog
 
+## 1.17.0 — 2026-11-15: Small homes and new keys
+
+Deployed.
+
+**Added**
+- Map: the TARGET LOCKED label also shows the marker tooltip's facts (rent, build year, size, address) on a row of their own, between the title and the coordinates.
+- Desktop keys: F zooms to the open target at zoom 17 (two levels in from where night vision starts showing bus stops), centred in the visible map; with no target open it fits the map to the targets.
+
+**Changed**
+- Crawl scope: searches ask for homes from 20 m² up (`size[min]=20`), so studios and small one-bedroom flats are captured too.
+- Mission parameters: Area starts at 40 m² (`DEFAULT_SIZE`), so the view looks as before; pull the Area slider down to see the smaller homes.
+- Capture pacing: 0.5 s between requests plus 0–0.8 s jitter (was 2 s), about 0.9 s per request on average; still one request at a time and a stop on 403 or 429. `config.json` refuses a delay under 500 ms.
+- Desktop keys remapped (the field manual shows them all, with an arrow cluster at the right):
+  - W or ↑ zooms in and S or ↓ out; with a target open the zoom centres it in the visible map. Z, X, + and − no longer zoom, the map no longer pans with the arrow keys, and a focused list row keeps ↑ / ↓ for moving between rows.
+  - A or ← opens the previous target and D or → the next, also with no profile open.
+  - Q or N switches night vision (F and V no longer do), E or M the base map, and R and T show or hide the Mission parameters and the Target list.
+  - C fits the map to all targets, like the Fit button. Only Esc closes (C no longer does).
+  - Tooltips: night vision (Q), panels (R) / (T), Fit (C), the profile's Close (Esc).
+
+**Removed**
+- New contacts: the data is shown as it is now, so nothing is marked new any more. Gone: the New tag on rows and in the profile, the pulsing ring on the map, the legend line, the "New contacts only" switch (an old `new=1` link is ignored), the boot line, `is_new` in the API, the `v_new` view, `list new` in the CLI and the report's "New in your window". The import's run log still counts what each run added.
+
 ## 1.16.0 — 2026-11-15: Done fits
 
 Deployed.

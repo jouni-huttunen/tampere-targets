@@ -22,13 +22,15 @@ function seeded() {
   return { db, cards, details, summary };
 }
 
-test('initial crawl stores everything and flags nothing as new', () => {
+test('initial crawl stores everything', () => {
   const { db, summary } = seeded();
   assert.equal(summary.isInitial, true);
   assert.equal(summary.status, 'ok');
   assert.equal(summary.new, 3);
   const c = counts(db);
-  assert.deepEqual([c.total, c.active, c.window, c.isNew, c.removed, c.withDetail], [3, 3, 3, 0, 0, 3]);
+  assert.deepEqual([c.total, c.active, c.window, c.removed, c.withDetail], [3, 3, 3, 0, 3]);
+  assert.ok(!('isNew' in c), 'nothing is flagged as new (removed 2026-11-15)');
+  assert.equal(db.prepare("SELECT COUNT(*) AS n FROM sqlite_master WHERE name = 'v_new'").get().n, 0);
   const row = getListing(db, 2);
   assert.equal(row.rent_eur, 1170);
   assert.equal(row.available_date, '2026-12-01');
@@ -39,7 +41,7 @@ test('initial crawl stores everything and flags nothing as new', () => {
   assert.equal(db.prepare('SELECT COUNT(*) AS n FROM listing_changes').get().n, 0);
 });
 
-test('a later crawl flags exactly its additions as new', () => {
+test('the run log counts exactly the additions of a crawl as new', () => {
   const { db, cards } = seeded();
   const summary = importCapture(
     db,
@@ -48,10 +50,10 @@ test('a later crawl flags exactly its additions as new', () => {
   );
   assert.equal(summary.isInitial, false);
   assert.equal(summary.new, 2);
-  assert.deepEqual(ids(db, 'SELECT card_id FROM v_new ORDER BY card_id'), [4, 5]);
-  // The next crawl adds nothing: nothing is new any more.
-  importCapture(db, makeCapture({ startedAt: T3, cards: [...cards, makeCard(4), makeCard(5)] }), config);
-  assert.deepEqual(ids(db, 'SELECT card_id FROM v_new'), []);
+  assert.deepEqual(ids(db, `SELECT card_id FROM listings WHERE first_seen_at = '${T2}' ORDER BY card_id`), [4, 5]);
+  // The next crawl adds nothing.
+  const next = importCapture(db, makeCapture({ startedAt: T3, cards: [...cards, makeCard(4), makeCard(5)] }), config);
+  assert.equal(next.new, 0);
 });
 
 test('importing the same capture twice changes nothing', () => {
@@ -96,7 +98,7 @@ test('an incremental run removes nothing for being absent', () => {
   );
   assert.equal(summary.removed, 0);
   assert.equal(counts(db).active, 4);
-  assert.deepEqual(ids(db, 'SELECT card_id FROM v_new'), [4]);
+  assert.equal(summary.new, 1);
 });
 
 test('a removed listing that comes back is active again', () => {
@@ -106,7 +108,7 @@ test('a removed listing that comes back is active again', () => {
   assert.equal(summary.reappeared, 1);
   assert.equal(getListing(db, 3).removed_at, null);
   assert.equal(getListing(db, 3).first_seen_at, T1);
-  assert.deepEqual(ids(db, 'SELECT card_id FROM v_new'), [], 'a returning listing is not new');
+  assert.equal(summary.new, 0, 'a returning listing is not new');
 });
 
 test('a detail 404 marks the listing removed, even in an incremental run', () => {
@@ -212,10 +214,9 @@ test('a first crawl stopped during the search does not make the rest "new" next 
   assert.equal(first.isInitial, true);
   const second = importCapture(db, makeCapture({ startedAt: T2, cards: all }), config);
   assert.equal(second.isInitial, true);
-  assert.deepEqual(ids(db, 'SELECT card_id FROM v_new'), []);
   const third = importCapture(db, makeCapture({ startedAt: T3, cards: [...all, makeCard(5)] }), config);
   assert.equal(third.isInitial, false);
-  assert.deepEqual(ids(db, 'SELECT card_id FROM v_new'), [5]);
+  assert.equal(third.new, 1);
 });
 
 test('a bad file leaves the database untouched', () => {

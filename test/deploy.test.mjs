@@ -178,7 +178,7 @@ test('exportData writes meta, the list, one file per listing (removed ones too) 
     const list = JSON.parse(readFileSync(path.join(out, 'api', 'listings.json'), 'utf8'));
     assert.deepEqual(list.map((l) => l.card_id), [1, 2, 3]);
     assert.equal(list.find((l) => l.card_id === 2).removed, true);
-    assert.equal(list.find((l) => l.card_id === 3).is_new, true);
+    assert.ok(list.every((l) => !('is_new' in l)));
     const detail = JSON.parse(readFileSync(path.join(out, 'api', 'listings', '1.json'), 'utf8'));
     assert.equal(detail.card_id, 1);
     assert.ok(!('raw' in detail), 'the detail has no raw JSON, as the local server sends it');

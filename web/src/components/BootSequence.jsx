@@ -25,7 +25,6 @@ export default function BootSequence({ meta, count, error, saved, onDone }) {
   const lines = useMemo(() => {
     const centre = meta?.places?.find((p) => p.key === 'centre') ?? KESKUSTORI;
     const run = meta?.lastRun;
-    const newCount = meta?.counts?.isNew ?? 0;
     const out = [
       { text: `Tampere Targets · tactical console v${__APP_VERSION__}`, kind: 'head' }, // from package.json (vite.config.mjs)
       { text: 'Initializing tactical uplink', status: 'OK' },
@@ -41,11 +40,6 @@ export default function BootSequence({ meta, count, error, saved, onDone }) {
     } else {
       out.push({ text: `Loading sector grid · ${meta?.zips?.length ?? 0} sectors`, status: 'OK' });
       if (run) out.push({ text: `Last recon · ${fmtDateTime(run.finishedAt ?? run.startedAt)}`, status: 'OK' });
-      out.push(
-        newCount > 0 && !run?.isInitial
-          ? { text: `New contacts detected · ${newCount}`, status: 'ALERT', tone: 'hot' }
-          : { text: 'New contacts · none', status: 'OK' },
-      );
       out.push({ text: `Priority targets · ${saved.size}`, status: 'OK' });
       // Where there is a keyboard (a mouse or trackpad), point to the field manual (FR-50).
       if (window.matchMedia?.(DESKTOP_POINTER).matches) out.push({ text: 'Field manual · press H', status: 'READY' });

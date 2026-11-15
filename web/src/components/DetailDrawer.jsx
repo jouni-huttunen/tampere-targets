@@ -8,10 +8,6 @@ import RichText from './RichText.jsx';
 import StarButton from './StarButton.jsx';
 
 /** Keys typed into these, or inside the photo strip or map, are not drawer shortcuts. */
-function isTypingTarget(el) {
-  return !!el?.closest?.('input, select, textarea, [contenteditable="true"], .gallery, .leaflet-container');
-}
-
 /** A swipe that starts in these scrolls them (photos, thumbnails, raw JSON); it never changes target. */
 const NO_SWIPE = '.gallery, pre, input, select, textarea';
 const SLIDE_MS = 200;
@@ -214,14 +210,11 @@ export default function DetailDrawer({
       if (e.key === 'Escape') {
         // An open filters panel sits above the drawer and takes Esc first.
         if (!e.defaultPrevented && !document.getElementById('filters-panel')) onClose();
-      } else if (!e.altKey && !e.ctrlKey && !e.metaKey && !isTypingTarget(e.target)) {
-        if (e.key === 'ArrowLeft') onStep?.(-1);
-        if (e.key === 'ArrowRight') onStep?.(1);
       }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [onClose, onStep]);
+  }, [onClose]);
 
   // Start each listing at the top of the drawer.
   const scrollRef = useRef(null);
@@ -263,7 +256,7 @@ export default function DetailDrawer({
               </button>
             </>
           )}
-          <button ref={closeRef} type="button" className="icon-btn" onClick={onClose} aria-label="Close target profile" title="Close (C)">
+          <button ref={closeRef} type="button" className="icon-btn" onClick={onClose} aria-label="Close target profile" title="Close (Esc)">
             <svg viewBox="0 0 20 20" className="icon" aria-hidden="true" focusable="false">
               <path d="M5 5l10 10M15 5 5 15" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
             </svg>
@@ -301,7 +294,6 @@ export default function DetailDrawer({
                 {moveIn.text}
               </span>
             )}
-            {l?.is_new && <span className="tag tag-new">New contact</span>}
             {approx && <span className="tag tag-approx">Approx. position</span>}
           </div>
         </header>

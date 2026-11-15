@@ -39,7 +39,7 @@ export function validateConfig(config) {
   for (const key of ['delayMs', 'jitterMs', 'pageSize', 'maxDetails']) {
     if (!Number.isFinite(c[key]) || c[key] < 0) fail(`capture.${key} must be a number`);
   }
-  if (c.delayMs < 2000) fail('capture.delayMs must be at least 2000 (polite pacing is a hard rule)');
+  if (c.delayMs < 500) fail('capture.delayMs must be at least 500 (polite pacing is a hard rule)');
   const r = config.refresh || {};
   for (const key of ['fullSweepEveryDays', 'maxGapDays', 'windowDays', 'otherDays']) {
     if (!Number.isFinite(r[key]) || r[key] < 0) fail(`refresh.${key} must be a number`);

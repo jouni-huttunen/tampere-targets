@@ -156,7 +156,7 @@ export default function InfraLayer({ data }) {
   useEffect(() => {
     if (!data) return undefined;
     const pane = map.getPane('infra') ?? map.createPane('infra');
-    pane.style.zIndex = '390'; // above the sectors and labels, under the halos and target markers
+    pane.style.zIndex = '390'; // above the sectors and labels, under the target markers
     const renderer = L.svg({ pane: 'infra' });
     const stores = L.layerGroup();
     const trams = L.layerGroup();

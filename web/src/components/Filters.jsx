@@ -31,9 +31,8 @@ function Filters({
   onPurge, phone,
 }) {
   const counts = useMemo(() => {
-    const c = { new: 0, top: 0, zip: {} };
+    const c = { top: 0, zip: {} };
     for (const l of listings ?? []) {
-      if (l.is_new && !l.removed) c.new++;
       if (isTopFloor(l) && !l.removed) c.top++;
       if (!l.removed) c.zip[l.zip] = (c.zip[l.zip] ?? 0) + 1;
     }
@@ -96,12 +95,12 @@ function Filters({
           </span>
         )}
         {onHide && (
-          <button ref={hideRef} type="button" className="icon-btn panel-hide" onClick={onHide} aria-expanded="true" aria-label="Hide mission parameters" title="Hide for more map (Q)">
+          <button ref={hideRef} type="button" className="icon-btn panel-hide" onClick={onHide} aria-expanded="true" aria-label="Hide mission parameters" title="Hide for more map (R)">
             <PanelChevron dir="left" />
           </button>
         )}
         {overlay && (
-          <button type="button" className="icon-btn panel-close" onClick={onClose} aria-label="Close mission parameters" title="Close (Q)">
+          <button type="button" className="icon-btn panel-close" onClick={onClose} aria-label="Close mission parameters" title="Close (R)">
             <svg viewBox="0 0 20 20" className="icon" aria-hidden="true" focusable="false">
               <path d="M5 5l10 10M15 5 5 15" stroke="currentColor" strokeWidth="1.6" strokeLinecap="square" />
             </svg>
@@ -194,7 +193,6 @@ function Filters({
           <section className="param-group" aria-label="Flags">
             <h3 className="group-title">Flags</h3>
             <div className="switches">
-              <Switch label="New contacts only" count={counts.new} checked={filters.onlyNew} onChange={(onlyNew) => onChange({ onlyNew })} />
               <Switch label="Priority targets only" count={saved?.size ?? 0} checked={filters.onlySaved} onChange={(onlySaved) => onChange({ onlySaved })} />
               <Switch label="Top floor only" count={counts.top} checked={filters.topFloor} onChange={(topFloor) => onChange({ topFloor })} />
             </div>

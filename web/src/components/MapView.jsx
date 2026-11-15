@@ -5,12 +5,17 @@ import { GeoJSON, LayerGroup, LayersControl, MapContainer, Marker, Pane, ScaleCo
 import { fmtEur, fmtM2, yearBin } from '../lib/format.js';
 import { fitZoom } from '../lib/fit.js';
 import { sameIds } from '../lib/inview.js';
-import { groupByPosition, ringOffsets, ringRadius } from '../lib/spread.js';
-import InfraLayer from './InfraLayer.jsx';
+import { groupByPosition, ringOffsetOf, ringOffsets, ringRadius } from '../lib/spread.js';
+import InfraLayer, { BUS_MIN_ZOOM } from './InfraLayer.jsx';
 import Legend from './Legend.jsx';
 
 const CENTER = [61.4978, 23.761];
 const MAX_ZOOM = 19;
+// F with a target open zooms to it at this level: two levels in from the lowest zoom at which
+// night vision shows all its detail, bus stops included (the user's choice): the target's
+// building and its next neighbours. The dark base map's own tiles end at 16, so its labels are
+// a little upscaled here.
+const FOCUS_ZOOM = BUS_MIN_ZOOM + 2;
 const OSM = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
 const ESRI_CANVAS = 'Esri, HERE, Garmin, &copy; OpenStreetMap contributors, and the GIS user community';
 const ESRI_IMAGERY = 'Esri, Maxar, Earthstar Geographics, and the GIS user community';
@@ -50,13 +55,13 @@ const BASE_MAPS = [
 ];
 const PAAVO = 'Postal areas &copy; <a href="https://www.stat.fi/en/">Statistics Finland</a> (CC BY 4.0)';
 
-const R = { base: 6.5, hover: 10, halo: 12 };
+const R = { base: 6.5, hover: 10 };
 // Selecting a target moves the map only if its marker is closer than this to an edge of the visible
 // map (or off it), and then only far enough to bring it this far inside: room for the 96 px reticle.
 const EDGE_MARGIN = 48;
 // The map's own pan to a selection counts as its own (it never releases the lock) for at most this.
 const SELF_MOVE_MS = 1500;
-// "Fit N targets" keeps every target, as drawn (its ring and its new-contact halo), this far
+// "Fit N targets" keeps every target, as drawn (its ring and its marker at hover size), this far
 // inside the visible map: at the top below the zoom, Fit and layers buttons, at the bottom above
 // the legend and the attribution, at the sides a little (less on a narrow, phone map, where
 // the width is what limits the zoom).
@@ -80,7 +85,7 @@ function MapView({ listings, places, areas, infra, nv, hoverId, selectedId, save
   // The zoom is the exact level that fits them (e.g. 10.87), not the nearest half step below
   // (the user's choice); every other zoom (buttons, wheel, pinch) stays on the half-step grid,
   // and the next one from a fitted level lands back on it. Each shared point counts with its
-  // ring of homes (fixed in pixels) plus a marker's halo, so no ring hangs off the edge.
+  // ring of homes (fixed in pixels) plus a marker at hover size, so no ring hangs off the edge.
   const fit = (animate = true) => {
     if (!map || located.length === 0) return;
     const view = visibleArea(map);
@@ -90,7 +95,7 @@ function MapView({ listings, places, areas, infra, nv, hoverId, selectedId, save
     const points = [...groupByPosition(located)].map(([key, ids]) => {
       const [lat, lon] = key.split(',').map(Number);
       const p = map.project([lat, lon], 0);
-      return { x: p.x, y: p.y, r: ringRadius(ids.length) + R.halo };
+      return { x: p.x, y: p.y, r: ringRadius(ids.length) + R.hover };
     });
     const f = fitZoom(points, width, height, { minZoom: map.getMinZoom(), maxZoom: 16 });
     // The map's centre sits this far from the middle of the room the targets get.
@@ -132,24 +137,59 @@ function MapView({ listings, places, areas, infra, nv, hoverId, selectedId, save
     const at = radios.findIndex((r) => r.checked);
     radios[(at + 1) % radios.length].click();
   };
-  // Z / X and + / − (App): one level in or out, like the zoom buttons, but around the open
-  // target (it stays where it is, so it keeps its lock), else the centre of the visible map
-  // (the part the profile leaves visible). The level is snapped first, so a zoom from a fitted
-  // level (11.2) lands on the half-step grid (12) and the anchor stays exactly in place.
+  // ↑ / ↓ (App): one level in or out, like the zoom buttons. With a target open the
+  // zoom also centres it in the visible map (the part the profile leaves visible; the user's
+  // choice), else it zooms around that part's centre. The level is snapped first, so a zoom from
+  // a fitted level (11.2) lands on the half-step grid (12). The zoom strike marks the same point.
   const zoom = (delta) => {
     if (!map) return;
     const snap = map.options.zoomSnap || 1;
     const z = Math.max(map.getMinZoom(), Math.min(map.getMaxZoom(), Math.round((map.getZoom() + delta) / snap) * snap));
     if (z === map.getZoom()) return;
-    const view = visibleArea(map);
-    const target = selectedId != null && !view.hidden ? located.find((l) => l.card_id === selectedId) : null;
-    map.setZoomAround(target ? L.latLng(target.lat, target.lon) : L.point(view.width / 2, view.height / 2), z);
+    const { view, middle, target } = aimAt();
+    map.fire('zoomaim', { point: middle });
+    if (!target) {
+      map.setZoomAround(middle, z);
+      return;
+    }
+    map.setView(centreOn(target, z, view, middle), z);
   };
-  if (commandsRef) commandsRef.current = { fit, zoom, nextBaseMap };
+  // The open target (none while the map is hidden under a full-screen profile) and the middle
+  // of the visible map, where the zoom keys and F put it.
+  const aimAt = () => {
+    // Right after a panel is shown or hidden Leaflet may still hold the old map size: its
+    // projections would put the target off the middle.
+    map.invalidateSize({ pan: false });
+    const view = visibleArea(map);
+    const middle = L.point(view.width / 2, view.height / 2);
+    const target = selectedId != null && !view.hidden ? located.find((l) => l.card_id === selectedId) : null;
+    return { view, middle, target };
+  };
+  // The map's centre at zoom z that puts the target's marker (on its building's ring, if it
+  // shares one) in the middle of the visible part.
+  const centreOn = (target, z, view, middle) => {
+    const [rx, ry] = ringOffsetOf(located, target.card_id);
+    const offset = L.point(view.mapWidth / 2 + rx, view.height / 2 + ry).subtract(middle);
+    return map.unproject(map.project([target.lat, target.lon], z).add(offset), z);
+  };
+  // F (App): fly to the open target at FOCUS_ZOOM, centred in the visible map (the user's
+  // choice); with no target open it fits the map to the targets, like the Fit button.
+  const focus = () => {
+    if (!map) return;
+    const { view, middle, target } = aimAt();
+    if (!target) {
+      fit();
+      return;
+    }
+    map.fire('zoomaim', { point: middle });
+    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    map.flyTo(centreOn(target, FOCUS_ZOOM, view, middle), FOCUS_ZOOM, { animate: !reduce, duration: 0.6 });
+  };
+  if (commandsRef) commandsRef.current = { fit, focus, zoom, nextBaseMap };
 
   return (
     <>
-      <MapContainer ref={setMap} center={CENTER} zoom={13} minZoom={10} maxZoom={MAX_ZOOM} className="map" zoomSnap={0.5}>
+      <MapContainer ref={setMap} center={CENTER} zoom={13} minZoom={10} maxZoom={MAX_ZOOM} className="map" zoomSnap={0.5} keyboard={false}>
         <Pane name="postal" style={{ zIndex: 350 }} />
         <Pane name="labels" style={{ zIndex: 380, pointerEvents: 'none' }} />
         <SizeWatcher />
@@ -288,7 +328,7 @@ function FitControl({ count, onFit }) {
   if (!host || count === 0) return null;
   const label = `Fit ${count} ${count === 1 ? 'target' : 'targets'}`;
   return createPortal(
-    <button type="button" className="map-fit" onClick={onFit} aria-label={label} title="Zoom the map to the targets in the list (F)">
+    <button type="button" className="map-fit" onClick={onFit} aria-label={label} title="Zoom the map to the targets in the list (C)">
       <svg className="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
         <path d="M3 7V3h4M13 3h4v4M17 13v4h-4M7 17H3v-4" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
       </svg>
@@ -330,8 +370,7 @@ function PlacePins({ places }) {
 }
 
 /**
- * Listing markers are managed directly in Leaflet (one circle per listing, plus a halo for
- * new ones). Colours come from CSS classes (tokens), so hover and selection only toggle
+ * Listing markers are managed directly in Leaflet (one circle per listing). Colours come from CSS classes (tokens), so hover and selection only toggle
  * classes and radii instead of re-rendering hundreds of React components.
  *
  * Homes in the same building share one coordinate; such groups are laid out on a ring of
@@ -344,7 +383,7 @@ function PlacePins({ places }) {
  */
 function ListingMarkers({ listings, hoverId, selectedId, saved, onHover, onSelect, onViewChange, onLockLost }) {
   const map = useMap();
-  const layers = useRef(new Map()); // card_id → { marker, halo, listing }: markers on the map now
+  const layers = useRef(new Map()); // card_id → { marker, listing }: markers on the map now
   const cache = useRef(new Map()); // every marker ever made, reused when a filter brings it back
   const rings = useRef(new Map()); // "lat,lon,n" → faint circle marking a shared point
   const groups = useRef([]); // [{ center: LatLng, ids: [...] }] with more than one id
@@ -362,17 +401,9 @@ function ListingMarkers({ listings, hoverId, selectedId, saved, onHover, onSelec
   const lock = useRef(null); // the TARGET LOCKED reticle on the selected marker
   const lockId = useRef(null);
   const dragging = useRef(false);
-  const haloRenderer = useRef(null);
 
   useEffect(() => {
     group.current = L.featureGroup().addTo(map);
-    // New-contact halos get their own pane and SVG, under the markers. The pane pulses by fading
-    // as a whole (a GPU opacity change); animating the rings inside the marker SVG would repaint
-    // every marker on every frame.
-    const haloPane = map.getPane('halos') ?? map.createPane('halos');
-    haloPane.style.zIndex = '395';
-    haloPane.style.pointerEvents = 'none';
-    haloRenderer.current = L.svg({ pane: 'halos' });
     const relayout = () => layout();
     // A resize (a phone turned, a panel shown or hidden) can uncover the map beside a
     // full-screen profile, or cover it: draw or drop the lock to match.
@@ -493,12 +524,11 @@ function ListingMarkers({ listings, hoverId, selectedId, saved, onHover, onSelec
     return out;
   }
 
-  /** Move a marker (and its halo) only if it is not there already: every move redraws its path. */
+  /** Move a marker only if it is not there already: every move redraws its path. */
   function place(id, at) {
     const entry = layers.current.get(id);
     if (!entry || entry.marker.getLatLng().equals(at)) return;
     entry.marker.setLatLng(at);
-    entry.halo?.setLatLng(at);
   }
 
   /**
@@ -530,7 +560,6 @@ function ListingMarkers({ listings, hoverId, selectedId, saved, onHover, onSelec
     for (const [id, entry] of layers.current) {
       if (!wanted.has(id)) {
         g.removeLayer(entry.marker);
-        if (entry.halo) g.removeLayer(entry.halo);
         layers.current.delete(id);
       }
     }
@@ -540,17 +569,6 @@ function ListingMarkers({ listings, hoverId, selectedId, saved, onHover, onSelec
       if (!entry) {
         const classes = ['mk', `mk-y${yearBin(l.build_year)}`];
         if (l.location_approx) classes.push('is-approx');
-        const halo = l.is_new
-          ? L.circleMarker([l.lat, l.lon], {
-              radius: R.halo,
-              className: 'mk-halo',
-              interactive: false,
-              weight: 2,
-              fill: false,
-              pane: 'halos',
-              renderer: haloRenderer.current,
-            })
-          : null;
         const marker = L.circleMarker([l.lat, l.lon], {
           radius: R.base,
           className: classes.join(' '),
@@ -558,16 +576,15 @@ function ListingMarkers({ listings, hoverId, selectedId, saved, onHover, onSelec
           fillOpacity: 1,
           bubblingMouseEvents: false,
         });
-        const rent = l.rent_eur == null ? 'Rent unknown' : `${fmtEur(l.rent_eur)}/mo`;
-        const tip = `${rent} · ${l.build_year ?? 'Year unknown'} · ${fmtM2(l.size_m2)} · ${l.address ?? l.district ?? ''}${l.location_approx ? ' (approximate location)' : ''}`;
+        const { rent, rest } = tipParts(l);
+        const tip = `${rent} · ${rest}${l.location_approx ? ' (approximate location)' : ''}`;
         marker.bindTooltip(textNode(tip, 'tip-text'), { direction: 'top', offset: [0, -8], className: 'map-tip' });
         marker.on('mouseover', () => !dragging.current && handlers.current.onHover(id, 'map'));
         marker.on('mouseout', () => handlers.current.onHover(null, 'map'));
         marker.on('click', () => handlers.current.onSelect(id, 'map'));
-        entry = { marker, halo, listing: l };
+        entry = { marker, listing: l };
         cache.current.set(id, entry);
       }
-      if (entry.halo) entry.halo.addTo(g);
       entry.marker.addTo(g);
       layers.current.set(id, entry);
     }
@@ -620,10 +637,7 @@ function ListingMarkers({ listings, hoverId, selectedId, saved, onHover, onSelec
     el?.classList.toggle('is-saved', !!sv?.has(id));
     const radius = hot ? R.hover : R.base;
     if (entry.marker.getRadius() !== radius) entry.marker.setRadius(radius);
-    if (hot) {
-      entry.halo?.bringToFront();
-      entry.marker.bringToFront();
-    }
+    if (hot) entry.marker.bringToFront();
   }
 
   // Shortlist changes: repaint every marker (cheap: class toggles only).
@@ -714,9 +728,25 @@ function ListingMarkers({ listings, hoverId, selectedId, saved, onHover, onSelec
 const fmtLat = (v) => `${Math.abs(v).toFixed(4)}° ${v >= 0 ? 'N' : 'S'}`;
 const fmtLon = (v) => `${Math.abs(v).toFixed(4)}° ${v >= 0 ? 'E' : 'W'}`;
 
-/** The lock reticle: brackets snap in, the ring turns, a label shows the true coordinates. */
+/** The marker tooltip's facts: rent first, then build year, size and address. */
+function tipParts(l) {
+  return {
+    rent: l.rent_eur == null ? 'Rent unknown' : `${fmtEur(l.rent_eur)}/mo`,
+    rest: `${l.build_year ?? 'Year unknown'} · ${fmtM2(l.size_m2)} · ${l.address ?? l.district ?? ''}`,
+  };
+}
+
+/** Listing text goes into the lock label's HTML: escape it. */
+const escapeHtml = (s) =>
+  String(s).replace(/[&<>"']/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch]);
+
+/**
+ * The TARGET LOCKED reticle (brackets snap in, the ring turns) and its label: the title, the marker tooltip's facts on a row of
+ * their own (the user's choice), and the true coordinates.
+ */
 function lockIcon(l) {
   const where = `${l.location_approx ? '≈ ' : ''}${fmtLat(l.lat)} · ${fmtLon(l.lon)}`;
+  const { rent, rest } = tipParts(l);
   return L.divIcon({
     className: 'lock-icon',
     iconSize: [96, 96],
@@ -726,7 +756,7 @@ function lockIcon(l) {
         <g class="lock-brackets"><path d="M-21 -11V-21H-11M11 -21H21V-11M21 11V21H11M-11 21H-21V11" /></g>
         <g class="lock-ticks"><path d="M0 -42V-32M0 32V42M-42 0H-32M32 0H42" /></g>
       </svg>
-      <span class="lock-label"><span class="lock-title">Target locked</span><span class="lock-coord">${where}</span></span>`,
+      <span class="lock-label"><span class="lock-title">Target locked</span><span class="lock-info"><span class="lock-rent">${escapeHtml(rent)}</span> · ${escapeHtml(rest)}</span><span class="lock-coord">${where}</span></span>`,
   });
 }
 
@@ -763,6 +793,11 @@ function ZoomStrike() {
     // Capture phase: runs before Leaflet's own handlers start the zoom.
     container.addEventListener('wheel', record, { capture: true, passive: true });
     container.addEventListener('dblclick', record, { capture: true });
+    // The zoom keys ↑ / ↓ (MapView's zoom) say where they aim: the middle of the visible map.
+    const onAim = (e) => {
+      aim = { point: e.point, t: performance.now() };
+    };
+    map.on('zoomaim', onAim);
 
     const strike = (direction, zoom) => {
       const now = performance.now();
@@ -799,6 +834,7 @@ function ZoomStrike() {
       map.off('zoomstart', onStart);
       map.off('zoomanim', onAnim);
       map.off('zoomend', onEnd);
+      map.off('zoomaim', onAim);
       container.removeEventListener('wheel', record, { capture: true });
       container.removeEventListener('dblclick', record, { capture: true });
       layer.remove();

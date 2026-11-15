@@ -59,11 +59,11 @@ export function detailPhotos(detail) {
 }
 
 /**
- * One row for GET /api/listings: extracted columns only, plus is_new, housing types, the photo
+ * One row for GET /api/listings: extracted columns only, plus housing types, the photo
  * count (so the profile can reserve its thumbnail strip before the details load), distances and
  * thumbnails.
  */
-export function listRow(row, { newIds, places, noPhotos = false }) {
+export function listRow(row, { places, noPhotos = false }) {
   const out = {};
   for (const [key, value] of Object.entries(row)) {
     if (!HEAVY_COLUMNS.has(key)) out[key] = value;
@@ -71,7 +71,6 @@ export function listRow(row, { newIds, places, noPhotos = false }) {
   out.location_approx = row.location_approx === 1;
   out.pets_allowed = flag(row.pets_allowed);
   out.furnished = flag(row.furnished);
-  out.is_new = newIds.has(row.card_id);
   out.removed = row.removed_at != null;
   const detail = parseJson(row.detail_json);
   out.housing_types = housingTypes(detail);
@@ -106,10 +105,6 @@ export function rawRow(row) {
   return { card_id: row.card_id, search: parseJson(row.search_json), detail: parseJson(row.detail_json) };
 }
 
-function newIdSet(db) {
-  return new Set(db.prepare('SELECT card_id FROM v_new').all().map((r) => r.card_id));
-}
-
 export function metaPayload(db, config, { noPhotos = false } = {}) {
   const run = latestRun(db);
   return {
@@ -138,7 +133,7 @@ export function metaPayload(db, config, { noPhotos = false } = {}) {
  */
 export function buildApp({ db, config, noPhotos = false, staticDir = null, logger = false }) {
   const app = Fastify({ logger });
-  const opts = () => ({ newIds: newIdSet(db), places: config.places, noPhotos });
+  const opts = () => ({ places: config.places, noPhotos });
 
   app.addHook('onSend', async (req, reply, payload) => {
     reply.header('X-Content-Type-Options', 'nosniff');

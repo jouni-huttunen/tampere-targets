@@ -18,12 +18,12 @@
     { "zip": "33820", "id": 152760, "lat": 61.466881, "lon": 23.799773 },
     { "zip": "33900", "id": 157531, "lat": 61.478087, "lon": 23.739136 }
   ],
-  "filters": { "cardType": 101, "sizeMin": 40, "priceMax": 1400 },
+  "filters": { "cardType": 101, "sizeMin": 20, "priceMax": 1400 },
   "places": [
     { "key": "centre", "name": "Keskustori", "lat": 61.4978, "lon": 23.761 },
     { "key": "station", "name": "Tampere railway station", "lat": 61.4983, "lon": 23.7737 }
   ],
   "windowCutoff": "2027-02-01",
-  "capture": { "delayMs": 2000, "jitterMs": 800, "pageSize": 100, "maxDetails": 600 },
+  "capture": { "delayMs": 500, "jitterMs": 800, "pageSize": 100, "maxDetails": 600 },
   "refresh": { "fullSweepEveryDays": 1, "maxGapDays": 7, "windowDays": 2, "otherDays": 14 }
 }

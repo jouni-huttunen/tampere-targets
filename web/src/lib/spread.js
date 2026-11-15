@@ -15,6 +15,17 @@ export function groupByPosition(listings) {
 }
 
 /**
+ * Where a listing's marker is drawn relative to its true point, in pixels ([0, 0] when it has the
+ * point to itself): homes in one building sit on a ring that is fixed in pixels at every zoom.
+ */
+export function ringOffsetOf(listings, id) {
+  const l = listings.find((x) => x.card_id === id);
+  if (!l || l.lat == null || l.lon == null) return [0, 0];
+  const ids = groupByPosition(listings).get(`${l.lat},${l.lon}`);
+  return ids.length < 2 ? [0, 0] : ringOffsets(ids.length)[ids.indexOf(id)];
+}
+
+/**
  * Ring radius in pixels for n markers of the given radius, so neighbours don't overlap
  * (circumference ≥ n × (diameter + gap)). One marker needs no ring.
  */

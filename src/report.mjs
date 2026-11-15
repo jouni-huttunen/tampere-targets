@@ -28,24 +28,13 @@ export function renderReport(db, runId) {
 
   out.push(`# Run ${run.run_id} · ${helsinkiDateTime(run.started_at)}`);
   out.push('');
-  out.push(`- **Mode:** ${mode}${run.is_initial ? ' · initial crawl (nothing is flagged as new)' : ''}`);
+  out.push(`- **Mode:** ${mode}${run.is_initial ? ' · initial crawl' : ''}`);
   out.push(`- **Status:** ${run.status}${run.stopped_reason ? ` (stopped: ${run.stopped_reason})` : ''}`);
   out.push(`- **Requests:** ${run.search_requests} search, ${run.detail_requests} detail, ${run.error_count} errors`);
   out.push(`- **Found on Oikotie:** ${run.found ?? '–'}`);
   out.push(`- **This run:** ${run.new_count} new, ${run.changed_count} changed, ${run.removed_count} removed`);
   out.push(`- **Database now:** ${c.active} active, ${c.window} in the window, ${c.removed} removed`);
   out.push('');
-
-  if (!run.is_initial) {
-    const fresh = db
-      .prepare('SELECT * FROM v_window WHERE first_seen_run_id = ? ORDER BY build_year DESC, rent_eur')
-      .all(runId);
-    out.push(`## New in your window (${fresh.length})`);
-    out.push('');
-    if (fresh.length) out.push(LISTING_HEAD, ...fresh.map(listingLine));
-    else out.push('None.');
-    out.push('');
-  }
 
   const changes = db
     .prepare(

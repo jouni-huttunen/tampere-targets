@@ -1,4 +1,4 @@
-// node src/cli.mjs list window|new|removed|all · show <id> · sql "<query>" · export <dir>
+// node src/cli.mjs list window|removed|all · show <id> · sql "<query>" · export <dir>
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -7,7 +7,7 @@ import { listingColumns, openDb } from './db.mjs';
 import { helsinkiDateTime } from './time.mjs';
 
 const USAGE = `Usage:
-  node src/cli.mjs list window|new|removed|all   list homes (default: window)
+  node src/cli.mjs list window|removed|all       list homes (default: window)
   node src/cli.mjs show <id>                     everything about one home
   node src/cli.mjs sql "<query>"                 run a read-only SQL query
   node src/cli.mjs export <dir>                  write the stored JSON to files`;
@@ -29,14 +29,13 @@ export function formatTable(rows, columns) {
 
 const LIST_SOURCES = {
   window: 'v_window',
-  new: 'v_new',
   all: 'v_active',
   removed: '(SELECT * FROM listings WHERE removed_at IS NOT NULL)',
 };
 
 function list(db, which = 'window') {
   const source = LIST_SOURCES[which];
-  if (!source) throw new Error(`Unknown list "${which}". Use window, new, removed or all.`);
+  if (!source) throw new Error(`Unknown list "${which}". Use window, removed or all.`);
   const distance = listingColumns(db).includes('dist_centre_km') ? ', dist_centre_km AS km_centre' : '';
   const rows = db
     .prepare(

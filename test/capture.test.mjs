@@ -217,7 +217,7 @@ test('end to end: trial run, full run, then a cheap update run', async () => {
   let run = await runCaptureScript({ state: readState(db), config: flatConfig({ maxDetails: 5 }), fetch: api.fetch });
   let summary = importCapture(db, run.file, config);
   assert.deepEqual([summary.status, summary.isInitial, summary.new], ['partial', true, 120]);
-  assert.deepEqual([counts(db).active, counts(db).withDetail, counts(db).isNew], [120, 5, 0]);
+  assert.deepEqual([counts(db).active, counts(db).withDetail], [120, 5]);
 
   // 2. Right after: incremental search, and the 115 missing details.
   w.freshIds = new Set([1, 2]);
@@ -228,7 +228,7 @@ test('end to end: trial run, full run, then a cheap update run', async () => {
   assert.equal(Object.keys(run.file.details).length, 115);
   summary = importCapture(db, run.file, config);
   assert.deepEqual([summary.status, summary.new, summary.changed, summary.removed], ['ok', 0, 0, 0]);
-  assert.deepEqual([counts(db).active, counts(db).withDetail, counts(db).isNew], [120, 120, 0]);
+  assert.deepEqual([counts(db).active, counts(db).withDetail], [120, 120]);
 
   // 3. Again right away: one search request, no details, no changes.
   api = fakeOikotie(w);
@@ -248,7 +248,6 @@ test('end to end: trial run, full run, then a cheap update run', async () => {
   assert.deepEqual(Object.keys(run.file.details).sort(), ['1', '500']);
   summary = importCapture(db, run.file, config);
   assert.deepEqual([summary.new, summary.changed, summary.removed], [1, 1, 1]);
-  assert.deepEqual(db.prepare('SELECT card_id FROM v_new').all().map((r) => r.card_id), [500]);
   assert.equal(db.prepare('SELECT rent_eur FROM listings WHERE card_id = 1').get().rent_eur, 990);
   assert.ok(db.prepare('SELECT removed_at FROM listings WHERE card_id = 7').get().removed_at);
 });

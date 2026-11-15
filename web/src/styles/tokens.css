@@ -111,7 +111,6 @@
   --year-5: #d8f6ff;
   --marker-stroke: rgb(196 220 240 / 0.7);
   --marker-hover-stroke: var(--c-white-50);
-  --halo: var(--hot);
   --star: var(--hot);
   --priority: var(--hot-strong);
   --place: var(--hot);

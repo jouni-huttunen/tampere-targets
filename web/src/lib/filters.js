@@ -24,6 +24,10 @@ export const SORTS = [
 
 const OPEN = [null, null];
 
+// Area starts at 40 m² (the user's choice): the crawl reaches down to 20 m² (config.json
+// sizeMin), so the small flats are captured but out of view until the slider is pulled down.
+export const DEFAULT_SIZE = [40, null];
+
 // Move-in chips that are off: month keys ("2026-12"), "later" or "unknown" (lib/movein.js).
 // Stored as the chips switched off, so months that appear with new data start switched on.
 export const DEFAULT_MOVE_OFF = ['later'];
@@ -37,14 +41,13 @@ export function defaultFilters() {
   return {
     year: OPEN,
     rent: OPEN,
-    size: OPEN,
+    size: DEFAULT_SIZE,
     rooms: OPEN,
     moveOff: DEFAULT_MOVE_OFF,
     financeOff: DEFAULT_FINANCE_OFF,
     // Housing types to show only (codes 2, 4–8); none selected means no type filter.
     types: [],
     zips: [],
-    onlyNew: false,
     onlySaved: false,
     topFloor: false,
     sort: 'year',
@@ -111,7 +114,6 @@ export function matches(l, f, saved = null) {
   if (f.financeOff.includes(financing(l))) return false;
   if (f.types.length && !hasAnyType(l, f.types)) return false;
   if (f.zips.length && !f.zips.includes(l.zip)) return false;
-  if (f.onlyNew && !l.is_new) return false;
   if (f.onlySaved && !saved?.has(l.card_id)) return false;
   if (f.topFloor && !isTopFloor(l)) return false;
   return true;
@@ -154,7 +156,7 @@ export function sortListings(listings, sort) {
 // ---- URL query ----------------------------------------------------------------------
 // year=2010..2026, year=2010.. , rent=..900, moveoff=2026-11,later (the move-in chips switched
 // off; empty = all on), financeoff=subsidised (the financing chips switched off; empty = both on),
-// type=4,8 (only these housing types), zip=33100,33200, new=1, top=1 (top floor only), sort=size (an old removed=… is ignored). Only
+// type=4,8 (only these housing types), zip=33100,33200, top=1 (top floor only), sort=size (an old removed=… or new=1 is ignored). Only
 // values that differ from the defaults are written.
 
 const rangeText = ([a, b]) => `${a ?? ''}..${b ?? ''}`;
@@ -180,7 +182,6 @@ export function toQuery(f, defaults) {
   if (!sameSet(f.financeOff, defaults.financeOff)) q.set('financeoff', f.financeOff.join(','));
   if (f.types.length) q.set('type', f.types.join(','));
   if (f.zips.length) q.set('zip', f.zips.join(','));
-  if (f.onlyNew) q.set('new', '1');
   if (f.onlySaved) q.set('saved', '1');
   if (f.topFloor) q.set('top', '1');
   if (f.sort !== defaults.sort) q.set('sort', f.sort);
@@ -205,7 +206,6 @@ export function fromQuery(search, defaults, validZips = null) {
       .split(',')
       .filter((z) => /^\d{5}$/.test(z) && (!validZips || validZips.includes(z)));
   }
-  if (q.get('new') === '1') f.onlyNew = true;
   if (q.get('saved') === '1') f.onlySaved = true;
   if (q.get('top') === '1') f.topFloor = true;
   if (SORTS.some((s) => s.key === q.get('sort'))) f.sort = q.get('sort');
@@ -220,7 +220,6 @@ export function activeFilterCount(f, defaults) {
   if (!sameSet(f.financeOff, defaults.financeOff)) n++;
   if (f.types.length) n++;
   if (f.zips.length) n++;
-  if (f.onlyNew) n++;
   if (f.onlySaved) n++;
   if (f.topFloor) n++;
   return n;

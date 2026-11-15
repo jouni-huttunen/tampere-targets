@@ -26,7 +26,6 @@ function ListingCard({ l, index = 0, view, outside = false, active, selected, sa
   const tags = (
     <>
       {selected && <span className="tag tag-lock">Locked</span>}
-      {l.is_new && <span className="tag tag-new">New</span>}
     </>
   );
 

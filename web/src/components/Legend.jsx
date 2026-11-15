@@ -64,10 +64,6 @@ export default function Legend({ intel = false }) {
       {open && (
         <ul className="legend-list legend-extra" id="legend-extra">
           <li>
-            <span className="legend-dot legend-new mk-y4" aria-hidden="true" />
-            new contact
-          </li>
-          <li>
             <span className="legend-dot legend-saved mk-y2" aria-hidden="true" />
             priority target
           </li>

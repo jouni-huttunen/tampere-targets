@@ -147,16 +147,12 @@ function createViews(db, config) {
   const cutoff = config.windowCutoff; // validated as YYYY-MM-DD by config.mjs
   if (!/^\d{4}-\d{2}-\d{2}$/.test(cutoff)) throw new Error('Bad windowCutoff');
   db.exec(`
-    DROP VIEW IF EXISTS v_new;
+    DROP VIEW IF EXISTS v_new; -- removed on 2026-11-15: the data is shown as it is now, nothing is "new"
     DROP VIEW IF EXISTS v_window;
     DROP VIEW IF EXISTS v_active;
     CREATE VIEW v_active AS SELECT * FROM listings WHERE removed_at IS NULL;
     CREATE VIEW v_window AS
       SELECT * FROM v_active WHERE available_date IS NULL OR available_date < '${cutoff}';
-    CREATE VIEW v_new AS
-      SELECT l.* FROM v_active l JOIN runs r ON r.run_id = l.first_seen_run_id
-      WHERE r.is_initial = 0
-        AND l.first_seen_run_id >= (SELECT MAX(run_id) FROM runs WHERE sweep_complete = 1);
   `);
 }
 
@@ -207,7 +203,6 @@ export function counts(db) {
     total: one('SELECT COUNT(*) AS n FROM listings'),
     active: one('SELECT COUNT(*) AS n FROM v_active'),
     window: one('SELECT COUNT(*) AS n FROM v_window'),
-    isNew: one('SELECT COUNT(*) AS n FROM v_new'),
     removed: one('SELECT COUNT(*) AS n FROM listings WHERE removed_at IS NOT NULL'),
     withDetail: one('SELECT COUNT(*) AS n FROM v_active WHERE detail_json IS NOT NULL'),
   };

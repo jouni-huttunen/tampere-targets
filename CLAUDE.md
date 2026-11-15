@@ -32,8 +32,8 @@ When code and docs disagree, fix whichever is wrong in the same change. A change
 ## Hard guardrails for Oikotie
 - Oikotie answers 403 to every non-browser client, so data is captured by a **DevTools console script the user pastes into their own browser** and imported from a downloaded file.
 - **Don't run the bulk capture yourself**, and don't load Oikotie pages or photos in the agent's browser pane: Oikotie's robots.txt opts out of Anthropic agents and `Disallow: /api*` for all bots. A smoke test of at most 2 detail requests is allowed.
-- One request at a time, about 2 s apart plus jitter; stop on 403 or 429. `config.json` refuses a delay under 2000 ms.
-- **Preview the UI with `npm run ui -- --no-photos --port 3005`** (launch entry `ui-no-photos`; the user often has their own `npm run ui` on 3000). The photo CDN is the only Oikotie traffic the UI causes. Test "New" listings and photos against a temporary synthetic database (`TCB_DB=<file>`, built with `test/helpers.mjs`), never by editing `data/listings.db`.
+- One request at a time, at least 0.5 s apart plus 0–0.8 s jitter (the user's choice, 2026-11-15; was 2 s); stop on 403 or 429. `config.json` refuses a delay under 500 ms.
+- **Preview the UI with `npm run ui -- --no-photos --port 3005`** (launch entry `ui-no-photos`; the user often has their own `npm run ui` on 3000). The photo CDN is the only Oikotie traffic the UI causes. Test photos and data changes against a temporary synthetic database (`TCB_DB=<file>`, built with `test/helpers.mjs`), never by editing `data/listings.db`.
 - The user accepted the terms-of-service risk for **personal use** only.
 
 ## Privacy
