@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.17.1 — 2026-11-15: No coordinates
+
+Deployed.
+
+**Changed**
+- Map: the TARGET LOCKED label no longer shows the coordinates row; it holds the title and the listing facts only.
+
 ## 1.17.0 — 2026-11-15: Small homes and new keys
 
 Deployed.

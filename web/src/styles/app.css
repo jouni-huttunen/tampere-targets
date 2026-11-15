@@ -3262,12 +3262,6 @@ input[type='date'].range-field {
   color: var(--lock);
 }
 
-.lock-coord {
-  font-family: var(--font-mono);
-  font-size: var(--fs-3xs);
-  color: var(--ink-soft);
-}
-
 /* The marker tooltip's facts on their own row: rent first, a long address ends in "…". */
 .lock-info {
   max-width: 300px;

@@ -742,10 +742,9 @@ const escapeHtml = (s) =>
 
 /**
  * The TARGET LOCKED reticle (brackets snap in, the ring turns) and its label: the title, the marker tooltip's facts on a row of
- * their own (the user's choice), and the true coordinates.
+ * their own (the user's choice). No coordinates (the user's choice, 2026-11-15).
  */
 function lockIcon(l) {
-  const where = `${l.location_approx ? '≈ ' : ''}${fmtLat(l.lat)} · ${fmtLon(l.lon)}`;
   const { rent, rest } = tipParts(l);
   return L.divIcon({
     className: 'lock-icon',
@@ -756,7 +755,7 @@ function lockIcon(l) {
         <g class="lock-brackets"><path d="M-21 -11V-21H-11M11 -21H21V-11M21 11V21H11M-11 21H-21V11" /></g>
         <g class="lock-ticks"><path d="M0 -42V-32M0 32V42M-42 0H-32M32 0H42" /></g>
       </svg>
-      <span class="lock-label"><span class="lock-title">Target locked</span><span class="lock-info"><span class="lock-rent">${escapeHtml(rent)}</span> · ${escapeHtml(rest)}</span><span class="lock-coord">${where}</span></span>`,
+      <span class="lock-label"><span class="lock-title">Target locked</span><span class="lock-info"><span class="lock-rent">${escapeHtml(rent)}</span> · ${escapeHtml(rest)}</span></span>`,
   });
 }
 
